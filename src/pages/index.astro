@@ -1,19 +1,16 @@
----
----
-
 <html lang="zh-cn">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" type ="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width" />
-    <meta name="generator" content = {Astro.generator} >
+    <!-- 修正：去掉多余空格，结尾补自闭标签 -->
+    <meta name="generator" content={Astro.generator} />
     <title>Astro</title>
   </head>
   <body>
     <h1>My Astro</h1>
-	<h1>Open Link</h1>
-	update
-	
-	<h2>work and work</h2
->
+    <h1>Open Link</h1>
+    <p>update</p>
+    <h2>work and work</h2>
   </body>
+</html>
