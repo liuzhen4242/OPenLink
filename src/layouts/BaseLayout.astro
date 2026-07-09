@@ -1,0 +1,132 @@
+---
+import Navbar from '../components/Navbar.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title, description } = Astro.props;
+const pageTitle = title ? `${title} · OpenLink` : 'OpenLink — Architecture Portfolio';
+const metaDesc = description ?? 'A minimalist architecture and design portfolio.';
+---
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{pageTitle}</title>
+    <meta name="description" content={metaDesc} />
+
+    <!-- Archival typeface: use system stack + Noto Serif SC for CJK -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Noto+Serif+SC:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <style is:global>
+      /* ─── Reset ───────────────────────────────────── */
+      *, *::before, *::after { box-sizing: border-box; }
+
+      /* ─── Design tokens ──────────────────────────── */
+      :root {
+        --c-bg:       #f8f7f4;   /* warm off-white, like tracing paper */
+        --c-ink:      #111111;
+        --c-mid:      #666666;
+        --c-rule:     #d0cfc9;   /* hairline rule colour */
+        --c-hover:    #888888;
+
+        --ff-serif:   'Noto Serif SC', 'Georgia', serif;
+        --ff-caps:    'IM Fell English SC', serif;
+        --ff-mono:    'Courier New', monospace;
+
+        --fs-xs:      7.5pt;    /* archival caption */
+        --fs-sm:      9pt;      /* metadata */
+        --fs-body:    10.5pt;   /* prose */
+        --fs-h3:      11pt;
+        --fs-h2:      13.5pt;
+        --fs-h1:      17pt;
+
+        --lh-tight:   1.3;
+        --lh-body:    1.75;
+
+        --max-w:      1100px;
+        --pad-x:      2rem;
+      }
+
+      /* ─── Base ───────────────────────────────────── */
+      html { scroll-behavior: smooth; }
+
+      body {
+        margin: 0;
+        background: var(--c-bg);
+        color: var(--c-ink);
+        font-family: var(--ff-serif);
+        font-size: var(--fs-body);
+        line-height: var(--lh-body);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+        transition: color 0.18s ease;
+      }
+      a:hover { color: var(--c-hover); }
+
+      img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      /* ─── Prose (markdown body) ──────────────────── */
+      .prose {
+        font-size: var(--fs-body);
+        line-height: var(--lh-body);
+        color: #1a1a1a;
+      }
+      .prose h1, .prose h2, .prose h3 {
+        font-family: var(--ff-caps);
+        font-weight: 400;
+        letter-spacing: 0.04em;
+        margin-top: 3rem;
+        margin-bottom: 1.25rem;
+      }
+      .prose h3 {
+        font-size: var(--fs-h3);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--c-mid);
+      }
+      .prose p {
+        margin: 0 0 1.5rem;
+        text-align: justify;
+        hyphens: auto;
+      }
+
+      /* Full-width architectural drawings with generous breathing room */
+      .prose img {
+        width: 100%;
+        height: auto;
+        margin: 3.5rem 0;
+        background: #f0efec;
+      }
+
+      /* Hide the metadata list from prose rendering — handled by MetaGrid */
+      .prose ul:first-of-type {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <Navbar />
+    <main style={`max-width: var(--max-w); margin: 0 auto; padding: 0 var(--pad-x) 6rem;`}>
+      <slot />
+    </main>
+  </body>
+</html>

@@ -1,0 +1,202 @@
+---
+/**
+ * /projects/[...slug] — Project detail page
+ *
+ * In Astro v7 Content Layer API, entries use `id` (the file path relative to
+ * the glob base, e.g. "Projects/Xinjiang-museum/Xinjiang-museum.md") instead
+ * of the legacy `slug`.
+ *
+ * We derive:
+ * • URL slug:      "Projects/Xinjiang-museum/Xinjiang-museum"  (no .md)
+ * • Project dir:   "Projects/Xinjiang-museum"                  (directory)
+ * • Image base:    /@fs/.../src/content/projects/Projects/Xinjiang-museum/images/
+ *
+ * Features:
+ * • MetaGrid: parses Obsidian bilingual spec list → horizontal grid
+ * • Full-width architectural drawings (margin: 3.5rem 0 via .prose img rule)
+ * • Runtime image rewriting: body <img> src attrs → /@fs/ paths
+ */
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import MetaGrid from '../../components/MetaGrid.astro';
+
+/** Convert entry id → URL slug (strip .md extension and leading Projects/) */
+function idToSlug(id: string): string {
+  return id.replace(/\.md$/, '').replace(/^[Pp]rojects\//, '');
+}
+
+/** Extract the project directory from entry id */
+function idToProjectDir(id: string): string {
+  const parts = id.replace(/\.md$/, '').split('/');
+  parts.pop();
+  return parts.join('/');
+}
+
+export async function getStaticPaths() {
+  const projects = await getCollection('projects');
+  return projects.map((project) => {
+    // Convert entry id → URL slug (strip .md extension and leading Projects/)
+    const slug = project.id.replace(/\.md$/, '').replace(/^[Pp]rojects\//, '');
+    return {
+      params: { slug },
+      props:  { project },
+    };
+  });
+}
+
+const { project } = Astro.props;
+const { data, body } = project;
+
+const { Content } = await render(project);
+
+const projectDir = idToProjectDir(project.id);
+const vaultBase  = `/Users/zhenliu/study/coding/OpenLink/src/content/projects`;
+
+function resolveCoverUrl(coverImage: string | undefined): string | null {
+  if (!coverImage) return null;
+  const rel = coverImage.replace(/^\.\//, '');
+  return `/@fs${vaultBase}/${projectDir}/${rel}`;
+}
+
+const coverUrl = resolveCoverUrl(data.coverImage);
+---
+
+<BaseLayout title={data.title} description={data.description}>
+
+  <!-- ── Project header ─────────────────────────────── -->
+  <header class="project-header">
+    <div class="project-super">
+      <span class="project-category">{data.category}</span>
+      {data.date && <span class="project-date">{data.date}</span>}
+    </div>
+    <h1 class="project-title">{data.title}</h1>
+    {data.description && (
+      <p class="project-desc">{data.description}</p>
+    )}
+  </header>
+
+  <!-- ── Hero cover image ───────────────────────────── -->
+  {coverUrl && (
+    <div class="project-hero">
+      <img src={coverUrl} alt={data.title} />
+    </div>
+  )}
+
+  <!-- ── Bilingual metadata grid ────────────────────── -->
+  {body && <MetaGrid rawBody={body} />}
+
+  <!-- ── Markdown body (drawings, prose) ────────────── -->
+  <article class="prose">
+    <Content />
+  </article>
+
+  <!-- Back link -->
+  <nav class="back-nav">
+    <a href="/projects" class="back-link">
+      <span aria-hidden="true">←</span>&ensp;所有项目
+    </a>
+  </nav>
+</BaseLayout>
+
+<!--
+  Rewrite relative Obsidian image src attributes at runtime.
+  The markdown body emits refs like: ./images/Pasted image 20260709181427.png
+  We rewrite them to /@fs/ paths so Vite can serve from the symlinked vault.
+-->
+<script define:vars={{ vaultBase, projectDir }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const prose = document.querySelector('.prose');
+    if (!prose) return;
+
+    prose.querySelectorAll('img').forEach((img) => {
+      const src = img.getAttribute('src') || '';
+      if (!src.startsWith('http') && !src.startsWith('/') && !src.startsWith('data:')) {
+        // Normalise: strip leading "./" and any "images/" prefix, then re-add images/
+        const filename = src
+          .replace(/^\.\//, '')
+          .replace(/^images\//, '');
+        img.src = `/@fs${vaultBase}/${projectDir}/images/${encodeURIComponent(filename)}`;
+      }
+    });
+  });
+</script>
+
+<style>
+  /* ── Project header ──────────────────────────────── */
+  .project-header {
+    padding: 4rem 0 2.5rem;
+    border-bottom: 1px solid var(--c-rule);
+    margin-bottom: 0;
+  }
+  .project-super {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .project-category {
+    font-family: var(--ff-caps);
+    font-size: var(--fs-xs);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--c-mid);
+  }
+  .project-date {
+    font-family: var(--ff-serif);
+    font-size: var(--fs-xs);
+    color: var(--c-mid);
+    font-variant-numeric: tabular-nums;
+  }
+  .project-date::before {
+    content: '—';
+    margin-right: 0.5em;
+    color: var(--c-rule);
+  }
+
+  .project-title {
+    font-family: var(--ff-caps);
+    font-size: 22pt;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--c-ink);
+    margin: 0 0 0.75rem;
+    line-height: 1.2;
+  }
+  .project-desc {
+    font-family: var(--ff-serif);
+    font-size: var(--fs-sm);
+    color: var(--c-mid);
+    margin: 0;
+    font-style: italic;
+  }
+
+  /* ── Hero image ──────────────────────────────────── */
+  .project-hero {
+    margin: 3.5rem 0 0;
+    background: #e8e6e1;
+  }
+  .project-hero img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* ── Prose: full-width drawings ──────────────────── */
+  .prose { max-width: none; }
+
+  /* ── Back navigation ──────────────────────────────── */
+  .back-nav {
+    margin-top: 6rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--c-rule);
+  }
+  .back-link {
+    font-family: var(--ff-caps);
+    font-size: var(--fs-xs);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--c-mid);
+    transition: color 0.18s ease;
+  }
+  .back-link:hover { color: var(--c-ink); }
+</style>

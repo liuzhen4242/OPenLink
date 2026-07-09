@@ -1,0 +1,42 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="博客" description="建筑笔记与思考">
+  <header class="page-header">
+    <p class="page-eyebrow">Writing</p>
+    <h1 class="page-title">Blog</h1>
+  </header>
+
+  <p class="coming-soon">
+    文章整理中 — Essays and research notes coming soon.
+  </p>
+</BaseLayout>
+
+<style>
+  .page-header {
+    padding: 4rem 0 2.5rem;
+    border-bottom: 1px solid var(--c-rule);
+    margin-bottom: 3.5rem;
+  }
+  .page-eyebrow {
+    font-family: var(--ff-caps);
+    font-size: var(--fs-xs);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c-mid);
+    margin: 0 0 0.5rem;
+  }
+  .page-title {
+    font-family: var(--ff-caps);
+    font-size: 28pt;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    margin: 0;
+  }
+  .coming-soon {
+    font-family: var(--ff-serif);
+    font-size: var(--fs-sm);
+    color: var(--c-mid);
+    font-style: italic;
+  }
+</style>

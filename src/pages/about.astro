@@ -1,0 +1,113 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="关于" description="关于建筑师与设计工作室">
+  <header class="page-header">
+    <p class="page-eyebrow">Studio</p>
+    <h1 class="page-title">About</h1>
+  </header>
+
+  <section class="about-body">
+    <div class="about-col about-col--main">
+      <p>
+        OpenLink 是一个以建筑与设计为核心的档案作品集，
+        记录装配式建筑、木构体系、工厂改造、展览空间与室内研究等方向的实践探索。
+      </p>
+      <p>
+        We work at the intersection of tectonic precision and material honesty —
+        documenting projects through axonometric drawings, site photography,
+        and technical sections.
+      </p>
+    </div>
+
+    <div class="about-col about-col--side">
+      <dl class="about-meta">
+        <div class="am-item">
+          <dt>Location</dt>
+          <dd>中国 · 杭州</dd>
+        </div>
+        <div class="am-item">
+          <dt>Contact</dt>
+          <dd><a href="mailto:studio@openlink.arch">studio@openlink.arch</a></dd>
+        </div>
+        <div class="am-item">
+          <dt>Practice</dt>
+          <dd>建筑设计 / Architecture</dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .page-header {
+    padding: 4rem 0 2.5rem;
+    border-bottom: 1px solid var(--c-rule);
+    margin-bottom: 3.5rem;
+  }
+  .page-eyebrow {
+    font-family: var(--ff-caps);
+    font-size: var(--fs-xs);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c-mid);
+    margin: 0 0 0.5rem;
+  }
+  .page-title {
+    font-family: var(--ff-caps);
+    font-size: 28pt;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    margin: 0;
+  }
+
+  .about-body {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 5rem;
+    align-items: start;
+  }
+
+  .about-col--main p {
+    font-family: var(--ff-serif);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    color: #1a1a1a;
+    margin: 0 0 1.5rem;
+    text-align: justify;
+    hyphens: auto;
+  }
+
+  .about-meta {
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--c-rule);
+  }
+  .am-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--c-rule);
+  }
+  .am-item dt {
+    font-family: var(--ff-caps);
+    font-size: 6.5pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--c-mid);
+  }
+  .am-item dd {
+    font-family: var(--ff-serif);
+    font-size: var(--fs-sm);
+    color: var(--c-ink);
+    margin: 0;
+  }
+
+  @media (max-width: 720px) {
+    .about-body {
+      grid-template-columns: 1fr;
+      gap: 3rem;
+    }
+  }
+</style>

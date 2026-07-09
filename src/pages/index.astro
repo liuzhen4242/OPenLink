@@ -1,16 +1,147 @@
-<html lang="zh-cn">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width" />
-    <!-- 修正：去掉多余空格，结尾补自闭标签 -->
-    <meta name="generator" content={Astro.generator} />
-    <title>Astro</title>
-  </head>
-  <body>
-    <h1>My Astro</h1>
-    <h1>Open Link</h1>
-    <p>update</p>
-    <h2>work and work</h2>
-  </body>
-</html>
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+
+// Redirect root → /projects (or show a brief landing)
+const projects = await getCollection('projects');
+const latest = projects.sort((a, b) => Number(b.data.date ?? 0) - Number(a.data.date ?? 0)).slice(0, 3);
+---
+
+<BaseLayout title="OpenLink" description="建筑与设计作品集 — Architecture & Design Portfolio">
+  <section class="home-hero">
+    <div class="hero-eyebrow">Architecture &amp; Design</div>
+    <h1 class="hero-title">Open<em>Link</em></h1>
+    <p class="hero-sub">
+      建筑作品档案 — An archival portfolio of architectural projects,<br />
+      drawings, and spatial research.
+    </p>
+    <a href="/projects" class="hero-cta">查看项目 / View Projects →</a>
+  </section>
+
+  {latest.length > 0 && (
+    <section class="home-recent">
+      <h2 class="section-label">Recent Work</h2>
+      <ul class="recent-list">
+        {latest.map((p) => {
+          const slug = p.id.replace(/\.md$/, '').replace(/^[Pp]rojects\//, '');
+          return (
+            <li class="recent-item">
+              <a href={`/projects/${slug}`}>
+                <span class="recent-cat">{p.data.category}</span>
+                <span class="recent-title">{p.data.title}</span>
+                {p.data.date && <span class="recent-year">{p.data.date}</span>}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  )}
+</BaseLayout>
+
+<style>
+  .home-hero {
+    padding: 6rem 0 5rem;
+    border-bottom: 1px solid var(--c-rule);
+  }
+  .hero-eyebrow {
+    font-family: var(--ff-caps);
+    font-size: var(--fs-xs);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--c-mid);
+    margin-bottom: 1.25rem;
+  }
+  .hero-title {
+    font-family: var(--ff-caps);
+    font-size: 48pt;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    margin: 0 0 1.5rem;
+    line-height: 1;
+    color: var(--c-ink);
+  }
+  .hero-title em {
+    font-style: italic;
+    color: var(--c-mid);
+  }
+  .hero-sub {
+    font-family: var(--ff-serif);
+    font-size: var(--fs-body);
+    color: var(--c-mid);
+    line-height: 1.8;
+    margin: 0 0 2.5rem;
+    max-width: 540px;
+  }
+  .hero-cta {
+    font-family: var(--ff-caps);
+    font-size: var(--fs-sm);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--c-ink);
+    border-bottom: 1px solid var(--c-ink);
+    padding-bottom: 2px;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .hero-cta:hover {
+    color: var(--c-mid);
+    border-color: var(--c-mid);
+  }
+
+  /* Recent works list */
+  .home-recent { padding: 3.5rem 0; }
+  .section-label {
+    font-family: var(--ff-caps);
+    font-size: var(--fs-xs);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--c-mid);
+    margin: 0 0 1.5rem;
+    font-weight: 400;
+  }
+  .recent-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .recent-item {
+    border-top: 1px solid var(--c-rule);
+  }
+  .recent-item:last-child {
+    border-bottom: 1px solid var(--c-rule);
+  }
+  .recent-item a {
+    display: flex;
+    align-items: baseline;
+    gap: 1.25rem;
+    padding: 1rem 0;
+    transition: opacity 0.2s;
+  }
+  .recent-item a:hover { opacity: 0.6; }
+  .recent-cat {
+    font-family: var(--ff-caps);
+    font-size: 6.5pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--c-mid);
+    width: 4rem;
+    flex-shrink: 0;
+  }
+  .recent-title {
+    font-family: var(--ff-serif);
+    font-size: var(--fs-sm);
+    color: var(--c-ink);
+    flex: 1;
+  }
+  .recent-year {
+    font-family: var(--ff-serif);
+    font-size: var(--fs-xs);
+    color: var(--c-mid);
+    font-variant-numeric: tabular-nums;
+    margin-left: auto;
+  }
+
+  @media (max-width: 640px) {
+    .hero-title { font-size: 30pt; }
+  }
+</style>

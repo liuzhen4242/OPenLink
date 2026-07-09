@@ -1,0 +1,105 @@
+---
+const navLinks = [
+  { href: '/projects', label: '项目' },
+  { href: '/blog',     label: '博客' },
+  { href: '/about',    label: '关于' },
+];
+
+const currentPath = Astro.url.pathname;
+---
+
+<nav>
+  <div class="nav-inner">
+    <!-- Wordmark -->
+    <a href="/projects" class="wordmark">OPEN<span>LINK</span></a>
+
+    <!-- Nav links -->
+    <ul class="nav-links">
+      {navLinks.map(({ href, label }) => (
+        <li>
+          <a
+            href={href}
+            class:list={['nav-link', { active: currentPath.startsWith(href) }]}
+          >
+            {label}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+
+  <!-- Full-width hairline rule -->
+  <div class="nav-rule"></div>
+</nav>
+
+<style>
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--c-bg);
+  }
+
+  .nav-inner {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    max-width: var(--max-w);
+    margin: 0 auto;
+    padding: 2.5rem var(--pad-x) 1.25rem;
+  }
+
+  .wordmark {
+    font-family: var(--ff-caps);
+    font-size: 13pt;
+    letter-spacing: 0.15em;
+    color: var(--c-ink);
+  }
+  .wordmark span {
+    /* subtle weight break between OPEN and LINK */
+    font-style: italic;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 2.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .nav-link {
+    font-family: var(--ff-serif);
+    font-size: var(--fs-sm);
+    letter-spacing: 0.06em;
+    color: var(--c-mid);
+    position: relative;
+    padding-bottom: 2px;
+    transition: color 0.18s ease;
+  }
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 1px;
+    background: var(--c-ink);
+    transition: width 0.25s ease;
+  }
+  .nav-link:hover,
+  .nav-link.active {
+    color: var(--c-ink);
+  }
+  .nav-link.active::after,
+  .nav-link:hover::after {
+    width: 100%;
+  }
+
+  .nav-rule {
+    max-width: var(--max-w);
+    margin: 0 auto;
+    height: 1px;
+    background: var(--c-rule);
+  }
+</style>
