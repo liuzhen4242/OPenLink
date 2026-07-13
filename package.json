@@ -6,12 +6,15 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro"
+    "dev": "npx cpx \"/Users/zhenliu/极空云/obsidian/Projects/**/*\" ./src/content/projects/ --watch & astro dev",
+    "build": "npx cpx \"/Users/zhenliu/极空云/obsidian/Projects/**/*\" ./src/content/projects/ && astro build",
+    "preview": "astro preview"
   },
   "dependencies": {
-    "astro": "^7.0.4"
+    "astro": "^7.0.7"
+  },
+  "devDependencies": {
+    "@astrojs/markdown-remark": "^7.2.1",
+    "cpx2": "^8.0.2"
   }
 }

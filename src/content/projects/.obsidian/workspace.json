@@ -1,0 +1,200 @@
+{
+  "main": {
+    "id": "dacbac73a9b49ac1",
+    "type": "split",
+    "children": [
+      {
+        "id": "874b2ae42f6f692b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "c3657435a9e8ab98",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
+                "mode": "source",
+                "source": true
+              },
+              "icon": "lucide-file",
+              "title": "新疆丝绸之路陶瓷博物馆"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "75931a6db24b492d",
+    "type": "split",
+    "children": [
+      {
+        "id": "c5b34cf094e73ffc",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "3cf89eb9732c640e",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "f207f708aac27012",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "6b505c47080a21ec",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "87adfc64fcb24ecd",
+    "type": "split",
+    "children": [
+      {
+        "id": "468323c819fd87c6",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "374cceed5a55d368",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
+                "collapseAll": false,
+                "extraContext": true,
+                "sortOrder": "alphabetical",
+                "showSearch": true,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": false
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for 新疆丝绸之路陶瓷博物馆"
+            }
+          },
+          {
+            "id": "19eb80affff464f9",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from 新疆丝绸之路陶瓷博物馆"
+            }
+          },
+          {
+            "id": "b8e129433329cc2e",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "a5d093ddb3ad42b3",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "c575c3c83f6c4fca",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of 新疆丝绸之路陶瓷博物馆"
+            }
+          }
+        ],
+        "currentTab": 4
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "c3657435a9e8ab98",
+  "lastOpenFiles": [
+    "Xinjiang_Museum/image/Pasted image 20260711000754.png",
+    "Xinjiang_Museum/image/Pasted image 20260711000736.png",
+    "Xinjiang_Museum/image/Pasted image 20260710233533.png",
+    "Xinjiang_Museum/image/Pasted image 20260710230634.png",
+    "Xinjiang_Museum/image/Pasted image 20260710230620.png",
+    "Xinjiang_Museum/image/Pasted image 20260710230353.png",
+    "Xinjiang_Museum/image/Pasted image 20260710224904.png",
+    "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
+    "Xinjiang_Museum/image/Pasted image 20260710224657.png",
+    "Xinjiang_Museum/image",
+    "Pasted image 20260710224221.png"
+  ]
+}

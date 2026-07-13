@@ -55,10 +55,14 @@ const vaultBase  = `/Users/zhenliu/study/coding/OpenLink/src/content/projects`;
 function resolveCoverUrl(coverImage: string | undefined): string | null {
   if (!coverImage) return null;
   const rel = coverImage.replace(/^\.\//, '');
-  return `/@fs${vaultBase}/${projectDir}/${rel}`;
+  // Split path into segments and encode each one to handle spaces in filenames
+  const segments = rel.split('/');
+  const encoded = segments.map(s => encodeURIComponent(s)).join('/');
+  return `/@fs${vaultBase}/${projectDir}/${encoded}`;
 }
 
-const coverUrl = resolveCoverUrl(data.coverImage);
+// coverImage is not in schema (to bypass Astro v7 content-assets), use raw data
+const coverUrl = resolveCoverUrl((data as any).coverImage);
 ---
 
 <BaseLayout title={data.title} description={data.description}>
@@ -110,13 +114,14 @@ const coverUrl = resolveCoverUrl(data.coverImage);
 
     prose.querySelectorAll('img').forEach((img) => {
       const src = img.getAttribute('src') || '';
-      if (!src.startsWith('http') && !src.startsWith('/') && !src.startsWith('data:')) {
-        // Normalise: strip leading "./" and any "images/" prefix, then re-add images/
-        const filename = src
-          .replace(/^\.\//, '')
-          .replace(/^images\//, '');
-        img.src = `/@fs${vaultBase}/${projectDir}/images/${encodeURIComponent(filename)}`;
-      }
+      // Skip external URLs and data URIs
+      if (src.startsWith('http') || src.startsWith('data:')) return;
+      // Decode any existing encoded path, then extract just the filename
+      let raw = decodeURIComponent(src);
+      // Strip any leading path components (may contain "images/" prefix)
+      const filename = raw.split('/').pop() || raw;
+      if (!filename) return;
+      img.src = `/@fs${vaultBase}/${projectDir}/images/${encodeURIComponent(filename)}`;
     });
   });
 </script>

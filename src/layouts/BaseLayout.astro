@@ -109,6 +109,15 @@ const metaDesc = description ?? 'A minimalist architecture and design portfolio.
         hyphens: auto;
       }
 
+      /* 规范普通列表在正文里的建筑感留白，防止列表顶格无缩进 */
+      .prose ul {
+        padding-left: 1.5rem;
+        margin-bottom: 2rem;
+      }
+      .prose li {
+        margin-bottom: 0.5rem;
+      }
+
       /* Full-width architectural drawings with generous breathing room */
       .prose img {
         width: 100%;
@@ -117,8 +126,12 @@ const metaDesc = description ?? 'A minimalist architecture and design portfolio.
         background: #f0efec;
       }
 
-      /* Hide the metadata list from prose rendering — handled by MetaGrid */
-      .prose ul:first-of-type {
+      /* 
+        ✨ 安全优化：仅在特定场景下隐藏渲染。
+        为了防微杜渐，不直接硬编码干掉 first-of-type，
+        让你的设计意图列表能够畅通无阻地被用户看到。
+      */
+      .prose .hide-metadata {
         display: none;
       }
     </style>
