@@ -66,7 +66,8 @@ function resolveCoverUrl(id: string, coverImage: string | undefined): string | n
   ) : (
     <div class="masonry">
       {projects.map((project) => {
-        const coverUrl = resolveCoverUrl(project.id, project.data.coverImage);
+        // coverImage is not in schema (to bypass Astro v7 content-assets), use raw data
+        const coverUrl = resolveCoverUrl(project.id, (project.data as any).coverImage);
         const slug     = idToSlug(project.id);
         const href     = `/projects/${slug}`;
 
