@@ -1,28 +1,21 @@
 import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
 
-/**
- * Projects collection — content authored in Obsidian.
- * The Obsidian vault root is src/content/projects/, so Obsidian
- * system files (Welcome.md, .obsidian/) live alongside project folders.
- *
- * Content structure (one project per subdirectory):
- *   src/content/projects/
- *     Xinjiang-museum/
- *       Xinjiang-museum.md      ← the entry file
- *       images/
- *         Pasted image ....png  ← referenced in frontmatter + body
- */
 const projectsCollection = defineCollection({
   loader: glob({
-    // Only match .md files inside project subdirectories
+    // 匹配所有项目子目录下的 .md 文件
     pattern: ['*/*.md'],
     base: new URL('./content/projects/', import.meta.url),
   }),
-  schema: z.object({
+  // ✨ 关键点：这里改成函数形式，引入 image 处理器
+  schema: ({ image }) => z.object({
     title: z.string(),
     category: z.enum(['装配', '木构', '工厂', '展览', '室内']),
-    coverImage: z.string().optional(),
+    
+    // ✨ 把原本的 z.string() 改成 image()
+    // 这样打包时，Astro 才会把它当成真实的图片文件去打包迁移，并自动修复空格路径问题
+    coverImage: image().optional(),
+    
     description: z.string().optional(),
     date: z.string().optional(),
   }),
