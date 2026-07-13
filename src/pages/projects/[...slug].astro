@@ -52,17 +52,9 @@ const { Content } = await render(project);
 const projectDir = idToProjectDir(project.id);
 const vaultBase  = `/Users/zhenliu/study/coding/OpenLink/src/content/projects`;
 
-function resolveCoverUrl(coverImage: string | undefined): string | null {
-  if (!coverImage) return null;
-  const rel = coverImage.replace(/^\.\//, '');
-  // Split path into segments and encode each one to handle spaces in filenames
-  const segments = rel.split('/');
-  const encoded = segments.map(s => encodeURIComponent(s)).join('/');
-  return `/@fs${vaultBase}/${projectDir}/${encoded}`;
-}
-
-// coverImage is not in schema (to bypass Astro v7 content-assets), use raw data
-const coverUrl = resolveCoverUrl((data as any).coverImage);
+// ✨ 核心改变：安全提取被 Astro image() 处理器编译后的封面 URL 字符串
+const coverObj = (data as any).coverImage;
+const coverUrl = typeof coverObj === 'object' && coverObj !== null ? (coverObj as any).src : coverObj;
 ---
 
 <BaseLayout title={data.title} description={data.description}>

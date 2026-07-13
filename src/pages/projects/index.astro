@@ -12,7 +12,6 @@
  *
  * In Astro v7 Content Layer API, entries use `id` (the file path relative to
  * the glob base) instead of the v4/v5 `slug`.
- * e.g. id = "Projects/Xinjiang-museum/Xinjiang-museum.md"
  */
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
@@ -28,27 +27,6 @@ const projects = allProjects.sort(
  */
 function idToSlug(id: string): string {
   return id.replace(/\.md$/, '').replace(/^[Pp]rojects\//, '');
-}
-
-/**
- * Resolve the project directory from the entry id.
- * "Projects/Xinjiang-museum/Xinjiang-museum.md" → "Projects/Xinjiang-museum"
- */
-function idToProjectDir(id: string): string {
-  const parts = id.replace(/\.md$/, '').split('/');
-  parts.pop(); // remove the filename
-  return parts.join('/');
-}
-
-/**
- * Build an /@fs/ URL that Vite serves for a cover image.
- * Works because vite.server.fs.allow includes the vault root.
- */
-function resolveCoverUrl(id: string, coverImage: string | undefined): string | null {
-  if (!coverImage) return null;
-  const projectDir = idToProjectDir(id);
-  const rel = coverImage.replace(/^\.\//, '');
-  return `/@fs/Users/zhenliu/study/coding/OpenLink/src/content/projects/${projectDir}/${rel}`;
 }
 ---
 
@@ -66,8 +44,10 @@ function resolveCoverUrl(id: string, coverImage: string | undefined): string | n
   ) : (
     <div class="masonry">
       {projects.map((project) => {
-        // coverImage is not in schema (to bypass Astro v7 content-assets), use raw data
-        const coverUrl = resolveCoverUrl(project.id, (project.data as any).coverImage);
+        // ✨ 核心改变：不再手动计算本地物理绝对路径，直接获取 Astro 编译打包好的图片路径
+        const coverObj = project.data.coverImage;
+        const coverUrl = typeof coverObj === 'object' && coverObj !== null ? (coverObj as any).src : coverObj;
+        
         const slug     = idToSlug(project.id);
         const href     = `/projects/${slug}`;
 
