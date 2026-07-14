@@ -1,0 +1,31 @@
+.growth-stack {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9; /* 建议保持统一比例 */
+    overflow: hidden;
+}
+
+.growth-stack img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    animation: grow-animation 8s infinite; /* 总时长8秒，循环 */
+}
+
+/* 延迟显示，实现轮播效果 */
+/* 修改这里，支持到第 6 张图片 */
+.growth-stack img:nth-child(1) { animation-delay: 0s; }
+.growth-stack img:nth-child(2) { animation-delay: 1.33s; }
+.growth-stack img:nth-child(3) { animation-delay: 2.66s; }
+.growth-stack img:nth-child(4) { animation-delay: 4s; }
+.growth-stack img:nth-child(5) { animation-delay: 5.33s; }
+.growth-stack img:nth-child(6) { animation-delay: 6.66s; }
+
+@keyframes grow-animation {
+    0%, 20% { opacity: 1; }  /* 显示2秒 */
+    25%, 100% { opacity: 0; } /* 之后透明 */
+}

@@ -15,6 +15,9 @@
  * • MetaGrid: parses Obsidian bilingual spec list → horizontal grid
  * • Full-width architectural drawings (margin: 3.5rem 0 via .prose img rule)
  * • Runtime image rewriting: body <img> src attrs → /@fs/ paths
+ * • Gallery slider: ```gallery code blocks are converted at build time
+ *   (see remarkGalleryPlugin in astro.config.mjs) into `.gallery-slider`
+ *   divs; the script below adds the carousel behavior client-side.
  */
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
@@ -118,6 +121,56 @@ const coverUrl = typeof coverObj === 'object' && coverObj !== null ? (coverObj a
   });
 </script>
 
+<!--
+  Gallery slider carousel behavior.
+  The actual <img> tags & their resolved /@fs/ src paths are produced at
+  build time by remarkGalleryPlugin (see astro.config.mjs), which turns
+  ```gallery code blocks into `<div class="gallery-slider">` markup with
+  one <img> per line. This script just adds the interactive cycling —
+  equivalent to what the Obsidian "Gallery Slider" plugin does live inside
+  Obsidian's own editor.
+-->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.gallery-slider').forEach((wrapper) => {
+      const imgs = Array.from(wrapper.querySelectorAll('img'));
+      if (imgs.length === 0) return;
+
+      // Single-image galleries don't need a timer, just show the one image.
+      if (imgs.length === 1) {
+        imgs[0].classList.add('is-active');
+        return;
+      }
+
+      let index = imgs.findIndex((img) => img.classList.contains('is-active'));
+      if (index < 0) index = 0;
+      let playing = true;
+
+      function show(i) {
+        imgs.forEach((img, j) => img.classList.toggle('is-active', j === i));
+      }
+
+      show(index);
+
+      const timer = window.setInterval(() => {
+        if (!playing) return;
+        index = (index + 1) % imgs.length;
+        show(index);
+      }, 3000);
+
+      wrapper.addEventListener('mouseenter', () => {
+        playing = false;
+      });
+      wrapper.addEventListener('mouseleave', () => {
+        playing = true;
+      });
+      wrapper.addEventListener('click', () => {
+        playing = !playing;
+      });
+    });
+  });
+</script>
+
 <style>
   /* ── Project header ──────────────────────────────── */
   .project-header {
@@ -196,4 +249,30 @@ const coverUrl = typeof coverObj === 'object' && coverObj !== null ? (coverObj a
     transition: color 0.18s ease;
   }
   .back-link:hover { color: var(--c-ink); }
+
+  /*
+    ── Gallery slider ────────────────────────────────
+    :global() is required here because the .gallery-slider markup is
+    injected as raw HTML from the remark plugin (not through Astro's
+    template), so it never receives Astro's scoped-style data attribute.
+  */
+  :global(.gallery-slider) {
+    position: relative;
+    width: 100%;
+    margin: 3.5rem 0;
+    cursor: pointer;
+  }
+  :global(.gallery-slider img) {
+    width: 100%;
+    height: auto;
+    display: none;
+    border-radius: 0;
+  }
+  :global(.gallery-slider img.is-active) {
+    display: block;
+  }
+  :global(.gallery-empty) {
+    color: var(--c-mid);
+    font-style: italic;
+  }
 </style>

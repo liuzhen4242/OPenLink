@@ -78,7 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 351.5
   },
   "right": {
     "id": "87adfc64fcb24ecd",
@@ -170,7 +170,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 200
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -185,16 +185,18 @@
   },
   "active": "c3657435a9e8ab98",
   "lastOpenFiles": [
-    "Xinjiang_Museum/image/Pasted image 20260711000754.png",
-    "Xinjiang_Museum/image/Pasted image 20260711000736.png",
-    "Xinjiang_Museum/image/Pasted image 20260710233533.png",
-    "Xinjiang_Museum/image/Pasted image 20260710230634.png",
-    "Xinjiang_Museum/image/Pasted image 20260710230620.png",
-    "Xinjiang_Museum/image/Pasted image 20260710230353.png",
-    "Xinjiang_Museum/image/Pasted image 20260710224904.png",
+    "Xinjiang_Museum/images/方案二 标准层平面图.jpg",
+    "Xinjiang_Museum/images/方案二 一层平面图.jpg",
+    "Xinjiang_Museum/images/方案二 二层平面图.jpg",
+    "Xinjiang_Museum/images/方案二总图.jpg",
+    "Xinjiang_Museum/images/Pasted image 20260714150821.png",
+    "Xinjiang_Museum/images/Pasted image 20260714130325.png",
     "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
-    "Xinjiang_Museum/image/Pasted image 20260710224657.png",
-    "Xinjiang_Museum/image",
-    "Pasted image 20260710224221.png"
+    "Xinjiang_Museum/images/Pasted image 20260710224657.png",
+    "Xinjiang_Museum/images/Pasted image 20260714130118.png",
+    "Xinjiang_Museum/images/Pasted image 20260713173837.png",
+    "Xinjiang_Museum/images/Pasted image 20260713173832.png",
+    "Xinjiang_Museum/images/Pasted image 20260713173826.png",
+    "Xinjiang_Museum/image"
   ]
 }
