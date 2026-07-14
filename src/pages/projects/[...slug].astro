@@ -9,12 +9,15 @@
  * We derive:
  * • URL slug:      "Projects/Xinjiang-museum/Xinjiang-museum"  (no .md)
  * • Project dir:   "Projects/Xinjiang-museum"                  (directory)
- * • Image base:    /@fs/.../src/content/projects/Projects/Xinjiang-museum/images/
+ * • Image base:    /project-images/<projectDir>/images/  (static, works
+ *   identically in `astro dev`, `astro build`, and on Netlify — populated
+ *   by scripts/sync-project-images.mjs, which runs automatically before
+ *   both `npm run dev` and `npm run build`)
  *
  * Features:
  * • MetaGrid: parses Obsidian bilingual spec list → horizontal grid
  * • Full-width architectural drawings (margin: 3.5rem 0 via .prose img rule)
- * • Runtime image rewriting: body <img> src attrs → /@fs/ paths
+ * • Runtime image rewriting: body <img> src attrs → /project-images/ paths
  * • Gallery slider: ```gallery code blocks are converted at build time
  *   (see remarkGalleryPlugin in astro.config.mjs) into `.gallery-slider`
  *   divs; the script below adds the carousel behavior client-side.
@@ -53,7 +56,6 @@ const { data, body } = project;
 const { Content } = await render(project);
 
 const projectDir = idToProjectDir(project.id);
-const vaultBase  = `/Users/zhenliu/study/coding/OpenLink/src/content/projects`;
 
 // ✨ 核心改变：安全提取被 Astro image() 处理器编译后的封面 URL 字符串
 const coverObj = (data as any).coverImage;
@@ -98,37 +100,38 @@ const coverUrl = typeof coverObj === 'object' && coverObj !== null ? (coverObj a
 </BaseLayout>
 
 <!--
-  Rewrite relative Obsidian image src attributes at runtime.
-  The markdown body emits refs like: ./images/Pasted image 20260709181427.png
-  We rewrite them to /@fs/ paths so Vite can serve from the symlinked vault.
+  Rewrite relative Obsidian image src attributes at runtime, as a safety
+  net for any <img> tags that reach the browser with a bare/unrewritten
+  relative path. Points at /project-images/, a plain static folder that
+  scripts/sync-project-images.mjs populates from src/content/projects/*/images
+  before both `npm run dev` and `npm run build` — this works identically
+  in local dev, `astro preview`, and on Netlify.
 -->
-<script define:vars={{ vaultBase, projectDir }}>
+<script define:vars={{ projectDir }}>
   document.addEventListener('DOMContentLoaded', () => {
     const prose = document.querySelector('.prose');
     if (!prose) return;
 
     prose.querySelectorAll('img').forEach((img) => {
       const src = img.getAttribute('src') || '';
-      // Skip external URLs and data URIs
-      if (src.startsWith('http') || src.startsWith('data:')) return;
-      // Decode any existing encoded path, then extract just the filename
-      let raw = decodeURIComponent(src);
-      // Strip any leading path components (may contain "images/" prefix)
+      // Skip external URLs, data URIs, and paths already rewritten to /project-images/
+      if (src.startsWith('http') || src.startsWith('data:') || src.startsWith('/project-images/')) return;
+      const raw = decodeURIComponent(src);
       const filename = raw.split('/').pop() || raw;
       if (!filename) return;
-      img.src = `/@fs${vaultBase}/${projectDir}/images/${encodeURIComponent(filename)}`;
+      img.src = `/project-images/${projectDir}/images/${encodeURIComponent(filename)}`;
     });
   });
 </script>
 
 <!--
   Gallery slider carousel behavior.
-  The actual <img> tags & their resolved /@fs/ src paths are produced at
-  build time by remarkGalleryPlugin (see astro.config.mjs), which turns
-  ```gallery code blocks into `<div class="gallery-slider">` markup with
-  one <img> per line. This script just adds the interactive cycling —
-  equivalent to what the Obsidian "Gallery Slider" plugin does live inside
-  Obsidian's own editor.
+  The actual <img> tags & their resolved /project-images/ src paths are
+  produced at build time by remarkGalleryPlugin (see astro.config.mjs),
+  which turns ```gallery code blocks into `<div class="gallery-slider">`
+  markup with one <img> per line. This script just adds the interactive
+  cycling — equivalent to what the Obsidian "Gallery Slider" plugin does
+  live inside Obsidian's own editor.
 -->
 <script>
   document.addEventListener('DOMContentLoaded', () => {

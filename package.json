@@ -6,8 +6,8 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "npx cpx \"/Users/zhenliu/极空云/obsidian/Projects/**/*\" ./src/content/projects/ --watch & astro dev",
-    "build": "npx cpx \"/Users/zhenliu/极空云/obsidian/Projects/**/*\" ./src/content/projects/ && astro build",
+    "dev": "node scripts/sync-project-images.mjs && astro dev",
+    "build": "node scripts/sync-project-images.mjs && astro build",
     "preview": "astro preview"
   },
   "dependencies": {

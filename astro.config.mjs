@@ -1,23 +1,59 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 
+// The marker string used to locate where, inside an absolute file path,
+// the "content/projects/<ProjectDir>/xxx.md" portion begins.
+const PROJECTS_ROOT_MARKER = 'content/projects/';
+
 /**
- * Remark plugin: rewrites Obsidian bare image filenames ("Pasted%20image.png")
- * to absolute /@fs/ paths so Astro v7's content-assets plugin ignores them.
+ * Given the absolute path to a project's .md file, return the project's
+ * directory relative to src/content/projects/ — e.g. "Xinjiang_Museum".
+ */
+function getRelativeProjectDir(filePath) {
+  const idx = filePath.indexOf(PROJECTS_ROOT_MARKER);
+  if (idx === -1) return '';
+  const afterRoot = filePath.slice(idx + PROJECTS_ROOT_MARKER.length);
+  const parts = afterRoot.split('/');
+  parts.pop(); // drop the .md filename itself
+  return parts.join('/');
+}
+
+/**
+ * Resolve an Obsidian-style image reference (possibly URL-encoded, possibly
+ * containing a leading "images/" segment) down to just its filename, then
+ * build a stable production-safe URL under /project-images/, which is
+ * populated at build/dev time by scripts/sync-project-images.mjs.
+ *
+ * NOTE: this deliberately does NOT use Vite's /@fs/ debug endpoint — /@fs/
+ * only exists while a Vite dev server is running locally and can only see
+ * paths that exist on that same machine. It does not exist at all in a
+ * production build (e.g. on Netlify), which is why images broke there.
+ */
+function resolveProjectImage(relativeProjectDir, rawUrl) {
+  if (!rawUrl) return null;
+  if (rawUrl.startsWith('http') || rawUrl.startsWith('data:')) return rawUrl;
+
+  const decoded = decodeURIComponent(rawUrl);
+  const filename = decoded.split('/').pop();
+  if (!filename) return null;
+
+  return `/project-images/${relativeProjectDir}/images/${encodeURIComponent(filename)}`;
+}
+
+/**
+ * Remark plugin: rewrites Obsidian-style relative image references in the
+ * markdown body (![](images/xxx.png)) to /project-images/ URLs.
  */
 function remarkObsidianImages() {
   return (tree, file) => {
     const filePath = file.path || '';
-    // Derive the project directory from the .md file path
-    const projectDir = filePath.replace(/\/[^/]+\.md$/, '');
+    const relativeProjectDir = getRelativeProjectDir(filePath);
+
     walk(tree);
     function walk(node) {
       if (node.type === 'image') {
-        const url = node.url || '';
-        if (url && !url.startsWith('http') && !url.startsWith('/') && !url.startsWith('data:')) {
-          const decoded = decodeURIComponent(url);
-          node.url = `/@fs${projectDir}/images/${encodeURIComponent(decoded)}`;
-        }
+        const resolved = resolveProjectImage(relativeProjectDir, node.url || '');
+        if (resolved) node.url = resolved;
       }
       if (node.children) node.children.forEach(walk);
     }
@@ -38,18 +74,7 @@ function remarkObsidianImages() {
 function remarkGalleryPlugin() {
   return (tree, file) => {
     const filePath = file.path || '';
-    const projectDir = filePath.replace(/\/[^/]+\.md$/, '');
-
-    function resolveGalleryImage(url) {
-      if (!url) return null;
-      if (url.startsWith('http') || url.startsWith('data:')) return url;
-      // Decode, then take just the filename — matches the runtime
-      // rewriting logic already used for normal <img> tags in the page.
-      const decoded = decodeURIComponent(url);
-      const filename = decoded.split('/').pop();
-      if (!filename) return null;
-      return `/@fs${projectDir}/images/${encodeURIComponent(filename)}`;
-    }
+    const relativeProjectDir = getRelativeProjectDir(filePath);
 
     function walk(node) {
       if (!node.children) return;
@@ -60,7 +85,7 @@ function remarkGalleryPlugin() {
         if (child.type === 'code' && child.lang === 'gallery') {
           const matches = [...(child.value || '').matchAll(/!\[\]\((.*?)\)/g)];
           const srcs = matches
-            .map((m) => resolveGalleryImage(m[1]))
+            .map((m) => resolveProjectImage(relativeProjectDir, m[1]))
             .filter(Boolean);
 
           if (srcs.length > 0) {
