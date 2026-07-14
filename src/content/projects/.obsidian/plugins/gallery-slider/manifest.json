@@ -1,0 +1,9 @@
+{
+  "id": "gallery-slider",
+  "name": "Gallery Slider",
+  "version": "0.0.1",
+  "minAppVersion": "1.5.0",
+  "description": "Simple image gallery slider",
+  "author": "zhen",
+  "isDesktopOnly": false
+}

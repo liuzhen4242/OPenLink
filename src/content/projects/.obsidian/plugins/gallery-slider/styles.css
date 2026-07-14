@@ -1,0 +1,36 @@
+.gallery-slider {
+
+    width:100%;
+    max-width:900px;
+
+    margin:20px auto;
+
+    cursor:pointer;
+
+}
+
+
+.gallery-slider img {
+
+    width:100%;
+
+    border-radius:0px;
+
+    transition:
+    opacity 0.5s;
+
+}
+
+
+
+.gallery-indicator {
+
+    text-align:center;
+
+    margin-top:8px;
+
+    font-size:12px;
+
+    opacity:0.6;
+
+}
