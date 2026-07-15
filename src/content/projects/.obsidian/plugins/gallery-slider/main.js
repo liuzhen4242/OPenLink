@@ -70,7 +70,7 @@ module.exports = class GallerySliderPlugin extends Plugin {
           index++;
           if (index >= imgs.length) index = 0;
           update();
-        }, 2000);//单位是毫秒（2000 = 2 秒）
+        }, 1000);//单位是毫秒（2000 = 2 秒）
 
         // 代码块销毁时清理定时器，避免多个实例互相干扰
         this.register(() => window.clearInterval(timer));
