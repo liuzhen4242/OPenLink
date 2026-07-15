@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
+                "file": "Hainan-TouristStation/海南驿站.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "新疆丝绸之路陶瓷博物馆"
+              "title": "海南驿站"
             }
           }
         ]
@@ -156,13 +156,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
+                "file": "Hainan-TouristStation/海南驿站.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of 新疆丝绸之路陶瓷博物馆"
+              "title": "Outline of 海南驿站"
             }
           }
         ],
@@ -185,21 +185,25 @@
   },
   "active": "c3657435a9e8ab98",
   "lastOpenFiles": [
-    "南园旧改项目/南园旧改.md",
-    "南园旧改项目/南园旧改.md",
     "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
-    "南园旧改项目/images/Pasted image 20260714180402.png",
+    "Hainan-TouristStation/海南驿站.md",
+    "Hainan-TouristStation/images/旅行线路.png",
+    "Hainan-TouristStation/images/微信图片_20231017224533.jpg",
+    "Hainan-TouristStation/images/微信图片_20231017224615.jpg",
+    "Hainan-TouristStation/images/微信图片_20231017224559.jpg",
+    "Hainan-TouristStation/images/DSC07261.jpg",
+    "Hainan-TouristStation/images/DSC07254.jpg",
+    "Hainan-TouristStation/images/DSC07252.jpg",
+    "Hainan-TouristStation/images/DSC07251.jpg",
+    "Hainan-TouristStation/images/DSC07249.jpg",
+    "Hainan-TouristStation/images/DSC07247.jpg",
+    "Hainan-TouristStation/images",
+    "temple.md",
+    "Hainan-TouristStation",
+    "南园旧改项目/南园旧改.md",
+    "南园旧改项目/南园旧改.md",
     "南园旧改项目/images",
     "南园旧改项目",
-    "Xinjiang_Museum/images/Pasted image 20260714174437.png",
-    "Xinjiang_Museum/images/Pasted image 20260714174425.png",
-    "Xinjiang_Museum/images/Pasted image 20260714174412.png",
-    "Xinjiang_Museum/images/Pasted image 20260714174330.png",
-    "Xinjiang_Museum/images/Pasted image 20260714174152.png",
-    "Xinjiang_Museum/images/Pasted image 20260714173742.png",
-    "Xinjiang_Museum/images/Pasted image 20260714173738.png",
-    "Xinjiang_Museum/images/Pasted image 20260714164841.png",
-    "Xinjiang_Museum/images/Pasted image 20260714162102.png",
     "Xinjiang_Museum/image"
   ]
 }
