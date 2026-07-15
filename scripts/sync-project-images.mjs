@@ -1,5 +1,4 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
-import { stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import sharp from 'sharp';
@@ -15,6 +14,11 @@ const RESPONSIVE_WIDTHS = [480, 800, 1200, 1600, 2000];
 const WEBP_QUALITY = 78;
 
 const COMPRESSIBLE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.tiff', '.avif']);
+
+// sharp refuses to touch images above ~268 million pixels by default, as a
+// safety guard against decompression-bomb attacks from untrusted uploads.
+// These are our own photos/scans, so it's safe to lift that ceiling.
+const SHARP_OPTIONS = { limitInputPixels: false };
 
 if (existsSync(publicRoot)) {
   rmSync(publicRoot, { recursive: true, force: true });
@@ -54,7 +58,7 @@ for (const dir of projectDirs) {
     const base = file.name.slice(0, -ext.length);
 
     try {
-      const metadata = await sharp(srcPath).metadata();
+      const metadata = await sharp(srcPath, SHARP_OPTIONS).metadata();
       const originalWidth = metadata.width || RESPONSIVE_WIDTHS[RESPONSIVE_WIDTHS.length - 1];
 
       // Only generate widths that don't upscale the source image.
@@ -67,7 +71,7 @@ for (const dir of projectDirs) {
 
       for (const width of widthsToGenerate) {
         const destPath = path.join(imagesDest, `${base}-${width}w.webp`);
-        await sharp(srcPath)
+        await sharp(srcPath, SHARP_OPTIONS)
           .resize({ width, withoutEnlargement: true })
           .webp({ quality: WEBP_QUALITY })
           .toFile(destPath);

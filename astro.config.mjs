@@ -18,6 +18,18 @@ function escapeRegExp(str) {
 }
 
 /**
+ * macOS (APFS/HFS+) stores filenames on disk in Unicode NFD form, but text
+ * typed into Markdown (or pasted from elsewhere) is usually NFC. The same
+ * visible Chinese filename can therefore differ byte-for-byte between what
+ * Node reads via readdirSync (NFD, matches disk) and what's embedded in the
+ * markdown source (NFC) — silently breaking exact-string/regex matching.
+ * Normalizing both sides to NFC before comparing avoids this.
+ */
+function normalize(str) {
+  return str.normalize('NFC');
+}
+
+/**
  * Given the absolute path to a project's .md file, return the project's
  * directory relative to src/content/projects/ — e.g. "Xinjiang_Museum".
  */
@@ -48,7 +60,7 @@ function resolveProjectImageSet(relativeProjectDir, rawUrl) {
     return { src: rawUrl, srcset: null, sizes: null };
   }
 
-  const decoded = decodeURIComponent(rawUrl);
+  const decoded = normalize(decodeURIComponent(rawUrl));
   const filename = decoded.split('/').pop();
   if (!filename) return null;
 
@@ -58,15 +70,28 @@ function resolveProjectImageSet(relativeProjectDir, rawUrl) {
   const urlDir = `/project-images/${relativeProjectDir}/images`;
 
   let variants = [];
+  let matchedOriginalName = filename;
+
   if (existsSync(imagesDirAbs)) {
     const pattern = new RegExp(`^${escapeRegExp(base)}-(\\d+)w\\.webp$`);
-    variants = readdirSync(imagesDirAbs)
+    const entries = readdirSync(imagesDirAbs);
+
+    variants = entries
       .map((name) => {
-        const m = name.match(pattern);
+        const m = normalize(name).match(pattern);
         return m ? { name, width: parseInt(m[1], 10) } : null;
       })
       .filter(Boolean)
       .sort((a, b) => a.width - b.width);
+
+    // No responsive variant matched — the file might still exist as a
+    // plain passthrough copy (e.g. compression failed and we fell back to
+    // copying the original, or it's a .gif/.svg). Find its real on-disk
+    // name so we don't 404 on a normalization mismatch.
+    if (variants.length === 0) {
+      const directMatch = entries.find((name) => normalize(name) === filename);
+      if (directMatch) matchedOriginalName = directMatch;
+    }
   }
 
   if (variants.length > 0) {
@@ -86,8 +111,9 @@ function resolveProjectImageSet(relativeProjectDir, rawUrl) {
     };
   }
 
-  // No responsive variants found — plain passthrough file (gif/svg/etc).
-  return { src: `${urlDir}/${encodeURIComponent(filename)}`, srcset: null, sizes: null };
+  // No responsive variants found — plain passthrough file (gif/svg, or a
+  // compression failure that fell back to a raw copy).
+  return { src: `${urlDir}/${encodeURIComponent(matchedOriginalName)}`, srcset: null, sizes: null };
 }
 
 /**
