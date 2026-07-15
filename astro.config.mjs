@@ -19,11 +19,8 @@ function escapeRegExp(str) {
 
 /**
  * macOS (APFS/HFS+) stores filenames on disk in Unicode NFD form, but text
- * typed into Markdown (or pasted from elsewhere) is usually NFC. The same
- * visible Chinese filename can therefore differ byte-for-byte between what
- * Node reads via readdirSync (NFD, matches disk) and what's embedded in the
- * markdown source (NFC) — silently breaking exact-string/regex matching.
- * Normalizing both sides to NFC before comparing avoids this.
+ * typed into Markdown (or pasted from elsewhere) is usually NFC. Normalizing
+ * both sides to NFC before comparing avoids silent mismatches.
  */
 function normalize(str) {
   return str.normalize('NFC');
@@ -84,10 +81,6 @@ function resolveProjectImageSet(relativeProjectDir, rawUrl) {
       .filter(Boolean)
       .sort((a, b) => a.width - b.width);
 
-    // No responsive variant matched — the file might still exist as a
-    // plain passthrough copy (e.g. compression failed and we fell back to
-    // copying the original, or it's a .gif/.svg). Find its real on-disk
-    // name so we don't 404 on a normalization mismatch.
     if (variants.length === 0) {
       const directMatch = entries.find((name) => normalize(name) === filename);
       if (directMatch) matchedOriginalName = directMatch;
@@ -98,64 +91,91 @@ function resolveProjectImageSet(relativeProjectDir, rawUrl) {
     const srcset = variants
       .map((v) => `${urlDir}/${encodeURIComponent(v.name)} ${v.width}w`)
       .join(', ');
-    // Largest available variant doubles as the plain fallback `src` for
-    // anything that ignores srcset (old crawlers, RSS readers, etc).
     const largest = variants[variants.length - 1];
     return {
       src: `${urlDir}/${encodeURIComponent(largest.name)}`,
       srcset,
-      // These images run full-bleed in .prose (max-width: none), so the
-      // rendered width is essentially the viewport width at every
-      // breakpoint — tell the browser that directly.
       sizes: '100vw',
     };
   }
 
-  // No responsive variants found — plain passthrough file (gif/svg, or a
-  // compression failure that fell back to a raw copy).
   return { src: `${urlDir}/${encodeURIComponent(matchedOriginalName)}`, srcset: null, sizes: null };
 }
 
 /**
  * Remark plugin: rewrites Obsidian-style relative image references in the
  * markdown body (![](images/xxx.png)) to /project-images/ URLs with a
- * responsive srcset, and adds loading="lazy" so off-screen images don't
- * block initial page load.
+ * responsive srcset, adds loading="lazy", and — since every note in this
+ * vault follows the convention of repeating the frontmatter coverImage as
+ * the very first line of the body — drops the first image encountered in
+ * the document so the cover photo isn't shown twice (once as the page hero,
+ * once again inline).
  */
 function remarkObsidianImages() {
   return (tree, file) => {
     const filePath = file.path || '';
     const relativeProjectDir = getRelativeProjectDir(filePath);
 
-    walk(tree);
-    function walk(node) {
-      if (node.type === 'image') {
-        const resolved = resolveProjectImageSet(relativeProjectDir, node.url || '');
-        if (resolved) {
-          node.url = resolved.src;
-          const hProperties = { loading: 'lazy', decoding: 'async' };
-          if (resolved.srcset) hProperties.srcset = resolved.srcset;
-          if (resolved.sizes) hProperties.sizes = resolved.sizes;
-          node.data = node.data || {};
-          node.data.hProperties = { ...(node.data.hProperties || {}), ...hProperties };
+    // 1. Locate the very first image node in reading order, anywhere in
+    //    the document, and remove it from its parent's children.
+    function findFirstImage(node) {
+      if (!node.children) return null;
+      for (let i = 0; i < node.children.length; i++) {
+        const child = node.children[i];
+        if (child.type === 'image') return { parent: node, index: i };
+        const found = findFirstImage(child);
+        if (found) return found;
+      }
+      return null;
+    }
+
+    const firstImageLoc = findFirstImage(tree);
+    if (firstImageLoc) {
+      firstImageLoc.parent.children.splice(firstImageLoc.index, 1);
+    }
+
+    // 2. Clean up any paragraph left completely empty as a result (e.g. a
+    //    paragraph that contained only that one image).
+    function removeEmptyParagraphs(node) {
+      if (!node.children) return;
+      for (let i = node.children.length - 1; i >= 0; i--) {
+        const child = node.children[i];
+        if (child.type === 'paragraph' && (!child.children || child.children.length === 0)) {
+          node.children.splice(i, 1);
+        } else {
+          removeEmptyParagraphs(child);
         }
       }
-      if (node.children) node.children.forEach(walk);
     }
+    removeEmptyParagraphs(tree);
+
+    // 3. Resolve every remaining image reference to a production-safe URL.
+    function walk(node) {
+      if (!node.children) return;
+      for (const child of node.children) {
+        if (child.type === 'image') {
+          const resolved = resolveProjectImageSet(relativeProjectDir, child.url || '');
+          if (resolved) {
+            child.url = resolved.src;
+            const hProperties = { loading: 'lazy', decoding: 'async' };
+            if (resolved.srcset) hProperties.srcset = resolved.srcset;
+            if (resolved.sizes) hProperties.sizes = resolved.sizes;
+            child.data = child.data || {};
+            child.data.hProperties = { ...(child.data.hProperties || {}), ...hProperties };
+          }
+        }
+        walk(child);
+      }
+    }
+    walk(tree);
   };
 }
 
 /**
  * Remark plugin: converts ```gallery fenced code blocks into a
  * `.gallery-slider` raw-HTML block containing resolved <img> tags (each
- * with its own responsive srcset).
- *
- * Obsidian's "Gallery Slider" plugin renders this same ```gallery block
- * live inside Obsidian using a custom code-block processor. Astro's
- * markdown pipeline has no equivalent for unknown code-block languages —
- * by default it just renders the block as an escaped <pre><code> text
- * block, which is why gallery images were never showing up. This plugin
- * gives Astro the same rendering behavior at build time.
+ * with its own responsive srcset). Untouched by the "drop first image"
+ * logic above, since gallery blocks are `code` nodes, not `image` nodes.
  */
 function remarkGalleryPlugin() {
   return (tree, file) => {
