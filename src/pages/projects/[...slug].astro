@@ -158,40 +158,46 @@ const projectDir = idToProjectDir(project.id);
         return;
       }
 
-      // Wait until every photo in this gallery has actually downloaded
-      // before starting the carousel, so the first rotation doesn't stall
-      // partway through. Capped at 8s so one slow/broken image can't block
-      // the carousel forever — it'll just start with whatever has loaded
-      // by then.
-      const preload = Promise.all(imgs.map(whenSettled));
-      const timeout = new Promise((resolve) => window.setTimeout(resolve, 8000));
+      let index = imgs.findIndex((img) => img.classList.contains('is-active'));
+      if (index < 0) index = 0;
+      let playing = true;
 
-      Promise.race([preload, timeout]).then(() => {
-        let index = imgs.findIndex((img) => img.classList.contains('is-active'));
-        if (index < 0) index = 0;
-        let playing = true;
+      function show(i) {
+        imgs.forEach((img, j) => img.classList.toggle('is-active', j === i));
+      }
 
-        function show(i) {
-          imgs.forEach((img, j) => img.classList.toggle('is-active', j === i));
+      // Instead of waiting for every photo in the gallery to be ready
+      // before starting anything, each cycle only waits for the ONE image
+      // it's about to reveal — capped at 8s so a slow/broken image can't
+      // stall the carousel forever. This starts playing much sooner on
+      // large galleries while still guaranteeing we never swap to a slide
+      // that isn't actually ready yet (no blank/half-rendered flash).
+      async function tick() {
+        if (playing) {
+          const nextIndex = (index + 1) % imgs.length;
+          await Promise.race([
+            whenSettled(imgs[nextIndex]),
+            new Promise((resolve) => window.setTimeout(resolve, 8000)),
+          ]);
+          if (playing) {
+            index = nextIndex;
+            show(index);
+          }
         }
+        window.setTimeout(tick, 3000);
+      }
 
-        show(index);
+      show(index);
+      window.setTimeout(tick, 3000);
 
-        const timer = window.setInterval(() => {
-          if (!playing) return;
-          index = (index + 1) % imgs.length;
-          show(index);
-        }, 3000);
-
-        wrapper.addEventListener('mouseenter', () => {
-          playing = false;
-        });
-        wrapper.addEventListener('mouseleave', () => {
-          playing = true;
-        });
-        wrapper.addEventListener('click', () => {
-          playing = !playing;
-        });
+      wrapper.addEventListener('mouseenter', () => {
+        playing = false;
+      });
+      wrapper.addEventListener('mouseleave', () => {
+        playing = true;
+      });
+      wrapper.addEventListener('click', () => {
+        playing = !playing;
       });
     });
   });
