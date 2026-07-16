@@ -105,51 +105,14 @@ function resolveProjectImageSet(relativeProjectDir, rawUrl) {
 /**
  * Remark plugin: rewrites Obsidian-style relative image references in the
  * markdown body (![](images/xxx.png)) to /project-images/ URLs with a
- * responsive srcset, adds loading="lazy", and — since every note in this
- * vault follows the convention of repeating the frontmatter coverImage as
- * the very first line of the body — drops the first image encountered in
- * the document so the cover photo isn't shown twice (once as the page hero,
- * once again inline).
+ * responsive srcset, and adds loading="lazy" so off-screen images don't
+ * block initial page load.
  */
 function remarkObsidianImages() {
   return (tree, file) => {
     const filePath = file.path || '';
     const relativeProjectDir = getRelativeProjectDir(filePath);
 
-    // 1. Locate the very first image node in reading order, anywhere in
-    //    the document, and remove it from its parent's children.
-    function findFirstImage(node) {
-      if (!node.children) return null;
-      for (let i = 0; i < node.children.length; i++) {
-        const child = node.children[i];
-        if (child.type === 'image') return { parent: node, index: i };
-        const found = findFirstImage(child);
-        if (found) return found;
-      }
-      return null;
-    }
-
-    const firstImageLoc = findFirstImage(tree);
-    if (firstImageLoc) {
-      firstImageLoc.parent.children.splice(firstImageLoc.index, 1);
-    }
-
-    // 2. Clean up any paragraph left completely empty as a result (e.g. a
-    //    paragraph that contained only that one image).
-    function removeEmptyParagraphs(node) {
-      if (!node.children) return;
-      for (let i = node.children.length - 1; i >= 0; i--) {
-        const child = node.children[i];
-        if (child.type === 'paragraph' && (!child.children || child.children.length === 0)) {
-          node.children.splice(i, 1);
-        } else {
-          removeEmptyParagraphs(child);
-        }
-      }
-    }
-    removeEmptyParagraphs(tree);
-
-    // 3. Resolve every remaining image reference to a production-safe URL.
     function walk(node) {
       if (!node.children) return;
       for (const child of node.children) {
@@ -174,8 +137,10 @@ function remarkObsidianImages() {
 /**
  * Remark plugin: converts ```gallery fenced code blocks into a
  * `.gallery-slider` raw-HTML block containing resolved <img> tags (each
- * with its own responsive srcset). Untouched by the "drop first image"
- * logic above, since gallery blocks are `code` nodes, not `image` nodes.
+ * with its own responsive srcset). Untouched by the coverImage-matching
+ * logic above, since gallery blocks are `code` nodes, not `image` nodes —
+ * so a photo used as coverImage will still show up inside a gallery block
+ * if you happen to also include it there.
  */
 function remarkGalleryPlugin() {
   return (tree, file) => {
@@ -200,7 +165,14 @@ function remarkGalleryPlugin() {
                 const srcsetAttr = img.srcset ? ` srcset="${img.srcset}"` : '';
                 const sizesAttr = img.sizes ? ` sizes="${img.sizes}"` : '';
                 const activeClass = idx === 0 ? 'is-active' : '';
-                return `<img src="${img.src}"${srcsetAttr}${sizesAttr} data-index="${idx}" class="${activeClass}" loading="lazy" decoding="async" alt="" />`;
+                // No loading="lazy" here on purpose: gallery images are a
+                // set that gets cycled through immediately, and browsers
+                // often skip preloading lazy images while they're
+                // display:none, which is exactly what caused the blank
+                // flash between slides. Eager-loading them all up front
+                // (paired with the "wait until loaded" logic in the
+                // carousel script) fixes that.
+                return `<img src="${img.src}"${srcsetAttr}${sizesAttr} data-index="${idx}" class="${activeClass}" decoding="async" alt="" />`;
               })
               .join('\n');
 
