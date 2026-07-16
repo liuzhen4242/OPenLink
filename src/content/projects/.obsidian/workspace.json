@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Hainan-TouristStation/海南驿站.md",
+                "file": "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
                 "mode": "source",
-                "source": false
+                "source": true
               },
               "icon": "lucide-file",
-              "title": "海南驿站"
+              "title": "新疆丝绸之路陶瓷博物馆"
             }
           }
         ]
@@ -113,12 +113,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "Hainan-TouristStation/海南驿站.md",
+                "file": "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Outgoing links from 海南驿站"
+              "title": "Outgoing links from 新疆丝绸之路陶瓷博物馆"
             }
           },
           {
@@ -156,13 +156,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Hainan-TouristStation/海南驿站.md",
+                "file": "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of 海南驿站"
+              "title": "Outline of 新疆丝绸之路陶瓷博物馆"
             }
           }
         ],
@@ -186,8 +186,8 @@
   },
   "active": "b19bdda351e59669",
   "lastOpenFiles": [
-    "Untitled.canvas",
     "Hainan-TouristStation/海南驿站.md",
+    "Untitled.canvas",
     "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
     "Hainan-TouristStation/images/旅行线路.png",
     "Hainan-TouristStation/images/微信图片_20231017224533.jpg",
