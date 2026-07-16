@@ -13,15 +13,30 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
+                "file": "Hainan-TouristStation/海南驿站.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "新疆丝绸之路陶瓷博物馆"
+              "title": "海南驿站"
+            }
+          },
+          {
+            "id": "7bebd73eab028a49",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "NanXin-Factory/南星厂房外立面改造.md",
+                "mode": "source",
+                "source": true
+              },
+              "icon": "lucide-file",
+              "title": "南星厂房外立面改造"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -156,13 +171,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
+                "file": "NanXin-Factory/南星厂房外立面改造.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of 新疆丝绸之路陶瓷博物馆"
+              "title": "Outline of 南星厂房外立面改造"
             }
           }
         ],
@@ -170,8 +185,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200,
-    "collapsed": true
+    "width": 200
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -184,21 +198,25 @@
       "bases:Create new base": false
     }
   },
-  "active": "b19bdda351e59669",
+  "active": "7bebd73eab028a49",
   "lastOpenFiles": [
+    "NanXin-Factory/images/立面图.jpg",
+    "NanXin-Factory/images/平面图.jpg",
+    "NanXin-Factory/images/外廊构造02.png",
+    "NanXin-Factory/images/外廊构造.png",
+    "NanXin-Factory/images/幕墙03.png",
+    "NanXin-Factory/images/幕墙02.png",
+    "NanXin-Factory/images/幕墙01.png",
+    "NanXin-Factory/images/ScreenShot_2026-07-16_164900_180.png",
+    "NanXin-Factory/images/ScreenShot_2026-07-16_164803_133.png",
+    "NanXin-Factory/images/logic05.png",
+    "NanXin-Factory/images/logic04.png",
     "Hainan-TouristStation/海南驿站.md",
+    "NanXin-Factory/南星厂房外立面改造.md",
+    "NanXin-Factory/images",
+    "NanXin-Factory",
     "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
     "Untitled.canvas",
-    "Hainan-TouristStation/images/旅行线路.png",
-    "Hainan-TouristStation/images/微信图片_20231017224533.jpg",
-    "Hainan-TouristStation/images/微信图片_20231017224615.jpg",
-    "Hainan-TouristStation/images/微信图片_20231017224559.jpg",
-    "Hainan-TouristStation/images/DSC07261.jpg",
-    "Hainan-TouristStation/images/DSC07254.jpg",
-    "Hainan-TouristStation/images/DSC07252.jpg",
-    "Hainan-TouristStation/images/DSC07251.jpg",
-    "Hainan-TouristStation/images/DSC07249.jpg",
-    "Hainan-TouristStation/images/DSC07247.jpg",
     "Hainan-TouristStation/images",
     "temple.md",
     "Hainan-TouristStation",

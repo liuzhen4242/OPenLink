@@ -1,17 +1,17 @@
 ---
 /**
- * /projects — Masonry waterfall gallery
+ * /projects — Grid gallery with category filtering
  *
- * CSS-native masonry via column-count: 2 (no JS, no grid hack).
- * Images retain their original aspect ratio for an organic staggered rhythm.
- * Metadata (category · title · year) sits tightly below each image in
- * archival micro-typography (~7.5–9pt).
+ * Switched from CSS column-count masonry (organic, misaligned row heights)
+ * to CSS Grid with a fixed image aspect-ratio per card. This keeps the
+ * "gallery of photos" feel while making rows actually align across columns,
+ * which a pure column-count masonry can't do by nature.
  *
- * Content: Astro Content Layer collection "projects", sourced from the
- * Obsidian vault symlinked at src/content/projects/Projects/.
+ * The right-hand sidebar lists every category actually in use (derived from
+ * the projects themselves, not hardcoded) as checkboxes; a small client
+ * script shows/hides cards to match — no page reload, no other JS deps.
  *
- * In Astro v7 Content Layer API, entries use `id` (the file path relative to
- * the glob base) instead of the v4/v5 `slug`.
+ * Content: Astro Content Layer collection "projects".
  */
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
@@ -20,6 +20,9 @@ const allProjects = await getCollection('projects');
 const projects = allProjects.sort(
   (a, b) => Number(b.data.date ?? 0) - Number(a.data.date ?? 0)
 );
+
+/** Every category actually used by at least one project, in first-seen order. */
+const categories = Array.from(new Set(projects.map((p) => p.data.category)));
 
 /**
  * Build a URL-safe slug from the entry id.
@@ -42,45 +45,178 @@ function idToSlug(id: string): string {
       暂无项目 — 请在 Obsidian vault 中添加带有正确 frontmatter 的 Markdown 文件。
     </p>
   ) : (
-    <div class="masonry">
-      {projects.map((project) => {
-        // ✨ 核心改变：不再手动计算本地物理绝对路径，直接获取 Astro 编译打包好的图片路径
-        const coverObj = project.data.coverImage;
-        const coverUrl = typeof coverObj === 'object' && coverObj !== null ? (coverObj as any).src : coverObj;
-        
-        const slug     = idToSlug(project.id);
-        const href     = `/projects/${slug}`;
+    <div class="projects-layout">
+      <div class="masonry-grid">
+        {projects.map((project) => {
+          const coverObj = project.data.coverImage;
+          const coverUrl = typeof coverObj === 'object' && coverObj !== null ? (coverObj as any).src : coverObj;
 
-        return (
-          <a href={href} class="masonry-item">
-            {coverUrl ? (
-              <div class="card-img-wrap">
-                <img
-                  src={coverUrl}
-                  alt={project.data.title}
-                  loading="lazy"
-                  decoding="async"
-                />
-              </div>
-            ) : (
-              <div class="card-img-placeholder">
-                <span>—</span>
-              </div>
-            )}
-            <div class="card-meta">
-              <span class="card-category">{project.data.category}</span>
-              <span class="card-sep">·</span>
-              <span class="card-title">{project.data.title}</span>
-              {project.data.date && (
-                <span class="card-year">{project.data.date}</span>
+          const slug = idToSlug(project.id);
+          const href = `/projects/${slug}`;
+
+          return (
+            <a href={href} class="masonry-item" data-category={project.data.category}>
+              {coverUrl ? (
+                <div class="card-img-wrap">
+                  <img
+                    src={coverUrl}
+                    alt={project.data.title}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
+              ) : (
+                <div class="card-img-placeholder">
+                  <span>—</span>
+                </div>
               )}
-            </div>
-          </a>
-        );
-      })}
+              <div class="card-meta">
+                <span class="card-category">{project.data.category}</span>
+                <span class="card-sep">·</span>
+                <span class="card-title">{project.data.title}</span>
+                {project.data.date && (
+                  <span class="card-year">{project.data.date}</span>
+                )}
+              </div>
+            </a>
+          );
+        })}
+      </div>
+
+      <aside class="category-sidebar">
+        <nav class="category-nav">
+          <button type="button" class="category-tag is-active" data-category-all>全部</button>
+          {categories.map((cat) => (
+            <button type="button" class="category-tag" data-category-value={cat}>{cat}</button>
+          ))}
+        </nav>
+      </aside>
     </div>
   )}
 </BaseLayout>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const tags = Array.from(document.querySelectorAll<HTMLButtonElement>('.category-tag'));
+    const cards = Array.from(document.querySelectorAll<HTMLElement>('.masonry-item'));
+    const grid = document.querySelector<HTMLElement>('.masonry-grid');
+    if (!grid) return;
+
+    const SLIDE_MS = 400;
+    const FADE_MS = 320;
+
+    /**
+     * Isotope-style filtering via manual FLIP (First, Last, Invert, Play):
+     * 1. FIRST  — record where every currently-visible card actually is.
+     * 2. (apply the new visibility instantly; the grid reflows)
+     * 3. LAST   — read each surviving card's new position.
+     * 4. INVERT — snap it back to where it was, with no transition.
+     * 5. PLAY   — release the transition so it glides to the real spot.
+     *
+     * Cards leaving the filter are frozen in place (position:absolute at
+     * their last known spot) so the grid can reflow immediately around
+     * them, then fade out on their own. Cards newly entering just reveal
+     * once they're already sitting in their correct grid slot.
+     */
+    function applyFilter(selected: string) {
+      const containerRect = grid!.getBoundingClientRect();
+      const firstRects = new Map<HTMLElement, DOMRect>();
+
+      cards.forEach((card) => {
+        if (card.style.display !== 'none') {
+          firstRects.set(card, card.getBoundingClientRect());
+        }
+      });
+
+      const willBeVisible = new Map<HTMLElement, boolean>();
+      cards.forEach((card) => {
+        willBeVisible.set(card, selected === 'all' || card.dataset.category === selected);
+      });
+
+      // Apply new visibility immediately — this is what makes the grid
+      // reflow around the cards that are staying/entering.
+      cards.forEach((card) => {
+        const wasVisible = firstRects.has(card);
+        const visible = willBeVisible.get(card);
+
+        if (visible) {
+          card.style.display = '';
+        } else if (wasVisible) {
+          // Freeze the leaving card exactly where it was, relative to the
+          // grid container, so removing it from flow doesn't jump — the
+          // remaining cards can reflow into its space right away while it
+          // fades out independently.
+          const rect = firstRects.get(card)!;
+          card.style.position = 'absolute';
+          card.style.left = `${rect.left - containerRect.left}px`;
+          card.style.top = `${rect.top - containerRect.top}px`;
+          card.style.width = `${rect.width}px`;
+          card.style.margin = '0';
+          card.style.zIndex = '1';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      // Continuing cards: FLIP them from their old spot into the new one.
+      cards.forEach((card) => {
+        const wasVisible = firstRects.has(card);
+        const visible = willBeVisible.get(card);
+        if (!wasVisible || !visible) return;
+
+        const first = firstRects.get(card)!;
+        const last = card.getBoundingClientRect();
+        const dx = first.left - last.left;
+        const dy = first.top - last.top;
+        if (dx === 0 && dy === 0) return;
+
+        card.style.transition = 'none';
+        card.style.transform = `translate(${dx}px, ${dy}px)`;
+        void card.offsetWidth; // force the browser to register the jump
+        card.style.transition = `transform ${SLIDE_MS}ms ease`;
+        card.style.transform = '';
+      });
+
+      // Leaving cards: fade out in place, then fully remove from flow.
+      cards.forEach((card) => {
+        const wasVisible = firstRects.has(card);
+        const visible = willBeVisible.get(card);
+        if (!wasVisible || visible) return;
+
+        card.classList.add('is-hidden');
+        window.setTimeout(() => {
+          card.style.display = 'none';
+          card.style.position = '';
+          card.style.left = '';
+          card.style.top = '';
+          card.style.width = '';
+          card.style.margin = '';
+          card.style.zIndex = '';
+          card.classList.remove('is-hidden');
+        }, FADE_MS);
+      });
+
+      // Entering cards: already in their correct grid slot (set above),
+      // just reveal them with the same fade+scale used elsewhere.
+      cards.forEach((card) => {
+        const wasVisible = firstRects.has(card);
+        const visible = willBeVisible.get(card);
+        if (wasVisible || !visible) return;
+
+        card.classList.add('is-hidden');
+        void card.offsetWidth;
+        card.classList.remove('is-hidden');
+      });
+    }
+
+    tags.forEach((tag) => {
+      tag.addEventListener('click', () => {
+        tags.forEach((t) => t.classList.toggle('is-active', t === tag));
+        applyFilter(tag.dataset.categoryValue ?? 'all');
+      });
+    });
+  });
+</script>
 
 <style>
   /* ── Page header ─────────────────────────────────── */
@@ -107,29 +243,48 @@ function idToSlug(id: string): string {
     line-height: 1.1;
   }
 
-  /* ── CSS Masonry (native column-count) ──────────── */
-  .masonry {
-    column-count: 2;
-    column-gap: 2.5rem;
+  /* ── Two-column layout: grid + filter sidebar ────── */
+  .projects-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 4rem;
+  }
+
+  /* ── CSS Grid (row-aligned, unlike column-count masonry) ── */
+  .masonry-grid {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2.5rem 2.5rem;
   }
 
   .masonry-item {
     display: block;
-    break-inside: avoid;
-    margin-bottom: 3rem;
     cursor: pointer;
     color: inherit;
+    transition: opacity 0.32s ease, transform 0.32s ease;
+  }
+  .masonry-item.is-hidden {
+    opacity: 0;
+    transform: scale(0.96);
+    pointer-events: none;
   }
 
-  /* Image wrapper — no fixed height, natural aspect ratio preserved */
+  /* Fixed aspect-ratio is what makes rows align across columns — a true
+     masonry (column-count) can't do this since each column's items keep
+     their natural, differing heights. */
   .card-img-wrap {
     width: 100%;
+    aspect-ratio: 4 / 3;
     overflow: hidden;
     background: #ebe9e4;
   }
   .card-img-wrap img {
     width: 100%;
-    height: auto;
+    height: 100%;
+    object-fit: cover;
     display: block;
     transition: transform 0.45s ease, opacity 0.3s ease;
   }
@@ -181,6 +336,56 @@ function idToSlug(id: string): string {
     font-size: 7pt;
   }
 
+  /* ── Category filter ──────────────────────────────
+     Same underline-grows-on-hover interaction as the main nav links
+     (see Navbar.astro) — reusing the site's one signature interaction
+     instead of inventing a separate "form-like" filter control. */
+  .category-sidebar {
+    width: 140px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 6rem;
+  }
+  .category-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+  .category-tag {
+    align-self: flex-start;
+    font-family: var(--ff-serif);
+    font-size: var(--fs-sm);
+    letter-spacing: 0.04em;
+    color: var(--c-mid);
+    background: none;
+    border: none;
+    padding: 0 0 2px;
+    margin: 0;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.18s ease;
+  }
+  .category-tag::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 1px;
+    background: var(--c-ink);
+    transition: width 0.25s ease;
+  }
+  .category-tag:hover {
+    color: var(--c-ink);
+  }
+  .category-tag:hover::after,
+  .category-tag.is-active::after {
+    width: 100%;
+  }
+  .category-tag.is-active {
+    color: var(--c-ink);
+  }
+
   /* ── Empty state ──────────────────────────────── */
   .empty-state {
     margin-top: 4rem;
@@ -189,9 +394,26 @@ function idToSlug(id: string): string {
     font-style: italic;
   }
 
-  /* ── Responsive: single column on narrow screens ── */
+  /* ── Responsive ───────────────────────────────────── */
+  @media (max-width: 900px) {
+    .projects-layout {
+      flex-direction: column-reverse;
+      gap: 2.5rem;
+    }
+    .category-sidebar {
+      width: 100%;
+      position: static;
+    }
+    .category-nav {
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+  }
+
   @media (max-width: 640px) {
-    .masonry { column-count: 1; }
+    .masonry-grid { grid-template-columns: 1fr; }
     .gallery-title { font-size: 20pt; }
   }
 </style>

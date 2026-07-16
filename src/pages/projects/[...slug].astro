@@ -30,6 +30,7 @@
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import MetaGrid from '../../components/MetaGrid.astro';
+import 'photoswipe/style.css';
 
 /** Convert entry id → URL slug (strip .md extension and leading Projects/) */
 function idToSlug(id: string): string {
@@ -58,40 +59,106 @@ export async function getStaticPaths() {
 const { project } = Astro.props;
 const { data, body } = project;
 
-const { Content } = await render(project);
+const { Content, headings } = await render(project);
 
 const projectDir = idToProjectDir(project.id);
+
+/**
+ * Build a nested outline from the flat `headings` array Astro's render()
+ * gives us — h3 (### in the source note) becomes a top-level item, and any
+ * h4 immediately following is nested under it. Mirrors the outline you'd
+ * see in Obsidian's own sidebar. h1/h2 and anything deeper than h4 is
+ * ignored to keep the sidebar readable.
+ */
+const tocItems: { slug: string; text: string; children: { slug: string; text: string }[] }[] = [];
+for (const heading of headings) {
+  if (heading.depth === 3) {
+    tocItems.push({ slug: heading.slug, text: heading.text, children: [] });
+  } else if (heading.depth === 4 && tocItems.length > 0) {
+    tocItems[tocItems.length - 1].children.push({ slug: heading.slug, text: heading.text });
+  }
+}
 ---
 
 <BaseLayout title={data.title} description={data.description}>
 
-  <!-- ── Project header ─────────────────────────────── -->
-  <header class="project-header">
-    <div class="project-super">
-      <span class="project-category">{data.category}</span>
-      {data.date && <span class="project-date">{data.date}</span>}
+  <div class="project-layout">
+    <div class="project-main">
+      <!-- ── Project header ─────────────────────────────── -->
+      <header class="project-header">
+        <div class="project-super">
+          <span class="project-category">{data.category}</span>
+          {data.date && <span class="project-date">{data.date}</span>}
+        </div>
+        <h1 class="project-title">{data.title}</h1>
+        {data.description && (
+          <p class="project-desc">{data.description}</p>
+        )}
+      </header>
+
+      <!-- ── Bilingual metadata grid ────────────────────── -->
+      {body && <MetaGrid rawBody={body} />}
+
+      <!-- ── Markdown body (drawings, prose) ────────────── -->
+      <article class="prose">
+        <Content />
+      </article>
+
+      <!-- Back link -->
+      <nav class="back-nav">
+        <a href="/projects" class="back-link">
+          <span aria-hidden="true">←</span>&ensp;所有项目
+        </a>
+      </nav>
     </div>
-    <h1 class="project-title">{data.title}</h1>
-    {data.description && (
-      <p class="project-desc">{data.description}</p>
+
+    {tocItems.length > 0 && (
+      <aside class="project-toc">
+        <h2 class="toc-label">Outline</h2>
+
+
+        <nav>
+          <ul class="toc-list">
+            {tocItems.map((item) => (
+              <li class="toc-item">
+                <a
+                  href={`#${item.slug}`}
+                  class="toc-parent"
+                  data-toc-parent={item.slug}
+                  data-toc-link={item.slug}
+                >
+                  {item.text}
+                </a>
+
+                {item.children.length > 0 && (
+                  <ul
+                    class="toc-sublist collapsed"
+                    data-toc-sublist={item.slug}
+                  >
+                    {item.children.map((child) => (
+                      <li>
+                        <a
+                          href={`#${child.slug}`}
+                          data-toc-link={child.slug}
+                        >
+                          {child.text}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+
+      </aside>
     )}
-  </header>
-
-  <!-- ── Bilingual metadata grid ────────────────────── -->
-  {body && <MetaGrid rawBody={body} />}
-
-  <!-- ── Markdown body (drawings, prose) ────────────── -->
-  <article class="prose">
-    <Content />
-  </article>
-
-  <!-- Back link -->
-  <nav class="back-nav">
-    <a href="/projects" class="back-link">
-      <span aria-hidden="true">←</span>&ensp;所有项目
-    </a>
-  </nav>
+  </div>
 </BaseLayout>
+
+
 
 <!--
   Rewrite relative Obsidian image src attributes at runtime, as a safety
@@ -196,14 +263,86 @@ const projectDir = idToProjectDir(project.id);
       wrapper.addEventListener('mouseleave', () => {
         playing = true;
       });
-      wrapper.addEventListener('click', () => {
-        playing = !playing;
-      });
     });
   });
 </script>
 
+<!--
+  PhotoSwipe lightbox: clicking any image in the article opens it zoomed in
+  from its exact on-page position (PhotoSwipe's signature transition), and
+  every image in the article is one navigable sequence — tapping the open
+  photo advances to the next one (tapAction: 'next'), and Esc closes, both
+  built into PhotoSwipe with no extra code needed.
+-->
+<script>
+  import PhotoSwipeLightbox from 'photoswipe/lightbox';
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const lightbox = new PhotoSwipeLightbox({
+      gallery: '.prose',
+      children: 'img',
+      pswpModule: () => import('photoswipe'),
+      tapAction: 'next',
+    });
+
+    // PhotoSwipe needs each image's real pixel dimensions to animate the
+    // zoom smoothly. Since every image is already rendered on the page by
+    // the time someone clicks it, we can just read its actual decoded size
+    // right before it opens rather than pre-computing this at build time.
+    lightbox.addFilter('itemData', (itemData) => {
+      const el = itemData.element;
+      if (el instanceof HTMLImageElement) {
+        itemData.src = el.currentSrc || el.src;
+        itemData.width = el.naturalWidth || 1600;
+        itemData.height = el.naturalHeight || 1067;
+      }
+      return itemData;
+    });
+
+    lightbox.init();
+  });
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  document.querySelectorAll('.toc-parent')
+    .forEach(link => {
+
+      link.addEventListener('click', () => {
+
+        const slug = link.dataset.tocParent;
+
+        const sublist =
+          document.querySelector(
+            `[data-toc-sublist="${slug}"]`
+          );
+
+        if (!sublist) return;
+
+        sublist.classList.toggle('collapsed');
+      });
+
+    });
+
+});
+</script>
+
+
+
+
 <style>
+  /* ── Two-column layout: article + outline sidebar ─── */
+  .project-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 4rem;
+  }
+  .project-main {
+    flex: 1;
+    min-width: 0;
+  }
+
   /* ── Project header ──────────────────────────────── */
   .project-header {
     padding: 4rem 0 2.5rem;
@@ -254,6 +393,9 @@ const projectDir = idToProjectDir(project.id);
 
   /* ── Prose: full-width drawings ──────────────────── */
   .prose { max-width: none; }
+  :global(.prose img) {
+    cursor: zoom-in;
+  }
 
   /* ── Back navigation ──────────────────────────────── */
   .back-nav {
@@ -270,6 +412,115 @@ const projectDir = idToProjectDir(project.id);
     transition: color 0.18s ease;
   }
   .back-link:hover { color: var(--c-ink); }
+
+  /* ── Outline sidebar ──────────────────────────────── */
+  .project-toc {
+    width: 200px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 6rem;
+    padding-top: 4rem; /* roughly align with the article header */
+  }
+  .toc-label {
+    font-family: var(--ff-caps);
+    font-size: var(--fs-xs);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--c-mid);
+    font-weight: 400;
+    margin: 0 0 1.25rem;
+  }
+  .toc-list, .toc-sublist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .toc-list > li {
+    margin-bottom: 0.5rem;
+  }
+ 
+  .toc-list a {
+  display: block;
+  font-family: var(--ff-serif);
+  font-size: var(--fs-sm);
+  color: var(--c-mid);
+  padding: 0.15rem 0;
+  transition: color 0.18s ease;
+}
+
+  .toc-parent {
+    cursor: pointer;
+  }
+
+  .toc-list a:hover { color: var(--c-ink); }
+  .toc-list a.active {
+    color: var(--c-ink);
+    font-weight: 500;
+  }
+  
+.toc-sublist {
+  margin-left: 0.8rem;
+  margin-top: 0.25rem;
+
+  overflow: hidden;
+  max-height: 500px;
+  opacity: 1;
+
+  transition:
+    max-height 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.toc-sublist.collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
+
+
+
+  .toc-sublist a {
+    font-size: var(--fs-xs);
+  }
+
+  @media (max-width: 900px) {
+    .project-toc { display: none; }
+  }
+
+  /*
+    ── Collapsible ### sections (Obsidian-style folding) ─────────────
+    :global() is required because .toc-section/.section-toggle/etc are
+    built by client-side JS at runtime (see the accordion script above),
+    not written directly in this component's template, so they never
+    receive Astro's scoped-style data attribute — same reasoning as the
+    .gallery-slider rules below.
+
+    The expand/collapse animation uses the CSS grid-template-rows 0fr↔1fr
+    trick rather than a fixed max-height: it animates correctly no matter
+    how tall the content actually is (including images that finish loading
+    after the section is opened), with no JS height measurement needed.
+  */
+  
+  
+  :global(.section-toggle h3) {
+    margin: 0 !important;
+  }
+  
+  :global(.toc-section.is-open .section-chevron) {
+    transform: rotate(90deg);
+  }
+  
+  :global(.toc-section.is-open .section-collapse) {
+    grid-template-rows: 1fr;
+  }
+  
+  :global(.section-inner > :first-child) {
+    margin-top: 0;
+  }
+  :global(.section-inner > :last-child) {
+    margin-bottom: 0;
+    padding-bottom: 2rem;
+  }
 
   /*
     ── Gallery slider ────────────────────────────────
