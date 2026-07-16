@@ -21,6 +21,11 @@
  * • Gallery slider: ```gallery code blocks are converted at build time
  *   (see remarkGalleryPlugin in astro.config.mjs) into `.gallery-slider`
  *   divs; the script below adds the carousel behavior client-side.
+ *
+ * NOTE: the frontmatter `coverImage` is intentionally NOT rendered on this
+ * page — it's only used as the thumbnail on the /projects listing page
+ * (see src/pages/projects/index.astro). The detail page goes straight from
+ * the header into the article body.
  */
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
@@ -56,10 +61,6 @@ const { data, body } = project;
 const { Content } = await render(project);
 
 const projectDir = idToProjectDir(project.id);
-
-// ✨ 核心改变：安全提取被 Astro image() 处理器编译后的封面 URL 字符串
-const coverObj = (data as any).coverImage;
-const coverUrl = typeof coverObj === 'object' && coverObj !== null ? (coverObj as any).src : coverObj;
 ---
 
 <BaseLayout title={data.title} description={data.description}>
@@ -75,13 +76,6 @@ const coverUrl = typeof coverObj === 'object' && coverObj !== null ? (coverObj a
       <p class="project-desc">{data.description}</p>
     )}
   </header>
-
-  <!-- ── Hero cover image ───────────────────────────── -->
-  {coverUrl && (
-    <div class="project-hero">
-      <img src={coverUrl} alt={data.title} />
-    </div>
-  )}
 
   <!-- ── Bilingual metadata grid ────────────────────── -->
   {body && <MetaGrid rawBody={body} />}
@@ -135,6 +129,16 @@ const coverUrl = typeof coverObj === 'object' && coverObj !== null ? (coverObj a
 -->
 <script>
   document.addEventListener('DOMContentLoaded', () => {
+    // Resolves once an <img> has either finished loading or failed —
+    // either way, the browser is done trying, so it's safe to move on.
+    function whenSettled(img) {
+      if (img.complete) return Promise.resolve();
+      return new Promise((resolve) => {
+        img.addEventListener('load', resolve, { once: true });
+        img.addEventListener('error', resolve, { once: true });
+      });
+    }
+
     document.querySelectorAll('.gallery-slider').forEach((wrapper) => {
       const imgs = Array.from(wrapper.querySelectorAll('img'));
       if (imgs.length === 0) return;
@@ -145,30 +149,36 @@ const coverUrl = typeof coverObj === 'object' && coverObj !== null ? (coverObj a
         return;
       }
 
-      let index = imgs.findIndex((img) => img.classList.contains('is-active'));
-      if (index < 0) index = 0;
-      let playing = true;
+      // Wait until every photo in this gallery has actually downloaded
+      // before starting the carousel — otherwise the browser only starts
+      // fetching the next image the moment it's switched to, producing a
+      // blank flash on every slide change.
+      Promise.all(imgs.map(whenSettled)).then(() => {
+        let index = imgs.findIndex((img) => img.classList.contains('is-active'));
+        if (index < 0) index = 0;
+        let playing = true;
 
-      function show(i) {
-        imgs.forEach((img, j) => img.classList.toggle('is-active', j === i));
-      }
+        function show(i) {
+          imgs.forEach((img, j) => img.classList.toggle('is-active', j === i));
+        }
 
-      show(index);
-
-      const timer = window.setInterval(() => {
-        if (!playing) return;
-        index = (index + 1) % imgs.length;
         show(index);
-      }, 3000);
 
-      wrapper.addEventListener('mouseenter', () => {
-        playing = false;
-      });
-      wrapper.addEventListener('mouseleave', () => {
-        playing = true;
-      });
-      wrapper.addEventListener('click', () => {
-        playing = !playing;
+        const timer = window.setInterval(() => {
+          if (!playing) return;
+          index = (index + 1) % imgs.length;
+          show(index);
+        }, 3000);
+
+        wrapper.addEventListener('mouseenter', () => {
+          playing = false;
+        });
+        wrapper.addEventListener('mouseleave', () => {
+          playing = true;
+        });
+        wrapper.addEventListener('click', () => {
+          playing = !playing;
+        });
       });
     });
   });
@@ -221,17 +231,6 @@ const coverUrl = typeof coverObj === 'object' && coverObj !== null ? (coverObj a
     color: var(--c-mid);
     margin: 0;
     font-style: italic;
-  }
-
-  /* ── Hero image ──────────────────────────────────── */
-  .project-hero {
-    margin: 3.5rem 0 0;
-    background: #e8e6e1;
-  }
-  .project-hero img {
-    width: 100%;
-    height: auto;
-    display: block;
   }
 
   /* ── Prose: full-width drawings ──────────────────── */
