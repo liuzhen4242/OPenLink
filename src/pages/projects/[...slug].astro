@@ -150,10 +150,14 @@ const projectDir = idToProjectDir(project.id);
       }
 
       // Wait until every photo in this gallery has actually downloaded
-      // before starting the carousel — otherwise the browser only starts
-      // fetching the next image the moment it's switched to, producing a
-      // blank flash on every slide change.
-      Promise.all(imgs.map(whenSettled)).then(() => {
+      // before starting the carousel, so the first rotation doesn't stall
+      // partway through. Capped at 8s so one slow/broken image can't block
+      // the carousel forever — it'll just start with whatever has loaded
+      // by then.
+      const preload = Promise.all(imgs.map(whenSettled));
+      const timeout = new Promise((resolve) => window.setTimeout(resolve, 8000));
+
+      Promise.race([preload, timeout]).then(() => {
         let index = imgs.findIndex((img) => img.classList.contains('is-active'));
         if (index < 0) index = 0;
         let playing = true;
