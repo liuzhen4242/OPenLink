@@ -170,7 +170,7 @@ function remarkGalleryPlugin() {
                 // larger one the instant it becomes visible, which is
                 // exactly what caused the flash/stall on slide changes.
                 // A single fixed-size image sidesteps that entirely.
-                return `<img src="${img.src}" data-index="${idx}" class="${activeClass}" decoding="async" alt="" />`;
+                return `<img src="${img.src}" data-index="${idx}" class="${activeClass}" alt="" />`;
               })
               .join('\n');
 

@@ -129,9 +129,18 @@ const projectDir = idToProjectDir(project.id);
 -->
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    // Resolves once an <img> has either finished loading or failed —
-    // either way, the browser is done trying, so it's safe to move on.
+    // Resolves once an <img> is fully decoded and ready to paint —
+    // NOT just once its bytes have finished downloading. Those are two
+    // different moments: `load`/`complete` only guarantee the network
+    // fetch is done, but decoding a large photo into pixels the browser
+    // can actually draw takes its own extra time. That gap is exactly
+    // what caused the blank/half-rendered flash on slide changes, even
+    // though the "preload" step had technically already finished.
+    // img.decode() waits for the real thing: fully decoded, paint-ready.
     function whenSettled(img) {
+      if (typeof img.decode === 'function') {
+        return img.decode().catch(() => {}); // treat decode errors as "done trying"
+      }
       if (img.complete) return Promise.resolve();
       return new Promise((resolve) => {
         img.addEventListener('load', resolve, { once: true });
