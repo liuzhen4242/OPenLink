@@ -162,17 +162,15 @@ function remarkGalleryPlugin() {
           if (resolvedImgs.length > 0) {
             const imgsHtml = resolvedImgs
               .map((img, idx) => {
-                const srcsetAttr = img.srcset ? ` srcset="${img.srcset}"` : '';
-                const sizesAttr = img.sizes ? ` sizes="${img.sizes}"` : '';
                 const activeClass = idx === 0 ? 'is-active' : '';
-                // No loading="lazy" here on purpose: gallery images are a
-                // set that gets cycled through immediately, and browsers
-                // often skip preloading lazy images while they're
-                // display:none, which is exactly what caused the blank
-                // flash between slides. Eager-loading them all up front
-                // (paired with the "wait until loaded" logic in the
-                // carousel script) fixes that.
-                return `<img src="${img.src}"${srcsetAttr}${sizesAttr} data-index="${idx}" class="${activeClass}" decoding="async" alt="" />`;
+                // Deliberately no srcset/sizes here: while an <img> is
+                // display:none (every slide except the active one), the
+                // browser can't measure its real render width, so it
+                // guesses a small srcset candidate — then re-fetches a
+                // larger one the instant it becomes visible, which is
+                // exactly what caused the flash/stall on slide changes.
+                // A single fixed-size image sidesteps that entirely.
+                return `<img src="${img.src}" data-index="${idx}" class="${activeClass}" decoding="async" alt="" />`;
               })
               .join('\n');
 
