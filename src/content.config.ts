@@ -10,7 +10,7 @@ const projectsCollection = defineCollection({
   // ✨ 关键点：这里改成函数形式，引入 image 处理器
   schema: ({ image }) => z.object({
     title: z.string(),
-    category: z.enum(['装配', '木构', '工厂', '展览', '室内','文旅','旧改','商业' ]),
+    category: z.enum(['装配', '木构', '工厂', '展览', '室内','文旅','旧改','居住','商办','学校','规划']),
     
     // ✨ 把原本的 z.string() 改成 image()
     // 这样打包时，Astro 才会把它当成真实的图片文件去打包迁移，并自动修复空格路径问题
