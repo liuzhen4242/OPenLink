@@ -1,9 +1,10 @@
 ---
 title: 新疆丝绸之路陶瓷博物馆
-category: 文旅
-coverImage: "./images/Pasted image 20260714162102.png"
+category:
+  - 工厂
+coverImage: ./images/Pasted image 20260714162102.png
 description: 展览，商业，酒店
-date: "2025-02-16"
+date: 2025-02-16
 ---
 
 
@@ -11,7 +12,7 @@ date: "2025-02-16"
 项目简介：项目位于新疆乌鲁木 气候 目标 技术
 
 ### 渲染
-
+装配', '木构', '工厂', '展览', '室内', '文旅', '旧改', '居住', '商办', '学校', '规划'
 ### 照片
 
 ### 模型

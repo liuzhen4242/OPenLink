@@ -1,24 +1,108 @@
 ---
+/**
+ * /blog — Published writing index
+ *
+ * Layout mirrors the homepage (hero + archival list rows: category · title ·
+ * date — no thumbnails), with the same right-hand category filter used on
+ * the /projects index. Categories are derived from the blog entries
+ * themselves, so adding a new tag in any post's frontmatter shows up
+ * automatically.
+ *
+ * Content: Astro Content Layer collection "blog" (src/content/blog/*.md).
+ */
+import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
+
+const allPosts = await getCollection('blog');
+const posts = allPosts.sort(
+  (a, b) => Number(b.data.date ?? 0) - Number(a.data.date ?? 0)
+);
+
+/** Every category actually used by at least one post, in first-seen order. */
+const categories = Array.from(new Set(posts.flatMap((p) => p.data.category)));
+
+/** "turtle pluging.md" → "turtle pluging" */
+function idToSlug(id: string): string {
+  return id.replace(/\.md$/, '');
+}
 ---
-<BaseLayout title="博客" description="建筑笔记与思考">
-  <header class="page-header">
-    <p class="page-eyebrow">Writing</p>
-    <h1 class="page-title">Blog</h1>
+
+<BaseLayout title="博客" description="建筑笔记与思考 — Notes & Research">
+  <!-- Page header -->
+  <header class="blog-header">
+    <div class="blog-eyebrow">Writing</div>
+    <h1 class="blog-title">Blog</h1>
+    <p class="blog-sub">
+      建筑笔记与思考 — Notes, research, and process writing.
+    </p>
   </header>
 
-  <p class="coming-soon">
-    文章整理中 — Essays and research notes coming soon.
-  </p>
+  {posts.length === 0 ? (
+    <p class="empty-state">
+      暂无文章 — 请在 Obsidian vault 的 blog 文件夹中添加带有 frontmatter 的 Markdown 文件。
+    </p>
+  ) : (
+    <div class="blog-layout">
+      <!-- ── Article list (homepage-style rows) ─────────── -->
+      <ul class="post-list">
+        {posts.map((post) => {
+          const slug = idToSlug(post.id);
+          return (
+            <li class="post-item" data-category={post.data.category.join(',')}>
+              <a href={`/blog/${slug}`}>
+                <span class="post-cat">{post.data.category.join(' / ')}</span>
+                <span class="post-title">{post.data.title}</span>
+                {post.data.date && <span class="post-year">{post.data.date}</span>}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+
+      <!-- ── Category filter sidebar ────────────────────── -->
+      <aside class="category-sidebar">
+        <nav class="category-nav">
+          <button type="button" class="category-tag is-active" data-category-all>全部</button>
+          {categories.map((cat) => (
+            <button type="button" class="category-tag" data-category-value={cat}>{cat}</button>
+          ))}
+        </nav>
+      </aside>
+    </div>
+  )}
 </BaseLayout>
 
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const tags = Array.from(document.querySelectorAll('.category-tag'));
+    const items = Array.from(document.querySelectorAll('.post-item'));
+    if (tags.length === 0 || items.length === 0) return;
+
+    function applyFilter(selected) {
+      items.forEach((item) => {
+        const itemCategories = (item.getAttribute('data-category') || '').split(',');
+        const visible = selected === 'all' || itemCategories.includes(selected);
+        item.classList.toggle('is-hidden', !visible);
+      });
+    }
+
+    tags.forEach((tag) => {
+      tag.addEventListener('click', () => {
+        tags.forEach((t) => t.classList.toggle('is-active', t === tag));
+        applyFilter(tag.getAttribute('data-category-value') || 'all');
+      });
+    });
+  });
+</script>
+
 <style>
-  .page-header {
-    padding: 4rem 0 2.5rem;
+  /* ── Page header ─────────────────────────────────── */
+  .blog-header {
+    padding: 6rem 0 4.5rem;
     border-bottom: 1px solid var(--c-rule);
-    margin-bottom: 3.5rem;
+    margin-bottom: 3rem;
   }
-  .page-eyebrow {
+  .blog-eyebrow {
     font-family: var(--ff-caps);
     font-size: var(--fs-xs);
     letter-spacing: 0.18em;
@@ -26,17 +110,157 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     color: var(--c-mid);
     margin: 0 0 0.5rem;
   }
-  .page-title {
+  .blog-title {
     font-family: var(--ff-caps);
-    font-size: 28pt;
+    font-size: 36pt;
     font-weight: 400;
-    letter-spacing: 0.06em;
-    margin: 0;
+    letter-spacing: 0.04em;
+    margin: 0 0 1rem;
+    line-height: 1;
+    color: var(--c-ink);
   }
-  .coming-soon {
+  .blog-sub {
     font-family: var(--ff-serif);
+    font-size: var(--fs-body);
+    color: var(--c-mid);
+    line-height: 1.8;
+    margin: 0;
+    max-width: 540px;
+  }
+
+  /* ── Two-column layout: list + filter sidebar ────── */
+  .blog-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 4rem;
+  }
+  .post-list {
+    flex: 1;
+    min-width: 0;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* ── Article rows (homepage-style) ───────────────── */
+  .post-item {
+    border-top: 1px solid var(--c-rule);
+    transition: opacity 0.32s ease, transform 0.32s ease;
+  }
+  .post-item:last-child {
+    border-bottom: 1px solid var(--c-rule);
+  }
+  .post-item.is-hidden {
+    opacity: 0;
+    transform: scale(0.98);
+    pointer-events: none;
+    display: none;
+  }
+  .post-item a {
+    display: flex;
+    align-items: baseline;
+    gap: 1.25rem;
+    padding: 1.1rem 0;
+    transition: opacity 0.2s;
+  }
+  .post-item a:hover { opacity: 0.6; }
+  .post-cat {
+    font-family: var(--ff-caps);
+    font-size: 6.5pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--c-mid);
+    width: 5rem;
+    flex-shrink: 0;
+  }
+  .post-title {
+    font-family: var(--ff-serif);
+    font-size: var(--fs-sm);
+    color: var(--c-ink);
+    flex: 1;
+  }
+  .post-year {
+    font-family: var(--ff-serif);
+    font-size: var(--fs-xs);
+    color: var(--c-mid);
+    font-variant-numeric: tabular-nums;
+    margin-left: auto;
+  }
+
+  /* ── Category filter ──────────────────────────────
+     Same underline-grows-on-hover interaction as the main nav links. */
+  .category-sidebar {
+    width: 140px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 6rem;
+  }
+  .category-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+  .category-tag {
+    align-self: flex-start;
+    font-family: var(--ff-serif);
+    font-size: var(--fs-sm);
+    letter-spacing: 0.04em;
+    color: var(--c-mid);
+    background: none;
+    border: none;
+    padding: 0 0 2px;
+    margin: 0;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.18s ease;
+  }
+  .category-tag::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 1px;
+    background: var(--c-ink);
+    transition: width 0.25s ease;
+  }
+  .category-tag:hover,
+  .category-tag.is-active {
+    color: var(--c-ink);
+  }
+  .category-tag:hover::after,
+  .category-tag.is-active::after {
+    width: 100%;
+  }
+
+  /* ── Empty state ──────────────────────────────── */
+  .empty-state {
+    margin-top: 4rem;
     font-size: var(--fs-sm);
     color: var(--c-mid);
     font-style: italic;
   }
+
+  /* ── Responsive ───────────────────────────────────── */
+  @media (max-width: 900px) {
+    .blog-layout {
+      flex-direction: column-reverse;
+      gap: 2.5rem;
+    }
+    .category-sidebar {
+      width: 100%;
+      position: static;
+    }
+    .category-nav {
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .blog-title { font-size: 24pt; }
+  }
 </style>
+</｜｜DSML｜｜>
