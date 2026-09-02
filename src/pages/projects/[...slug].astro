@@ -87,7 +87,7 @@ for (const heading of headings) {
       <!-- ── Project header ─────────────────────────────── -->
       <header class="project-header">
         <div class="project-super">
-          <span class="project-category">{data.category}</span>
+          <span class="project-category">{data.category.join(' / ')}</span>
           {data.date && <span class="project-date">{data.date}</span>}
         </div>
         <h1 class="project-title">{data.title}</h1>
@@ -114,7 +114,7 @@ for (const heading of headings) {
 
     {tocItems.length > 0 && (
       <aside class="project-toc">
-        <h2 class="toc-label">Outline</h2>
+        <h2 class="toc-label" data-toc-top>{data.title}</h2>
 
 
         <nav>
@@ -306,6 +306,14 @@ for (const heading of headings) {
 <script>
 document.addEventListener('DOMContentLoaded', () => {
 
+  // 点击侧边栏顶部 title 平滑回到页面顶部
+  const tocLabel = document.querySelector('.toc-label');
+  if (tocLabel) {
+    tocLabel.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
   document.querySelectorAll('.toc-parent')
     .forEach(link => {
 
@@ -422,13 +430,12 @@ document.addEventListener('DOMContentLoaded', () => {
     padding-top: 4rem; /* roughly align with the article header */
   }
   .toc-label {
-    font-family: var(--ff-caps);
-    font-size: var(--fs-xs);
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--c-mid);
-    font-weight: 400;
+    font-family: 'PingFang SC', 'Hiragino Sans GB', 'Heiti SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+    font-size: var(--fs-body);
+    font-weight: 700;
+    color: var(--c-ink);
     margin: 0 0 1.25rem;
+    cursor: pointer;
   }
   .toc-list, .toc-sublist {
     list-style: none;

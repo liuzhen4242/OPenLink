@@ -21,8 +21,8 @@ const projects = allProjects.sort(
   (a, b) => Number(b.data.date ?? 0) - Number(a.data.date ?? 0)
 );
 
-/** Every category actually used by at least one project, in first-seen order. */
-const categories = Array.from(new Set(projects.map((p) => p.data.category)));
+/** Every category actually used by at least one project, in first-seen order (category is now an array per project). */
+const categories = Array.from(new Set(projects.flatMap((p) => p.data.category)));
 
 /**
  * Build a URL-safe slug from the entry id.
@@ -55,7 +55,7 @@ function idToSlug(id: string): string {
           const href = `/projects/${slug}`;
 
           return (
-            <a href={href} class="masonry-item" data-category={project.data.category}>
+            <a href={href} class="masonry-item" data-category={project.data.category.join(',')}>
               {coverUrl ? (
                 <div class="card-img-wrap">
                   <img
@@ -71,7 +71,7 @@ function idToSlug(id: string): string {
                 </div>
               )}
               <div class="card-meta">
-                <span class="card-category">{project.data.category}</span>
+                <span class="card-category">{project.data.category.join(' / ')}</span>
                 <span class="card-sep">·</span>
                 <span class="card-title">{project.data.title}</span>
                 {project.data.date && (
@@ -130,7 +130,8 @@ function idToSlug(id: string): string {
 
       const willBeVisible = new Map<HTMLElement, boolean>();
       cards.forEach((card) => {
-        willBeVisible.set(card, selected === 'all' || card.dataset.category === selected);
+        const cardCategories = (card.dataset.category ?? '').split(',');
+        willBeVisible.set(card, selected === 'all' || cardCategories.includes(selected));
       });
 
       // Apply new visibility immediately — this is what makes the grid

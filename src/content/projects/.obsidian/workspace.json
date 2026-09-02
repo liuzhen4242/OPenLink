@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "NanXin-Factory/南星厂房外立面改造.md",
-                "mode": "source",
+                "file": "深圳南园街道立面改造/深圳南园街道立面改造.md",
+                "mode": "preview",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "南星厂房外立面改造"
+              "title": "深圳南园街道立面改造"
             }
           }
         ],
@@ -56,7 +56,9 @@
               "type": "file-explorer",
               "state": {
                 "sortOrder": "alphabetical",
-                "autoReveal": false
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
               },
               "icon": "lucide-folder-closed",
               "title": "Files"
@@ -93,7 +95,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 351.5
+    "width": 265.288330078125
   },
   "right": {
     "id": "87adfc64fcb24ecd",
@@ -171,13 +173,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "NanXin-Factory/南星厂房外立面改造.md",
+                "file": "深圳南园街道立面改造/深圳南园街道立面改造.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of 南星厂房外立面改造"
+              "title": "Outline"
             }
           }
         ],
@@ -200,30 +202,36 @@
   },
   "active": "7bebd73eab028a49",
   "lastOpenFiles": [
-    "NanXin-Factory/images/立面图.jpg",
-    "NanXin-Factory/images/平面图.jpg",
-    "NanXin-Factory/images/外廊构造02.png",
-    "NanXin-Factory/images/外廊构造.png",
-    "NanXin-Factory/images/幕墙03.png",
-    "NanXin-Factory/images/幕墙02.png",
-    "NanXin-Factory/images/幕墙01.png",
-    "NanXin-Factory/images/ScreenShot_2026-07-16_164900_180.png",
-    "NanXin-Factory/images/ScreenShot_2026-07-16_164803_133.png",
-    "NanXin-Factory/images/logic05.png",
-    "NanXin-Factory/images/logic04.png",
-    "Hainan-TouristStation/海南驿站.md",
     "NanXin-Factory/南星厂房外立面改造.md",
+    "Hainan-TouristStation/海南驿站.md",
+    "temple.md",
+    "大江东唐焱厂房立面设计/大江东唐焱厂房立面设计.md",
+    "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
+    "深圳南园街道立面改造/深圳南园街道立面改造.md",
+    "XinFengPublicRentalHousing/新丰公租房.md",
+    "大江东唐焱厂房立面设计/images/厂房-北 1.jpg",
+    "大江东唐焱厂房立面设计/images/鸟瞰-西北角.png",
+    "深圳南园街道立面改造/images/02 拷贝.jpg",
+    "images/Pasted.md",
+    "images",
+    "深圳南园街道立面改造/images/Pasted image 20260720163126.png",
+    "深圳南园街道立面改造/images/dji_fly_20251124_163726_350_1763973486513_pano_optimized.png",
+    "深圳南园街道立面改造/images/bf6a5db3045adbdb237edff07af0e28e.jpg",
+    "大江东唐焱厂房立面设计/images/鸟瞰-西南角.jpg",
+    "大江东唐焱厂房立面设计/images/鸟瞰-西北角+.png",
+    "大江东唐焱厂房立面设计/images/门卫-西.jpg",
+    "大江东唐焱厂房立面设计/images/门卫-南.jpg",
+    "大江东唐焱厂房立面设计/images/一层平面图.pdf",
+    "大江东唐焱厂房立面设计/images",
+    "大江东唐焱厂房立面设计",
     "NanXin-Factory/images",
     "NanXin-Factory",
-    "Xinjiang_Museum/新疆丝绸之路陶瓷博物馆.md",
     "Untitled.canvas",
     "Hainan-TouristStation/images",
-    "temple.md",
     "Hainan-TouristStation",
     "南园旧改项目/南园旧改.md",
     "南园旧改项目/南园旧改.md",
     "南园旧改项目/images",
-    "南园旧改项目",
-    "Xinjiang_Museum/image"
+    "南园旧改项目"
   ]
 }
