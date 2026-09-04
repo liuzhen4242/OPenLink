@@ -173,6 +173,16 @@ for (const heading of headings) {
     const prose = document.querySelector('.prose');
     if (!prose) return;
 
+    // Mark paragraphs that mix an image with following text (e.g.
+    // "<img>老旧厂房升级更新</p>") so CSS can pull the text closer to the
+    // image above it. Pure CSS can't tell an img-only paragraph apart from
+    // one with trailing text, hence the class.
+    prose.querySelectorAll('p').forEach((p) => {
+      if (p.querySelector('img') && p.textContent.trim().length > 0) {
+        p.classList.add('has-caption');
+      }
+    });
+
     prose.querySelectorAll('img').forEach((img) => {
       const src = img.getAttribute('src') || '';
       // Skip external URLs, data URIs, and paths already rewritten to /project-images/

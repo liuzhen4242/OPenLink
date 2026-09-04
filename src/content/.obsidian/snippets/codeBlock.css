@@ -1,0 +1,32 @@
+/* 代码块限高滚动：不用完全显示代码块，超出滚动查看
+   用法：设置 → 外观 → CSS 片段 → 打开 codeBlock 开关 */
+
+/* 阅读视图（Reading View） */
+.markdown-rendered pre {
+  max-height: 300px !important;
+  overflow-y: auto !important;
+  border-radius: 8px;
+}
+
+/* 实时预览（Live Preview） */
+.markdown-source-view.mod-cm6 .cm-embed-block:has(.cm-codeblock) {
+  max-height: 300px !important;
+  overflow-y: auto !important;
+  border-radius: 8px;
+}
+
+/* 美化滚动条（细条，提示可滚动） */
+.markdown-rendered pre::-webkit-scrollbar,
+.markdown-source-view.mod-cm6 .cm-embed-block:has(.cm-codeblock)::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.markdown-rendered pre::-webkit-scrollbar-thumb,
+.markdown-source-view.mod-cm6 .cm-embed-block:has(.cm-codeblock)::-webkit-scrollbar-thumb {
+  background-color: rgba(128, 128, 128, 0.5);
+  border-radius: 3px;
+}
+.markdown-rendered pre::-webkit-scrollbar-thumb:hover,
+.markdown-source-view.mod-cm6 .cm-embed-block:has(.cm-codeblock)::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(128, 128, 128, 0.8);
+}

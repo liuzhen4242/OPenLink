@@ -12,6 +12,9 @@ const blogCollection = defineCollection({
     // blog 分类：任意字符串数组（不限制枚举，方便自由打标签）
     category: z.array(z.string()),
     description: z.string().optional(),
+    // 可见状态：public=公开；private=私密（线上列表隐藏，独立页走 /blog/private/ 密码路径）；
+    // hidden=彻底隐藏（线上不生成页面、网上不可见，仅本地 dev 可见）
+    status: z.enum(['public', 'private', 'hidden']).optional().default('public'),
     // 兼容带引号字符串（"2025-02-16"）与无引号 YAML 日期（2025-02-16 → Date 对象），
     // 统一转换为 "YYYY-MM-DD" 字符串输出
     date: z.union([z.date(), z.string()]).optional().transform((d) =>

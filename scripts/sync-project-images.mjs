@@ -3,7 +3,9 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import sharp from 'sharp';
 
-const projectsRoot = fileURLToPath(new URL('../src/content/projects/', import.meta.url));
+const contentRoot = fileURLToPath(new URL('../src/content/', import.meta.url));
+const projectsRoot = path.join(contentRoot, 'projects');
+const blogRoot = path.join(contentRoot, 'blog');
 const publicRoot = fileURLToPath(new URL('../public/project-images/', import.meta.url));
 
 // Each compressible image gets re-encoded at every one of these widths
@@ -15,32 +17,36 @@ const WEBP_QUALITY = 78;
 
 const COMPRESSIBLE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.tiff', '.avif']);
 
+// macOS (and some sync tools) drop hidden AppleDouble metadata files
+// ("._filename") and .DS_Store next to real files. They are not images:
+// skip them so they don't spam warnings or get copied into the output.
+function isMacJunk(name) {
+  return name.startsWith('._') || name === '.DS_Store';
+}
+
 // sharp refuses to touch images above ~268 million pixels by default, as a
 // safety guard against decompression-bomb attacks from untrusted uploads.
 // These are our own photos/scans, so it's safe to lift that ceiling.
 const SHARP_OPTIONS = { limitInputPixels: false };
 
-if (existsSync(publicRoot)) {
-  rmSync(publicRoot, { recursive: true, force: true });
-}
-mkdirSync(publicRoot, { recursive: true });
-
-const projectDirs = readdirSync(projectsRoot, { withFileTypes: true }).filter(
-  (entry) => entry.isDirectory() && !entry.name.startsWith('.')
-);
-
 let sourceImageCount = 0;
 let variantCount = 0;
 let passthroughCount = 0;
 
-for (const dir of projectDirs) {
-  const imagesSrc = path.join(projectsRoot, dir.name, 'images');
-  if (!existsSync(imagesSrc)) continue;
+/**
+ * Compress/convert every image under imagesSrc into imagesDest.
+ * Projects map to public/project-images/<ProjectDir>/images; the blog's
+ * shared images folder maps to public/project-images/images (blog articles
+ * resolve with an empty relative dir, see getRelativeProjectDir).
+ */
+async function processImageSet(imagesSrc, imagesDest, label) {
+  if (!existsSync(imagesSrc)) return;
 
-  const imagesDest = path.join(publicRoot, dir.name, 'images');
   mkdirSync(imagesDest, { recursive: true });
 
-  const files = readdirSync(imagesSrc, { withFileTypes: true }).filter((f) => f.isFile());
+  const files = readdirSync(imagesSrc, { withFileTypes: true }).filter(
+    (f) => f.isFile() && !isMacJunk(f.name)
+  );
 
   for (const file of files) {
     const ext = path.extname(file.name).toLowerCase();
@@ -87,8 +93,27 @@ for (const dir of projectDirs) {
     }
   }
 
-  console.log(`[sync-project-images] ${dir.name}/images -> public/project-images/${dir.name}/images`);
+  console.log(`[sync-project-images] ${label} -> public/project-images/`);
 }
+
+if (existsSync(publicRoot)) {
+  rmSync(publicRoot, { recursive: true, force: true });
+}
+mkdirSync(publicRoot, { recursive: true });
+
+const projectDirs = readdirSync(projectsRoot, { withFileTypes: true }).filter(
+  (entry) => entry.isDirectory() && !entry.name.startsWith('.')
+);
+
+for (const dir of projectDirs) {
+  const imagesSrc = path.join(projectsRoot, dir.name, 'images');
+  const imagesDest = path.join(publicRoot, dir.name, 'images');
+  await processImageSet(imagesSrc, imagesDest, `${dir.name}/images`);
+}
+
+// Blog 共享图片目录（src/content/blog/images）→ public/project-images/images
+// blog 文章的 getRelativeProjectDir 为空，URL 为 /project-images/images/xxx
+await processImageSet(path.join(blogRoot, 'images'), path.join(publicRoot, 'images'), 'blog/images');
 
 console.log(
   `[sync-project-images] done. source images=${sourceImageCount}, responsive variants generated=${variantCount}, passthrough=${passthroughCount}`
