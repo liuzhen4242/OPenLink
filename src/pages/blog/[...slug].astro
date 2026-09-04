@@ -1,0 +1,242 @@
+---
+/**
+ * /blog/[...slug] — Individual blog post page.
+ *
+ * The blog index (/blog) already links to /blog/<slug>; this page makes
+ * those links resolve. Slug = the markdown filename without .md, matching
+ * the hrefs generated in blog.astro.
+ */
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import 'photoswipe/style.css';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog');
+  return posts.flatMap((post) => {
+    const slug = post.id.replace(/\.md$/, '');
+    const status = post.data.status;
+    // 线上：hidden 彻底不生成页面（网上不可见）；本地 dev 正常显示，方便自己查看。
+    if (import.meta.env.PROD && status === 'hidden') return [];
+    // 线上：private 生成到 /blog/private/<slug>，由 public/_headers 的 Basic Auth 密码保护；
+    // 本地 dev：直接放 /blog/<slug>，自己查看不设密码。
+    const routeSlug = import.meta.env.PROD && status === 'private' ? `private/${slug}` : slug;
+    return [{ params: { slug: routeSlug }, props: { post } }];
+  });
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+---
+
+<BaseLayout title={post.data.title} description={post.data.description}>
+  <!-- ── Post header ───────────────────────────────── -->
+  <header class="post-header">
+    <div class="post-super">
+      <span class="post-category">{post.data.category.join(' / ')}</span>
+      {post.data.date && <span class="post-date">{post.data.date}</span>}
+    </div>
+    <h1 class="post-title">{post.data.title}</h1>
+    {post.data.description && <p class="post-desc">{post.data.description}</p>}
+  </header>
+
+  <!-- ── Markdown body ─────────────────────────────── -->
+  <article class="prose post-body">
+    <Content />
+  </article>
+
+  <!-- Back link -->
+  <nav class="back-nav">
+    <a href="/blog" class="back-link">
+      <span aria-hidden="true">←</span>&ensp;全部文章
+    </a>
+  </nav>
+</BaseLayout>
+
+<!--
+  Gallery slider carousel behavior（与 projects 详情页一致）。
+  ```gallery 代码块在构建时由 remarkGalleryPlugin 转成
+  `<div class="gallery-slider">`，此脚本为其添加自动轮播交互。
+-->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // 等图片真正解码、可绘制后再切换，避免切换瞬间空白/半渲染闪烁
+    function whenSettled(img) {
+      if (typeof img.decode === 'function') {
+        return img.decode().catch(() => {});
+      }
+      if (img.complete) return Promise.resolve();
+      return new Promise((resolve) => {
+        img.addEventListener('load', resolve, { once: true });
+        img.addEventListener('error', resolve, { once: true });
+      });
+    }
+
+    document.querySelectorAll('.gallery-slider').forEach((wrapper) => {
+      const imgs = Array.from(wrapper.querySelectorAll('img'));
+      if (imgs.length === 0) return;
+
+      if (imgs.length === 1) {
+        imgs[0].classList.add('is-active');
+        return;
+      }
+
+      let index = imgs.findIndex((img) => img.classList.contains('is-active'));
+      if (index < 0) index = 0;
+      let playing = true;
+
+      function show(i) {
+        imgs.forEach((img, j) => img.classList.toggle('is-active', j === i));
+      }
+
+      // 每轮只等下一张就绪，上限 8s，慢图/坏图不会卡死轮播
+      async function tick() {
+        if (playing) {
+          const nextIndex = (index + 1) % imgs.length;
+          await Promise.race([
+            whenSettled(imgs[nextIndex]),
+            new Promise((resolve) => window.setTimeout(resolve, 8000)),
+          ]);
+          if (playing) {
+            index = nextIndex;
+            show(index);
+          }
+        }
+        window.setTimeout(tick, 3000);
+      }
+
+      show(index);
+      window.setTimeout(tick, 3000);
+
+      wrapper.addEventListener('mouseenter', () => {
+        playing = false;
+      });
+      wrapper.addEventListener('mouseleave', () => {
+        playing = true;
+      });
+    });
+  });
+</script>
+
+<!--
+  PhotoSwipe lightbox：点击正文/相册任意图片放大，可从原位置缩放进场，
+  打开后可点击下一张、Esc 关闭（与 projects 详情页一致）。
+-->
+<script>
+  import PhotoSwipeLightbox from 'photoswipe/lightbox';
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const lightbox = new PhotoSwipeLightbox({
+      gallery: '.prose',
+      children: 'img',
+      pswpModule: () => import('photoswipe'),
+      tapAction: 'next',
+    });
+
+    // 用图片真实像素尺寸做缩放动画；点击时页面里已渲染，直接读取实际尺寸
+    lightbox.addFilter('itemData', (itemData) => {
+      const el = itemData.element;
+      if (el instanceof HTMLImageElement) {
+        itemData.src = el.currentSrc || el.src;
+        itemData.width = el.naturalWidth || 1600;
+        itemData.height = el.naturalHeight || 1067;
+      }
+      return itemData;
+    });
+
+    lightbox.init();
+  });
+</script>
+
+<style>
+  .post-header {
+    padding: 4rem 0 2.5rem;
+    border-bottom: 1px solid var(--c-rule);
+    max-width: 46rem;
+  }
+  .post-super {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .post-category {
+    font-family: var(--ff-caps);
+    font-size: var(--fs-xs);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--c-mid);
+  }
+  .post-date {
+    font-family: var(--ff-serif);
+    font-size: var(--fs-xs);
+    color: var(--c-mid);
+    font-variant-numeric: tabular-nums;
+  }
+  .post-date::before {
+    content: '—';
+    margin-right: 0.5em;
+    color: var(--c-rule);
+  }
+  .post-title {
+    font-family: var(--ff-caps);
+    font-size: 22pt;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--c-ink);
+    margin: 0 0 0.75rem;
+    line-height: 1.2;
+  }
+  .post-desc {
+    font-family: var(--ff-serif);
+    font-size: var(--fs-sm);
+    color: var(--c-mid);
+    margin: 0;
+    font-style: italic;
+  }
+
+  .post-body {
+    max-width: 46rem;
+    padding-top: 2.5rem;
+  }
+
+  .back-nav {
+    margin-top: 5rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--c-rule);
+    max-width: 46rem;
+  }
+  .back-link {
+    font-family: var(--ff-caps);
+    font-size: var(--fs-xs);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--c-mid);
+    transition: color 0.18s ease;
+  }
+  .back-link:hover { color: var(--c-ink); }
+
+  /*
+    ── Gallery slider ────────────────────────────────
+    :global() 因为 .gallery-slider 是 remark 插件注入的原始 HTML，
+    不经过 Astro 模板，拿不到作用域 data 属性。
+  */
+  :global(.gallery-slider) {
+    position: relative;
+    width: 100%;
+    margin: 3.5rem 0;
+    cursor: pointer;
+  }
+  :global(.gallery-slider img) {
+    width: 100%;
+    height: auto;
+    display: none;
+    border-radius: 0;
+  }
+  :global(.gallery-slider img.is-active) {
+    display: block;
+  }
+  :global(.gallery-empty) {
+    color: var(--c-mid);
+    font-style: italic;
+  }
+</style>

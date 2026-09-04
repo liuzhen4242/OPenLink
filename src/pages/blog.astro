@@ -14,7 +14,11 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 
 const allPosts = await getCollection('blog');
-const posts = allPosts.sort(
+// 线上（build）只展示 public 文章；本地 dev 全部显示，方便自己查看。
+const visiblePosts = allPosts.filter(
+  (p) => !import.meta.env.PROD || p.data.status === 'public'
+);
+const posts = visiblePosts.sort(
   (a, b) => Number(b.data.date ?? 0) - Number(a.data.date ?? 0)
 );
 

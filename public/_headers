@@ -1,0 +1,6 @@
+# 私密文章密码保护（Netlify Basic Auth）
+# 只锁 /blog/private/ 路径下的页面，其余文章不受影响。
+# 修改下面用户名/密码即可控制谁能访问私密文章；支持多账号：user1:pass1 user2:pass2
+# 注意：此文件随 Git 提交，密码会留在仓库历史里，请勿使用重要密码。
+/blog/private/*
+  Basic-Auth: openlink:change-me

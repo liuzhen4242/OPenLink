@@ -31,9 +31,12 @@ function normalize(str) {
  * directory relative to src/content/projects/ — e.g. "Xinjiang_Museum".
  */
 function getRelativeProjectDir(filePath) {
-  const idx = filePath.indexOf(PROJECTS_ROOT_MARKER);
+  // On Windows, file paths use backslashes; normalize to forward slashes so
+  // the marker search and split below work the same as on macOS/Linux.
+  const normalizedPath = filePath.replace(/\\/g, '/');
+  const idx = normalizedPath.indexOf(PROJECTS_ROOT_MARKER);
   if (idx === -1) return '';
-  const afterRoot = filePath.slice(idx + PROJECTS_ROOT_MARKER.length);
+  const afterRoot = normalizedPath.slice(idx + PROJECTS_ROOT_MARKER.length);
   const parts = afterRoot.split('/');
   parts.pop(); // drop the .md filename itself
   return parts.join('/');
@@ -64,7 +67,10 @@ function resolveProjectImageSet(relativeProjectDir, rawUrl) {
   const ext = path.extname(filename);
   const base = ext ? filename.slice(0, -ext.length) : filename;
   const imagesDirAbs = path.join(PUBLIC_IMAGES_ROOT, relativeProjectDir, 'images');
-  const urlDir = `/project-images/${relativeProjectDir}/images`;
+  // blog 等相对目录为空的文章，URL 直接用 /project-images/images，避免双斜杠
+  const urlDir = relativeProjectDir
+    ? `/project-images/${relativeProjectDir}/images`
+    : '/project-images/images';
 
   let variants = [];
   let matchedOriginalName = filename;
