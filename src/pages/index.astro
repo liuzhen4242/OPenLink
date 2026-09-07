@@ -1,10 +1,11 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getCollection } from 'astro:content';
+import { newestFirst } from '../lib/dates';
 
 // Redirect root → /projects (or show a brief landing)
 const projects = await getCollection('projects');
-const latest = projects.sort((a, b) => Number(b.data.date ?? 0) - Number(a.data.date ?? 0)).slice(0, 3);
+const latest = projects.sort(newestFirst).slice(0, 3);
 ---
 
 <BaseLayout title="OpenLink" description="建筑与设计作品集 — Architecture & Design Portfolio">

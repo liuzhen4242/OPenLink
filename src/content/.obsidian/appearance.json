@@ -1,5 +1,6 @@
 {
   "enabledCssSnippets": [
-    "codeBlock"
+    "codeBlock",
+    "video-embed-fix"
   ]
 }

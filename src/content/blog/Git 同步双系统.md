@@ -110,6 +110,28 @@ git commit -m "说明这次改了什么"
 git push
 ```
 
+**嫌三行麻烦？一条命令搞定（日常最常用）：**
+
+```powershell
+git add -A; git commit -m "sync"; git push
+```
+
+- Windows 的 PowerShell / Git Bash 都能直接跑；Mac 终端把 `;` 换成 `&&` 即可：`git add -A && git commit -m "sync" && git push`。
+- `git add -A` 自动带上新增、修改、删除（`.gitignore` 里的垃圾文件自动跳过）；`"sync"` 是提交说明，想写清楚就换成自己的话。
+- 没有任何改动时 `git commit` 会提示 "nothing to commit"，后面的 `git push` 仍会执行并显示 up to date，属正常现象，不用管。
+
+**终极加速：配一次别名，以后只敲两个字符**
+
+```bash
+git config --global alias.qq '!git add -A && git commit -m "sync" && git push'
+```
+
+配好之后，每次推送只需：
+
+```bash
+git qq
+```
+
 **在 B 电脑开工前：**
 
 ```bash
