@@ -140,6 +140,19 @@ const metaDesc = description ?? 'A minimalist architecture and design portfolio.
         margin: 3.5rem 0;
         background: #f0efec;
       }
+      /* 视频与正文图片同宽，高度跟随真实比例自适应，不产生黑边 */
+      .prose video {
+        width: 100%;
+        height: auto;
+        display: block;
+        margin: 3.5rem 0;
+        background: #111;
+        object-fit: cover;
+      }
+      /* 该视频文件左右各带 96px 黑边（画面实际为 2328x1080），显示时裁掉 */
+      .prose video[src*="%E8%A1%A8%E7%9A%AE%E8%82%8C%E7%90%86"] {
+        aspect-ratio: 97 / 45;
+      }
 
       /*
         Caption-like text under a drawing: when a paragraph mixes an image

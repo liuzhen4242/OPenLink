@@ -15,12 +15,9 @@
  *   both `npm run dev` and `npm run build`)
  *
  * Features:
- * • MetaGrid: parses Obsidian bilingual spec list → horizontal grid
  * • Full-width architectural drawings (margin: 3.5rem 0 via .prose img rule)
  * • Runtime image rewriting: body <img> src attrs → /project-images/ paths
- * • Gallery slider: ```gallery code blocks are converted at build time
- *   (see remarkGalleryPlugin in astro.config.mjs) into `.gallery-slider`
- *   divs; the script below adds the carousel behavior client-side.
+ * • Gallery slider + PhotoSwipe lightbox (shared MediaGallery component)
  *
  * NOTE: the frontmatter `coverImage` is intentionally NOT rendered on this
  * page — it's only used as the thumbnail on the /projects listing page
@@ -29,8 +26,7 @@
  */
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import MetaGrid from '../../components/MetaGrid.astro';
-import 'photoswipe/style.css';
+import MediaGallery from '../../components/MediaGallery.astro';
 
 /** Convert entry id → URL slug (strip .md extension and leading Projects/) */
 function idToSlug(id: string): string {
@@ -57,7 +53,7 @@ export async function getStaticPaths() {
 }
 
 const { project } = Astro.props;
-const { data, body } = project;
+const { data } = project;
 
 const { Content, headings } = await render(project);
 
@@ -95,9 +91,6 @@ for (const heading of headings) {
           <p class="project-desc">{data.description}</p>
         )}
       </header>
-
-      <!-- ── Bilingual metadata grid ────────────────────── -->
-      {body && <MetaGrid rawBody={body} />}
 
       <!-- ── Markdown body (drawings, prose) ────────────── -->
       <article class="prose">
@@ -156,6 +149,7 @@ for (const heading of headings) {
       </aside>
     )}
   </div>
+  <MediaGallery />
 </BaseLayout>
 
 
@@ -192,124 +186,6 @@ for (const heading of headings) {
       if (!filename) return;
       img.src = `/project-images/${projectDir}/images/${encodeURIComponent(filename)}`;
     });
-  });
-</script>
-
-<!--
-  Gallery slider carousel behavior.
-  The actual <img> tags & their resolved /project-images/ src paths are
-  produced at build time by remarkGalleryPlugin (see astro.config.mjs),
-  which turns ```gallery code blocks into `<div class="gallery-slider">`
-  markup with one <img> per line. This script just adds the interactive
-  cycling — equivalent to what the Obsidian "Gallery Slider" plugin does
-  live inside Obsidian's own editor.
--->
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    // Resolves once an <img> is fully decoded and ready to paint —
-    // NOT just once its bytes have finished downloading. Those are two
-    // different moments: `load`/`complete` only guarantee the network
-    // fetch is done, but decoding a large photo into pixels the browser
-    // can actually draw takes its own extra time. That gap is exactly
-    // what caused the blank/half-rendered flash on slide changes, even
-    // though the "preload" step had technically already finished.
-    // img.decode() waits for the real thing: fully decoded, paint-ready.
-    function whenSettled(img) {
-      if (typeof img.decode === 'function') {
-        return img.decode().catch(() => {}); // treat decode errors as "done trying"
-      }
-      if (img.complete) return Promise.resolve();
-      return new Promise((resolve) => {
-        img.addEventListener('load', resolve, { once: true });
-        img.addEventListener('error', resolve, { once: true });
-      });
-    }
-
-    document.querySelectorAll('.gallery-slider').forEach((wrapper) => {
-      const imgs = Array.from(wrapper.querySelectorAll('img'));
-      if (imgs.length === 0) return;
-
-      // Single-image galleries don't need a timer, just show the one image.
-      if (imgs.length === 1) {
-        imgs[0].classList.add('is-active');
-        return;
-      }
-
-      let index = imgs.findIndex((img) => img.classList.contains('is-active'));
-      if (index < 0) index = 0;
-      let playing = true;
-
-      function show(i) {
-        imgs.forEach((img, j) => img.classList.toggle('is-active', j === i));
-      }
-
-      // Instead of waiting for every photo in the gallery to be ready
-      // before starting anything, each cycle only waits for the ONE image
-      // it's about to reveal — capped at 8s so a slow/broken image can't
-      // stall the carousel forever. This starts playing much sooner on
-      // large galleries while still guaranteeing we never swap to a slide
-      // that isn't actually ready yet (no blank/half-rendered flash).
-      async function tick() {
-        if (playing) {
-          const nextIndex = (index + 1) % imgs.length;
-          await Promise.race([
-            whenSettled(imgs[nextIndex]),
-            new Promise((resolve) => window.setTimeout(resolve, 8000)),
-          ]);
-          if (playing) {
-            index = nextIndex;
-            show(index);
-          }
-        }
-        window.setTimeout(tick, 3000);
-      }
-
-      show(index);
-      window.setTimeout(tick, 3000);
-
-      wrapper.addEventListener('mouseenter', () => {
-        playing = false;
-      });
-      wrapper.addEventListener('mouseleave', () => {
-        playing = true;
-      });
-    });
-  });
-</script>
-
-<!--
-  PhotoSwipe lightbox: clicking any image in the article opens it zoomed in
-  from its exact on-page position (PhotoSwipe's signature transition), and
-  every image in the article is one navigable sequence — tapping the open
-  photo advances to the next one (tapAction: 'next'), and Esc closes, both
-  built into PhotoSwipe with no extra code needed.
--->
-<script>
-  import PhotoSwipeLightbox from 'photoswipe/lightbox';
-
-  document.addEventListener('DOMContentLoaded', () => {
-    const lightbox = new PhotoSwipeLightbox({
-      gallery: '.prose',
-      children: 'img',
-      pswpModule: () => import('photoswipe'),
-      tapAction: 'next',
-    });
-
-    // PhotoSwipe needs each image's real pixel dimensions to animate the
-    // zoom smoothly. Since every image is already rendered on the page by
-    // the time someone clicks it, we can just read its actual decoded size
-    // right before it opens rather than pre-computing this at build time.
-    lightbox.addFilter('itemData', (itemData) => {
-      const el = itemData.element;
-      if (el instanceof HTMLImageElement) {
-        itemData.src = el.currentSrc || el.src;
-        itemData.width = el.naturalWidth || 1600;
-        itemData.height = el.naturalHeight || 1067;
-      }
-      return itemData;
-    });
-
-    lightbox.init();
   });
 </script>
 
@@ -470,11 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   .toc-list a:hover { color: var(--c-ink); }
-  .toc-list a.active {
-    color: var(--c-ink);
-    font-weight: 500;
-  }
-  
+
 .toc-sublist {
   margin-left: 0.8rem;
   margin-top: 0.25rem;
@@ -502,66 +374,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
   @media (max-width: 900px) {
     .project-toc { display: none; }
-  }
-
-  /*
-    ── Collapsible ### sections (Obsidian-style folding) ─────────────
-    :global() is required because .toc-section/.section-toggle/etc are
-    built by client-side JS at runtime (see the accordion script above),
-    not written directly in this component's template, so they never
-    receive Astro's scoped-style data attribute — same reasoning as the
-    .gallery-slider rules below.
-
-    The expand/collapse animation uses the CSS grid-template-rows 0fr↔1fr
-    trick rather than a fixed max-height: it animates correctly no matter
-    how tall the content actually is (including images that finish loading
-    after the section is opened), with no JS height measurement needed.
-  */
-  
-  
-  :global(.section-toggle h3) {
-    margin: 0 !important;
-  }
-  
-  :global(.toc-section.is-open .section-chevron) {
-    transform: rotate(90deg);
-  }
-  
-  :global(.toc-section.is-open .section-collapse) {
-    grid-template-rows: 1fr;
-  }
-  
-  :global(.section-inner > :first-child) {
-    margin-top: 0;
-  }
-  :global(.section-inner > :last-child) {
-    margin-bottom: 0;
-    padding-bottom: 2rem;
-  }
-
-  /*
-    ── Gallery slider ────────────────────────────────
-    :global() is required here because the .gallery-slider markup is
-    injected as raw HTML from the remark plugin (not through Astro's
-    template), so it never receives Astro's scoped-style data attribute.
-  */
-  :global(.gallery-slider) {
-    position: relative;
-    width: 100%;
-    margin: 3.5rem 0;
-    cursor: pointer;
-  }
-  :global(.gallery-slider img) {
-    width: 100%;
-    height: auto;
-    display: none;
-    border-radius: 0;
-  }
-  :global(.gallery-slider img.is-active) {
-    display: block;
-  }
-  :global(.gallery-empty) {
-    color: var(--c-mid);
-    font-style: italic;
   }
 </style>
