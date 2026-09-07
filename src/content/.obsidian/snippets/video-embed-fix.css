@@ -1,0 +1,33 @@
+/* ════════════════════════════════════════════════════════════
+   视频嵌入：容器跟随视频真实比例 · 无黑边（全局片段）
+   适用：![[xxx.mp4]] 或 ![](xxx.mp4) 嵌入的视频
+   效果：宽度固定为笔记内容宽度（100%），高度按视频真实
+        宽高比自适应，画面不裁剪、不出现左右/上下黑边。
+   用法：设置 → 外观 → CSS 片段 → 打开 video-embed-fix 开关
+   ════════════════════════════════════════════════════════════ */
+
+/* 1) 容器：取消固定宽高比 / 固定高度 / 最大高度，
+      让高度由视频内容自然撑起，宽度保持 100% */
+.markdown-rendered .internal-embed:has(video),
+.markdown-rendered .media-embed:has(video),
+.markdown-source-view.mod-cm6 .cm-embed-block:has(video),
+.markdown-source-view.mod-cm6 .internal-embed:has(video) {
+  aspect-ratio: auto !important;
+  height: auto !important;
+  max-height: none !important;
+  width: 100% !important;
+}
+
+/* 2) video 元素：宽度占满容器，高度按真实比例自动换算。
+      元素宽高比 = 视频宽高比 时画面 1:1 填满，天然无黑边；
+      object-fit: fill 作为兜底，即使其他规则干扰了高度，
+      也强制画面铺满元素，保证任何情况下不出现黑边。 */
+.markdown-rendered video,
+.markdown-source-view.mod-cm6 video {
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: auto !important;
+  max-height: none !important;
+  object-fit: fill !important;
+  border-radius: 0;
+}
