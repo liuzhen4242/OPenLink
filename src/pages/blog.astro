@@ -54,7 +54,7 @@ function idToSlug(id: string): string {
             <li class="post-item" data-category={post.data.category.join(',')}>
               <a href={`/blog/${slug}`}>
                 <span class="post-cat">{post.data.category.join(' / ')}</span>
-                <span class="post-title">{post.data.title}</span>
+                <span class="post-title">{post.data.name}</span>
                 {post.data.date && <span class="post-year">{post.data.date}</span>}
               </a>
             </li>

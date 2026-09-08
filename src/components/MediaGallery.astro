@@ -119,15 +119,9 @@ import 'photoswipe/style.css';
     background: transparent; /* 覆盖 .prose img 的 #f0efec，留白与页面同色 */
     border-radius: 0;
     opacity: 0;
-    transition: opacity 0.5s ease;
   }
   .gallery-slider img.is-active {
     opacity: 1;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .gallery-slider img {
-      transition: none;
-    }
   }
   .gallery-empty {
     color: var(--c-mid);

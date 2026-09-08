@@ -8,13 +8,14 @@ const blogCollection = defineCollection({
     base: new URL('./content/blog/', import.meta.url),
   }),
   schema: z.object({
-    title: z.string(),
+    title: z.string(), // 英文标题，用于 slug、SEO、副标题显示
+    name: z.string(), // 中文标题，页面上大标题显示用
     // blog 分类：任意字符串数组（不限制枚举，方便自由打标签）
     category: z.array(z.string()),
     description: z.string().optional(),
     // 可见状态：public=公开；private=私密（线上列表隐藏，独立页走 /blog/private/ 密码路径）；
     // hidden=彻底隐藏（线上不生成页面、网上不可见，仅本地 dev 可见）
-    status: z.enum(['public', 'private', 'hidden']).optional().default('public'),
+    status: z.enum(['public', 'private', 'hidden', 'draft']).optional().default('public'),
     // 兼容带引号字符串（"2025-02-16"）与无引号 YAML 日期（2025-02-16 → Date 对象），
     // 统一转换为 "YYYY-MM-DD" 字符串输出
     date: z.union([z.date(), z.string()]).optional().transform((d) =>
@@ -31,7 +32,8 @@ const projectsCollection = defineCollection({
   }),
   // ✨ 关键点：这里改成函数形式，引入 image 处理器
   schema: ({ image }) => z.object({
-    title: z.string(),
+    title: z.string(), // 英文标题，用于 SEO、副标题显示
+    name: z.string(), // 中文标题，页面上大标题显示用
 
     // 改为数组，支持多个分类
     category: z.array(

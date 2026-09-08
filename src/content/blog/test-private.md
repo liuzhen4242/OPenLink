@@ -1,5 +1,6 @@
 ---
-title: 测试私密文章
+title: Private Post Test
+name: 测试私密文章
 category:
   - test
 description: 临时验证私密机制用

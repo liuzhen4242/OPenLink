@@ -29,7 +29,7 @@ const latest = projects.sort(newestFirst).slice(0, 3);
             <li class="recent-item">
               <a href={`/projects/${slug}`}>
                 <span class="recent-cat">{p.data.category}</span>
-                <span class="recent-title">{p.data.title}</span>
+                <span class="recent-title">{p.data.name}</span>
                 {p.data.date && <span class="recent-year">{p.data.date}</span>}
               </a>
             </li>

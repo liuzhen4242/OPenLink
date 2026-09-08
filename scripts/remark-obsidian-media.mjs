@@ -1,5 +1,5 @@
 // @ts-check
-import { appendFileSync, existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import sharp from 'sharp';
@@ -130,19 +130,11 @@ async function getImageDimensions(publicUrl) {
   try {
     const relative = normalize(decodeURIComponent(publicUrl)).replace(/^\/project-images\//, '');
     const filePath = path.join(PUBLIC_IMAGES_ROOT, relative);
-    appendFileSync(
-      'C:\\Users\\Liuzhen\\AppData\\Local\\Temp\\diag_remark.txt',
-      `GETDIM root=${PUBLIC_IMAGES_ROOT} metaURL=${import.meta.url} cwd=${process.cwd()} url=${publicUrl} file=${filePath} exists=${existsSync(filePath)}\n`
-    );
     if (!existsSync(filePath)) return null;
     const meta = await sharp(filePath, { limitInputPixels: false }).metadata();
     if (!meta.width || !meta.height) return null;
     return { width: meta.width, height: meta.height };
-  } catch (err) {
-    appendFileSync(
-      'C:\\Users\\Liuzhen\\AppData\\Local\\Temp\\diag_remark.txt',
-      `GETDIM ERROR url=${publicUrl} msg=${err.message}\n`
-    );
+  } catch {
     return null;
   }
 }
@@ -205,7 +197,6 @@ function remarkObsidianImages() {
 function remarkGalleryPlugin() {
   return async (tree, file) => {
     const filePath = file.path || '';
-    appendFileSync('C:\\Users\\Liuzhen\\AppData\\Local\\Temp\\diag_remark.txt', `PLUGIN CALLED file=${filePath} cwd=${process.cwd()}\n`);
     const relativeProjectDir = getRelativeProjectDir(filePath);
 
     async function walk(node) {
