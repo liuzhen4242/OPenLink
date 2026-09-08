@@ -30,6 +30,20 @@ const categories = Array.from(new Set(projects.flatMap((p) => p.data.category)))
 function idToSlug(id: string): string {
   return id.replace(/\.md$/, '').replace(/^[Pp]rojects\//, '');
 }
+
+/**
+ * Extract the project directory name from a collection id,
+ * e.g. "Hainan-TouristStation/海南驿站.md" -> "Hainan-TouristStation".
+ * Mirrors getRelativeProjectDir() in astro.config.mjs so coverMedia URLs
+ * land in the same /project-images/<Dir>/images/ folder the sync script writes.
+ */
+function projectDirOf(id: string): string {
+  const withoutMd = id.replace(/\.md$/, '');
+  const slash = withoutMd.indexOf('/');
+  return slash >= 0 ? withoutMd.slice(0, slash) : '';
+}
+
+const VIDEO_EXT = /\.(mp4|webm|mov|m4v)$/i;
 ---
 
 <BaseLayout title="项目" description="建筑与设计作品集">
@@ -50,12 +64,43 @@ function idToSlug(id: string): string {
           const coverObj = project.data.coverImage;
           const coverUrl = typeof coverObj === 'object' && coverObj !== null ? (coverObj as any).src : coverObj;
 
+          // coverMedia 优先：视频/gif/普通图片都走这里，手动拼 /project-images/<Dir>/images/ 路径
+          const mediaRaw = project.data.coverMedia;
+          let mediaUrl: string | null = null;
+          let mediaIsVideo = false;
+          if (mediaRaw) {
+            const fileName = mediaRaw.split('/').pop() || mediaRaw;
+            mediaIsVideo = VIDEO_EXT.test(fileName);
+            const dir = projectDirOf(project.id);
+            mediaUrl = `/project-images/${encodeURIComponent(dir)}/images/${encodeURIComponent(fileName)}`;
+          }
+
           const slug = idToSlug(project.id);
           const href = `/projects/${slug}`;
 
           return (
             <a href={href} class="masonry-item" data-category={project.data.category.join(',')}>
-              {coverUrl ? (
+              {mediaUrl ? (
+                <div class="card-img-wrap">
+                  {mediaIsVideo ? (
+                    <video
+                      class="card-video"
+                      src={mediaUrl}
+                      muted
+                      loop
+                      playsinline
+                      preload="none"
+                    ></video>
+                  ) : (
+                    <img
+                      src={mediaUrl}
+                      alt={project.data.title}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  )}
+                </div>
+              ) : coverUrl ? (
                 <div class="card-img-wrap">
                   <img
                     src={coverUrl}
@@ -215,6 +260,26 @@ function idToSlug(id: string): string {
         applyFilter(tag.dataset.categoryValue ?? 'all');
       });
     });
+
+    // coverMedia 视频：进入视口才播放，滚出视口暂停。
+    // muted + playsinline + loop 让桌面和手机都能自动循环播放，无需用户点击。
+    const videos = Array.from(document.querySelectorAll<HTMLVideoElement>('.card-video'));
+    if (videos.length > 0 && 'IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          const v = entry.target as HTMLVideoElement;
+          if (entry.isIntersecting) {
+            v.play().catch(() => {});
+          } else {
+            v.pause();
+          }
+        });
+      }, { threshold: 0.2 });
+      videos.forEach((v) => io.observe(v));
+    } else {
+      // 老浏览器兜底：直接尝试播放
+      videos.forEach((v) => v.play().catch(() => {}));
+    }
   });
 </script>
 
@@ -287,6 +352,13 @@ function idToSlug(id: string): string {
     object-fit: cover;
     display: block;
     transition: transform 0.45s ease, opacity 0.3s ease;
+  }
+  /* coverMedia 视频：和 img 一样铺满 4:3 容器，溢出裁剪 */
+  .card-img-wrap video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
   }
   .masonry-item:hover .card-img-wrap img {
     transform: scale(1.018);

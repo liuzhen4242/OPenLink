@@ -42,6 +42,10 @@ const projectsCollection = defineCollection({
     // 这样打包时，Astro 才会把它当成真实的图片文件去打包迁移，并自动修复空格路径问题
     coverImage: image().optional(),
 
+    // 封面媒体（视频/gif 等非图片格式），字符串相对路径如 "./images/cover.mp4"
+    // 与 coverImage 二选一：优先使用 coverMedia；写了它就用 video/img 渲染，不写则退回 coverImage
+    coverMedia: z.string().optional(),
+
     description: z.string().optional(),
     date: z.string().optional(),
   }),

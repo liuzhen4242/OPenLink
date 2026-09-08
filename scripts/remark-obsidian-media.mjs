@@ -1,13 +1,21 @@
 // @ts-check
-import { existsSync, readdirSync } from 'node:fs';
+import { appendFileSync, existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import sharp from 'sharp';
 
 // Absolute path to the folder scripts/sync-project-images.mjs writes
 // resized/compressed images into (populated before `npm run dev` / `npm run build`).
 const PUBLIC_IMAGES_ROOT = fileURLToPath(new URL('../public/project-images/', import.meta.url));
 
 const PROJECTS_ROOT_MARKER = 'content/projects/';
+
+/**
+ * 轮播图 <img> 的 sizes 属性。正文容器最大宽度 = --max-w 1100px − 2×--pad-x
+ * 2rem = 1036px（BaseLayout.astro）；低于该断点时容器宽 = 100vw − 4rem。
+ * 构建期内联，与 BaseLayout 的 --max-w / --pad-x 保持一致。
+ */
+const GALLERY_SIZES = '(min-width: 1164px) 1036px, calc(100vw - 4rem)';
 
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.webm', '.mov', '.m4v', '.ogv']);
 
@@ -107,6 +115,39 @@ function isVideoUrl(rawUrl) {
 }
 
 /**
+ * Read the intrinsic dimensions of a resolved public image URL
+ * (e.g. "/project-images/Hainan-TouristStation/images/xxx-2000w.webp")
+ * straight off disk so the gallery container can get a fixed
+ * aspect-ratio at build time — the browser knows the container
+ * geometry before any image finishes loading, so the layout never shifts.
+ * Returns { width, height } or null when the file is unreachable /
+ * external (http/data URLs) / unreadable. All responsive variants of an
+ * image share the same ratio (resize keeps proportions), so reading the
+ * src variant is enough.
+ */
+async function getImageDimensions(publicUrl) {
+  if (!publicUrl || publicUrl.startsWith('http') || publicUrl.startsWith('data:')) return null;
+  try {
+    const relative = normalize(decodeURIComponent(publicUrl)).replace(/^\/project-images\//, '');
+    const filePath = path.join(PUBLIC_IMAGES_ROOT, relative);
+    appendFileSync(
+      'C:\\Users\\Liuzhen\\AppData\\Local\\Temp\\diag_remark.txt',
+      `GETDIM root=${PUBLIC_IMAGES_ROOT} metaURL=${import.meta.url} cwd=${process.cwd()} url=${publicUrl} file=${filePath} exists=${existsSync(filePath)}\n`
+    );
+    if (!existsSync(filePath)) return null;
+    const meta = await sharp(filePath, { limitInputPixels: false }).metadata();
+    if (!meta.width || !meta.height) return null;
+    return { width: meta.width, height: meta.height };
+  } catch (err) {
+    appendFileSync(
+      'C:\\Users\\Liuzhen\\AppData\\Local\\Temp\\diag_remark.txt',
+      `GETDIM ERROR url=${publicUrl} msg=${err.message}\n`
+    );
+    return null;
+  }
+}
+
+/**
  * Remark plugin: rewrites Obsidian-style relative image references in the
  * markdown body (![](images/xxx.png)) to /project-images/ URLs with a
  * responsive srcset. Video references (![](images/xxx.mp4)) become native
@@ -151,13 +192,23 @@ function remarkObsidianImages() {
 /**
  * Remark plugin: converts ```gallery fenced code blocks into a
  * `.gallery-slider` raw-HTML block containing resolved <img> tags.
+ *
+ * Build-time behaviour:
+ * - reads every image's intrinsic dimensions off disk and inlines the
+ *   slimmest ratio as `style="aspect-ratio: W / H"` on the container, so
+ *   the browser fixes the slider's geometry before any image loads and the
+ *   page layout never shifts as slides change;
+ * - emits srcset/sizes so each viewport downloads the right variant;
+ * - the old display:none + decode-wait switching is replaced by the
+ *   stylesheet's stacked opacity cross-fade (see MediaGallery.astro).
  */
 function remarkGalleryPlugin() {
-  return (tree, file) => {
+  return async (tree, file) => {
     const filePath = file.path || '';
+    appendFileSync('C:\\Users\\Liuzhen\\AppData\\Local\\Temp\\diag_remark.txt', `PLUGIN CALLED file=${filePath} cwd=${process.cwd()}\n`);
     const relativeProjectDir = getRelativeProjectDir(filePath);
 
-    function walk(node) {
+    async function walk(node) {
       if (!node.children) return;
 
       for (let i = 0; i < node.children.length; i++) {
@@ -170,22 +221,36 @@ function remarkGalleryPlugin() {
             .filter(Boolean);
 
           if (resolvedImgs.length > 0) {
+            // 构建期定容器比例：取本轮播中宽高比最小（最“瘦”）的图。
+            // 只有每张图都能读到尺寸时才内联；外链图等读不到的轮播
+            // 由 CSS 默认 aspect-ratio 兜底。
+            const dims = await Promise.all(
+              resolvedImgs.map((img) => getImageDimensions(img.src))
+            );
+            const known = dims.filter((d) => d && d.width > 0 && d.height > 0);
+            let styleAttr = '';
+            if (known.length === resolvedImgs.length) {
+              const slim = known.reduce((a, b) =>
+                a.width / a.height < b.width / b.height ? a : b
+              );
+              styleAttr = ` style="aspect-ratio: ${slim.width} / ${slim.height}"`;
+            }
+
             const imgsHtml = resolvedImgs
               .map((img, idx) => {
                 const activeClass = idx === 0 ? 'is-active' : '';
-                // Deliberately no srcset/sizes here: while an <img> is
-                // display:none (every slide except the active one), the
-                // browser can't measure its real render width, so it
-                // guesses a small srcset candidate — then re-fetches a
-                // larger one the instant it becomes visible. A single
-                // fixed-size image sidesteps that entirely.
-                return `<img src="${img.src}" data-index="${idx}" class="${activeClass}" alt="" />`;
+                // 容器尺寸已在构建期内联，所有 img 叠放在固定画布内
+                // （opacity 切换），浏览器可准确测量渲染宽度，srcset 正常生效。
+                const srcsetAttr = img.srcset
+                  ? ` srcset="${img.srcset}" sizes="${GALLERY_SIZES}"`
+                  : '';
+                return `<img src="${img.src}"${srcsetAttr} loading="lazy" decoding="async" data-index="${idx}" class="${activeClass}" alt="" />`;
               })
               .join('\n');
 
             node.children[i] = {
               type: 'html',
-              value: `<div class="gallery-slider" data-count="${resolvedImgs.length}">\n${imgsHtml}\n</div>`,
+              value: `<div class="gallery-slider" data-count="${resolvedImgs.length}"${styleAttr}>\n${imgsHtml}\n</div>`,
             };
           } else {
             node.children[i] = {
@@ -197,11 +262,11 @@ function remarkGalleryPlugin() {
           continue;
         }
 
-        walk(child);
+        await walk(child);
       }
     }
 
-    walk(tree);
+    await walk(tree);
   };
 }
 
