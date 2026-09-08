@@ -86,7 +86,8 @@ for (const heading of headings) {
           <span class="project-category">{data.category.join(' / ')}</span>
           {data.date && <span class="project-date">{data.date}</span>}
         </div>
-        <h1 class="project-title">{data.title}</h1>
+        <h1 class="project-title">{data.name}</h1>
+        <p class="project-title-en">{data.title}</p>
         {data.description && (
           <p class="project-desc">{data.description}</p>
         )}
@@ -274,8 +275,15 @@ document.addEventListener('DOMContentLoaded', () => {
     font-weight: 400;
     letter-spacing: 0.04em;
     color: var(--c-ink);
-    margin: 0 0 0.75rem;
+    margin: 0 0 0.25rem;
     line-height: 1.2;
+  }
+  .project-title-en {
+    font-family: var(--ff-serif);
+    font-size: var(--fs-sm);
+    color: var(--c-mid);
+    margin: 0 0 0.75rem;
+    font-style: italic;
   }
   .project-desc {
     font-family: var(--ff-serif);

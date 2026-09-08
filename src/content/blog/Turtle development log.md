@@ -1,10 +1,12 @@
 ---
-title: turtle pluging
+title: Turtle Plugin Development Log
+name: Turtle 插件开发日志
 category:
   - 工厂
 coverImage: ./images/Pasted image 20260714162102.png
 description: soft
 date: 2025-02-16
+status: public
 ---
 
 

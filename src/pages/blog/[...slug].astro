@@ -25,39 +25,182 @@ export async function getStaticPaths() {
 }
 
 const { post } = Astro.props;
-const { Content } = await render(post);
+const { Content, headings } = await render(post);
+
+/**
+ * 通用多级目录构建：自动识别 h2/h3/h4 层级
+ * 支持任意深度嵌套，按文档中出现顺序排列
+ */
+type TocNode = { slug: string; text: string; depth: number; children: TocNode[] };
+const tocItems: TocNode[] = [];
+const stack: { depth: number; node: TocNode }[] = [];
+
+for (const heading of headings) {
+  // 只取 h2~h4，更细的层级忽略
+  if (heading.depth < 2 || heading.depth > 4) continue;
+
+  const node: TocNode = {
+    slug: heading.slug,
+    text: heading.text,
+    depth: heading.depth,
+    children: [],
+  };
+
+  // 弹出栈中所有深度 >= 当前的节点
+  while (stack.length > 0 && stack[stack.length - 1].depth >= heading.depth) {
+    stack.pop();
+  }
+
+  if (stack.length === 0) {
+    // 顶级节点
+    tocItems.push(node);
+  } else {
+    // 挂到父节点下
+    stack[stack.length - 1].node.children.push(node);
+  }
+  stack.push({ depth: heading.depth, node });
+}
 ---
 
 <BaseLayout title={post.data.title} description={post.data.description}>
-  <!-- ── Post header ───────────────────────────────── -->
-  <header class="post-header">
-    <div class="post-super">
-      <span class="post-category">{post.data.category.join(' / ')}</span>
-      {post.data.date && <span class="post-date">{post.data.date}</span>}
+  <div class="blog-layout">
+    <div class="blog-main">
+      <!-- ── Post header ─────────────────────────────── -->
+      <header class="post-header">
+        <div class="post-super">
+          <span class="post-category">{post.data.category.join(' / ')}</span>
+          {post.data.date && <span class="post-date">{post.data.date}</span>}
+        </div>
+        <h1 class="post-title">{post.data.name}</h1>
+        <p class="post-title-en">{post.data.title}</p>
+        {post.data.description && <p class="post-desc">{post.data.description}</p>}
+      </header>
+
+      <!-- ── Markdown body ─────────────────────────── -->
+      <article class="prose post-body">
+        <Content />
+      </article>
+
+      <!-- Back link -->
+      <nav class="back-nav">
+        <a href="/blog" class="back-link">
+          <span aria-hidden="true">←</span>&ensp;全部文章
+        </a>
+      </nav>
     </div>
-    <h1 class="post-title">{post.data.title}</h1>
-    {post.data.description && <p class="post-desc">{post.data.description}</p>}
-  </header>
 
-  <!-- ── Markdown body ─────────────────────────────── -->
-  <article class="prose post-body">
-    <Content />
-  </article>
+    {tocItems.length > 0 && (
+      <aside class="blog-toc">
+        <h2 class="toc-label" data-toc-top>{post.data.title}</h2>
 
-  <!-- Back link -->
-  <nav class="back-nav">
-    <a href="/blog" class="back-link">
-      <span aria-hidden="true">←</span>&ensp;全部文章
-    </a>
-  </nav>
+        <nav>
+          <ul class="toc-list">
+            {tocItems.map((item) => (
+              <li class="toc-item">
+                <a
+                  href={`#${item.slug}`}
+                  class="toc-parent"
+                  data-toc-parent={item.slug}
+                  data-toc-link={item.slug}
+                  data-depth={item.depth}
+                >
+                  {item.text}
+                </a>
+
+                {item.children.length > 0 && (
+                  <ul
+                    class="toc-sublist"
+                    data-toc-sublist={item.slug}
+                  >
+                    {item.children.map((child) => (
+                      <li class="toc-subitem">
+                        <a
+                          href={`#${child.slug}`}
+                          class="toc-parent"
+                          data-toc-parent={child.slug}
+                          data-toc-link={child.slug}
+                          data-depth={child.depth}
+                        >
+                          {child.text}
+                        </a>
+                        {child.children.length > 0 && (
+                          <ul
+                            class="toc-sublist"
+                            data-toc-sublist={child.slug}
+                          >
+                            {child.children.map((grandchild) => (
+                              <li>
+                                <a
+                                  href={`#${grandchild.slug}`}
+                                  data-toc-link={grandchild.slug}
+                                  data-depth={grandchild.depth}
+                                >
+                                  {grandchild.text}
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </aside>
+    )}
+  </div>
   <MediaGallery />
 </BaseLayout>
 
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // 点击侧边栏顶部 title 平滑回到页面顶部
+  const tocLabel = document.querySelector('.toc-label');
+  if (tocLabel) {
+    tocLabel.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  // 点击有子项的父级标题，展开/折叠子项
+  document.querySelectorAll('.toc-parent').forEach(link => {
+    link.addEventListener('click', (e) => {
+      const slug = link.dataset.tocParent;
+      const sublist = document.querySelector(
+        `[data-toc-sublist="${slug}"]`
+      );
+      if (!sublist) return;
+      // 如果点击的是普通链接且没有子项，不阻止默认跳转
+      e.preventDefault();
+      sublist.classList.toggle('collapsed');
+      // 同时滚动到对应位置
+      const target = document.getElementById(slug);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+});
+</script>
+
 <style>
+  /* ── Two-column layout: article + outline sidebar ─── */
+  .blog-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 4rem;
+  }
+  .blog-main {
+    flex: 1;
+    min-width: 0;
+  }
+
   .post-header {
     padding: 4rem 0 2.5rem;
     border-bottom: 1px solid var(--c-rule);
-    max-width: 46rem;
   }
   .post-super {
     display: flex;
@@ -89,8 +232,15 @@ const { Content } = await render(post);
     font-weight: 400;
     letter-spacing: 0.04em;
     color: var(--c-ink);
-    margin: 0 0 0.75rem;
+    margin: 0 0 0.25rem;
     line-height: 1.2;
+  }
+  .post-title-en {
+    font-family: var(--ff-serif);
+    font-size: var(--fs-sm);
+    color: var(--c-mid);
+    margin: 0 0 0.75rem;
+    font-style: italic;
   }
   .post-desc {
     font-family: var(--ff-serif);
@@ -101,7 +251,6 @@ const { Content } = await render(post);
   }
 
   .post-body {
-    max-width: 46rem;
     padding-top: 2.5rem;
   }
 
@@ -109,7 +258,6 @@ const { Content } = await render(post);
     margin-top: 5rem;
     padding-top: 2rem;
     border-top: 1px solid var(--c-rule);
-    max-width: 46rem;
   }
   .back-link {
     font-family: var(--ff-caps);
@@ -120,4 +268,79 @@ const { Content } = await render(post);
     transition: color 0.18s ease;
   }
   .back-link:hover { color: var(--c-ink); }
+
+  /* ── Outline sidebar ──────────────────────────────── */
+  .blog-toc {
+    width: 200px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 6rem;
+    padding-top: 4rem;
+  }
+  .toc-label {
+    font-family: 'PingFang SC', 'Hiragino Sans GB', 'Heiti SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+    font-size: var(--fs-body);
+    font-weight: 700;
+    color: var(--c-ink);
+    margin: 0 0 1.25rem;
+    cursor: pointer;
+  }
+  .toc-list, .toc-sublist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .toc-list > li {
+    margin-bottom: 0.5rem;
+  }
+
+  .toc-list a {
+    display: block;
+    font-family: var(--ff-serif);
+    font-size: var(--fs-sm);
+    color: var(--c-mid);
+    padding: 0.15rem 0;
+    transition: color 0.18s ease;
+  }
+
+  .toc-parent {
+    cursor: pointer;
+  }
+
+  .toc-list a:hover { color: var(--c-ink); }
+
+  .toc-sublist {
+    margin-left: 0.8rem;
+    margin-top: 0.25rem;
+    overflow: hidden;
+    max-height: 500px;
+    opacity: 1;
+    transition:
+      max-height 0.2s ease,
+      opacity 0.2s ease;
+  }
+
+  .toc-sublist.collapsed {
+    max-height: 0;
+    opacity: 0;
+  }
+
+  /* 根据标题层级设置字号和缩进，保留分级结构 */
+  .toc-list a[data-depth="2"] {
+    font-size: var(--fs-sm);
+    font-weight: 500;
+  }
+  .toc-list a[data-depth="3"] {
+    font-size: var(--fs-xs);
+    margin-left: 0.4rem;
+  }
+  .toc-list a[data-depth="4"] {
+    font-size: var(--fs-xs);
+    margin-left: 0.8rem;
+    opacity: 0.85;
+  }
+
+  @media (max-width: 900px) {
+    .blog-toc { display: none; }
+  }
 </style>
