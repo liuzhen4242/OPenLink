@@ -4,10 +4,17 @@ name: Web 开发日志
 category:
   - web
   - test
+  - 张三
 description: web开发中的问题记录
 date: 2026-09-04
 status: public
 ---
+
+### key world
+滚动高亮逻辑
+- 滚动高亮逻辑
+- 
+
 
 
 ### 开发进程中的问题待解决
