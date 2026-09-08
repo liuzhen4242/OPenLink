@@ -94,21 +94,40 @@ import 'photoswipe/style.css';
   /*
     .gallery-slider is raw HTML injected by remark at build time, so it never
     receives Astro's scoped data attribute — these rules must be global.
+
+    布局模型：构建期 remark 插件已把本轮播最“瘦”图的比例内联为容器的
+    aspect-ratio，浏览器首帧即知容器尺寸。所有 <img> 绝对定位叠放在固定
+    画布内、宽度撑满、底部对齐，切换只改 opacity —— 页面其他部分零参与，
+    无 CLS；矮图上方留白区域背景透明，露出页面底色（#f8f7f4），无灰边。
   */
   .gallery-slider {
     position: relative;
     width: 100%;
     margin: 3.5rem 0;
     cursor: pointer;
+    /* 兜底比例：构建期读不到图比例（如外链图）时使用，正常被内联 style 覆盖 */
+    aspect-ratio: 16 / 9;
+    background: transparent;
   }
   .gallery-slider img {
+    position: absolute;
+    left: 0;
+    bottom: 0;              /* 底部对齐：矮图贴底，留白统一在上方 */
     width: 100%;
     height: auto;
-    display: none;
+    margin: 0;              /* 覆盖 .prose img 的 3.5rem 上下边距 */
+    background: transparent; /* 覆盖 .prose img 的 #f0efec，留白与页面同色 */
     border-radius: 0;
+    opacity: 0;
+    transition: opacity 0.5s ease;
   }
   .gallery-slider img.is-active {
-    display: block;
+    opacity: 1;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .gallery-slider img {
+      transition: none;
+    }
   }
   .gallery-empty {
     color: var(--c-mid);
