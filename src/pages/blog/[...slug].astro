@@ -100,7 +100,7 @@ for (const heading of headings) {
                 <a
                   href={`#${item.slug}`}
                   class="toc-parent"
-                  data-toc-parent={item.slug}
+                  {...(item.children.length > 0 ? { 'data-toc-parent': item.slug } : {})}
                   data-toc-link={item.slug}
                   data-depth={item.depth}
                 >
@@ -109,7 +109,7 @@ for (const heading of headings) {
 
                 {item.children.length > 0 && (
                   <ul
-                    class="toc-sublist"
+                    class="toc-sublist collapsed"
                     data-toc-sublist={item.slug}
                   >
                     {item.children.map((child) => (
@@ -117,7 +117,7 @@ for (const heading of headings) {
                         <a
                           href={`#${child.slug}`}
                           class="toc-parent"
-                          data-toc-parent={child.slug}
+                          {...(child.children.length > 0 ? { 'data-toc-parent': child.slug } : {})}
                           data-toc-link={child.slug}
                           data-depth={child.depth}
                         >
@@ -125,7 +125,7 @@ for (const heading of headings) {
                         </a>
                         {child.children.length > 0 && (
                           <ul
-                            class="toc-sublist"
+                            class="toc-sublist collapsed"
                             data-toc-sublist={child.slug}
                           >
                             {child.children.map((grandchild) => (
@@ -165,24 +165,82 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 点击有子项的父级标题，展开/折叠子项
-  document.querySelectorAll('.toc-parent').forEach(link => {
+  // 初始化：折叠状态的子列表，对应箭头初始旋转90度
+  document.querySelectorAll('.toc-sublist.collapsed').forEach(sublist => {
+    const slug = sublist.dataset.tocSublist;
+    const parent = document.querySelector(`[data-toc-parent="${slug}"]`);
+    if (parent) {
+      parent.style.setProperty('--arrow-rotate', '90deg');
+    }
+  });
+
+  // 滚动高亮：当前章节对应的导航项变黑，顶部标题变灰
+  const tocLinks = document.querySelectorAll('[data-toc-link]');
+  const headings = document.querySelectorAll('.prose h2, .prose h3, .prose h4');
+
+  if (headings.length === 0) return;
+
+  const setActive = (slug) => {
+    tocLinks.forEach(link => {
+      link.classList.toggle('active', link.dataset.tocLink === slug);
+    });
+    // 有章节激活时，顶部标题变灰
+    if (tocLabel) tocLabel.classList.add('inactive');
+  };
+
+  // 点击任意导航项立刻高亮，同时处理折叠展开
+  tocLinks.forEach(link => {
     link.addEventListener('click', (e) => {
-      const slug = link.dataset.tocParent;
-      const sublist = document.querySelector(
-        `[data-toc-sublist="${slug}"]`
-      );
-      if (!sublist) return;
-      // 如果点击的是普通链接且没有子项，不阻止默认跳转
-      e.preventDefault();
-      sublist.classList.toggle('collapsed');
-      // 同时滚动到对应位置
-      const target = document.getElementById(slug);
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // 立刻设置激活状态
+      const slug = link.dataset.tocLink;
+      if (slug) setActive(slug);
+
+      // 如果是有子项的父级，切换折叠并平滑滚动
+      const parentSlug = link.dataset.tocParent;
+      if (parentSlug) {
+        const sublist = document.querySelector(`[data-toc-sublist="${parentSlug}"]`);
+        if (sublist) {
+          e.preventDefault();
+          sublist.classList.toggle('collapsed');
+          link.style.setProperty('--arrow-rotate',
+            sublist.classList.contains('collapsed') ? '90deg' : '0deg'
+          );
+          // 同时滚动到对应位置
+          const target = document.getElementById(parentSlug);
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
       }
     });
   });
+
+  const observer = new IntersectionObserver((entries) => {
+    // 取当前视口内最靠上的可见标题
+    const visible = entries
+      .filter(entry => entry.isIntersecting)
+      .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+    if (visible.length > 0) {
+      const slug = visible[0].target.id;
+      setActive(slug);
+    }
+  }, {
+    rootMargin: '-80px 0px -70% 0px',
+    threshold: 0
+  });
+
+  headings.forEach(h => observer.observe(h));
+
+  // 页面滚动到顶部区域（还没进入正文）时，清除高亮，顶部标题变黑
+  const onScroll = () => {
+    const scrollY = window.scrollY;
+    if (scrollY < 300) {
+      if (tocLabel) tocLabel.classList.remove('inactive');
+      tocLinks.forEach(link => link.classList.remove('active'));
+    }
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll(); // 初始化
 });
 </script>
 
@@ -284,6 +342,10 @@ document.addEventListener('DOMContentLoaded', () => {
     color: var(--c-ink);
     margin: 0 0 1.25rem;
     cursor: pointer;
+    transition: color 0.18s ease;
+  }
+  .toc-label.inactive {
+    color: #a8a8a8;
   }
   .toc-list, .toc-sublist {
     list-style: none;
@@ -298,19 +360,43 @@ document.addEventListener('DOMContentLoaded', () => {
     display: block;
     font-family: var(--ff-serif);
     font-size: var(--fs-sm);
-    color: var(--c-mid);
+    color: #a8a8a8;
     padding: 0.15rem 0;
     transition: color 0.18s ease;
   }
 
   .toc-parent {
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  /* 父级标题前的小三角箭头，Obsidian 风格 */
+  .toc-parent::before {
+    content: '▾';
+    display: inline-block;
+    font-size: 0.75em;
+    transition: transform 0.15s ease;
+    color: #a8a8a8;
+    flex-shrink: 0;
+    width: 0.8em;
+    text-align: center;
+    transform: rotate(var(--arrow-rotate, 0deg));
+  }
+  /* 没有子项的父级不显示箭头 */
+  .toc-parent:not([data-toc-parent])::before {
+    display: none;
   }
 
   .toc-list a:hover { color: var(--c-ink); }
+  .toc-list a.active {
+    color: var(--c-ink);
+    font-weight: 500;
+  }
 
   .toc-sublist {
-    margin-left: 0.8rem;
+    margin-left: 1.1rem;
     margin-top: 0.25rem;
     overflow: hidden;
     max-height: 500px;
@@ -325,19 +411,8 @@ document.addEventListener('DOMContentLoaded', () => {
     opacity: 0;
   }
 
-  /* 根据标题层级设置字号和缩进，保留分级结构 */
-  .toc-list a[data-depth="2"] {
-    font-size: var(--fs-sm);
-    font-weight: 500;
-  }
-  .toc-list a[data-depth="3"] {
+  .toc-sublist a {
     font-size: var(--fs-xs);
-    margin-left: 0.4rem;
-  }
-  .toc-list a[data-depth="4"] {
-    font-size: var(--fs-xs);
-    margin-left: 0.8rem;
-    opacity: 0.85;
   }
 
   @media (max-width: 900px) {

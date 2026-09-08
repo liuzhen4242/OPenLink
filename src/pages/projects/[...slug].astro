@@ -118,7 +118,7 @@ for (const heading of headings) {
                 <a
                   href={`#${item.slug}`}
                   class="toc-parent"
-                  data-toc-parent={item.slug}
+                  {...(item.children.length > 0 ? { 'data-toc-parent': item.slug } : {})}
                   data-toc-link={item.slug}
                 >
                   {item.text}
@@ -201,24 +201,76 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  document.querySelectorAll('.toc-parent')
-    .forEach(link => {
+  // 初始化：折叠状态的子列表，对应箭头初始旋转90度
+  document.querySelectorAll('.toc-sublist.collapsed').forEach(sublist => {
+    const slug = sublist.dataset.tocSublist;
+    const parent = document.querySelector(`[data-toc-parent="${slug}"]`);
+    if (parent) {
+      parent.style.setProperty('--arrow-rotate', '90deg');
+    }
+  });
 
-      link.addEventListener('click', () => {
+  // 滚动高亮：当前章节对应的导航项变黑，顶部标题变灰
+  const tocLinks = document.querySelectorAll('[data-toc-link]');
+  const headings = document.querySelectorAll('.prose h2, .prose h3, .prose h4');
 
-        const slug = link.dataset.tocParent;
+  if (headings.length === 0) return;
 
-        const sublist =
-          document.querySelector(
-            `[data-toc-sublist="${slug}"]`
-          );
-
-        if (!sublist) return;
-
-        sublist.classList.toggle('collapsed');
-      });
-
+  const setActive = (slug) => {
+    tocLinks.forEach(link => {
+      link.classList.toggle('active', link.dataset.tocLink === slug);
     });
+    // 有章节激活时，顶部标题变灰
+    if (tocLabel) tocLabel.classList.add('inactive');
+  };
+
+  // 点击任意导航项立刻高亮，同时处理折叠展开
+  tocLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      // 立刻设置激活状态
+      const slug = link.dataset.tocLink;
+      if (slug) setActive(slug);
+
+      // 如果是有子项的父级，切换折叠
+      const parentSlug = link.dataset.tocParent;
+      if (parentSlug) {
+        const sublist = document.querySelector(`[data-toc-sublist="${parentSlug}"]`);
+        if (sublist) {
+          sublist.classList.toggle('collapsed');
+          link.style.setProperty('--arrow-rotate',
+            sublist.classList.contains('collapsed') ? '90deg' : '0deg'
+          );
+        }
+      }
+    });
+  });
+
+  const observer = new IntersectionObserver((entries) => {
+    const visible = entries
+      .filter(entry => entry.isIntersecting)
+      .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+    if (visible.length > 0) {
+      const slug = visible[0].target.id;
+      setActive(slug);
+    }
+  }, {
+    rootMargin: '-80px 0px -70% 0px',
+    threshold: 0
+  });
+
+  headings.forEach(h => observer.observe(h));
+
+  // 页面滚动到顶部区域（还没进入正文）时，清除高亮，顶部标题变黑
+  const onScroll = () => {
+    const scrollY = window.scrollY;
+    // 滚动到文章标题下方约 200px 以内，认为是页面顶部
+    if (scrollY < 300) {
+      if (tocLabel) tocLabel.classList.remove('inactive');
+      tocLinks.forEach(link => link.classList.remove('active'));
+    }
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll(); // 初始化
 
 });
 </script>
@@ -330,6 +382,10 @@ document.addEventListener('DOMContentLoaded', () => {
     color: var(--c-ink);
     margin: 0 0 1.25rem;
     cursor: pointer;
+    transition: color 0.18s ease;
+  }
+  .toc-label.inactive {
+    color: #a8a8a8;
   }
   .toc-list, .toc-sublist {
     list-style: none;
@@ -339,42 +395,61 @@ document.addEventListener('DOMContentLoaded', () => {
   .toc-list > li {
     margin-bottom: 0.5rem;
   }
- 
+
   .toc-list a {
-  display: block;
-  font-family: var(--ff-serif);
-  font-size: var(--fs-sm);
-  color: var(--c-mid);
-  padding: 0.15rem 0;
-  transition: color 0.18s ease;
-}
+    display: block;
+    font-family: var(--ff-serif);
+    font-size: var(--fs-sm);
+    color: #a8a8a8;
+    padding: 0.15rem 0;
+    transition: color 0.18s ease;
+  }
 
   .toc-parent {
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  /* 父级标题前的小三角箭头，Obsidian 风格 */
+  .toc-parent::before {
+    content: '▾';
+    display: inline-block;
+    font-size: 0.75em;
+    transition: transform 0.15s ease;
+    color: #a8a8a8;
+    flex-shrink: 0;
+    width: 0.8em;
+    text-align: center;
+    transform: rotate(var(--arrow-rotate, 0deg));
+  }
+  /* 没有子项的父级不显示箭头 */
+  .toc-parent:not([data-toc-parent])::before {
+    display: none;
   }
 
   .toc-list a:hover { color: var(--c-ink); }
+  .toc-list a.active {
+    color: var(--c-ink);
+    font-weight: 500;
+  }
 
-.toc-sublist {
-  margin-left: 0.8rem;
-  margin-top: 0.25rem;
+  .toc-sublist {
+    margin-left: 1.1rem;
+    margin-top: 0.25rem;
+    overflow: hidden;
+    max-height: 500px;
+    opacity: 1;
+    transition:
+      max-height 0.2s ease,
+      opacity 0.2s ease;
+  }
 
-  overflow: hidden;
-  max-height: 500px;
-  opacity: 1;
-
-  transition:
-    max-height 0.2s ease,
-    opacity 0.2s ease;
-}
-
-.toc-sublist.collapsed {
-  max-height: 0;
-  opacity: 0;
-}
-
-
-
+  .toc-sublist.collapsed {
+    max-height: 0;
+    opacity: 0;
+  }
 
   .toc-sublist a {
     font-size: var(--fs-xs);

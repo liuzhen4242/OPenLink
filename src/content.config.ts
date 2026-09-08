@@ -35,10 +35,8 @@ const projectsCollection = defineCollection({
     title: z.string(), // 英文标题，用于 SEO、副标题显示
     name: z.string(), // 中文标题，页面上大标题显示用
 
-    // 改为数组，支持多个分类
-    category: z.array(
-      z.enum(['装配', '木构', '工厂', '展览', '室内', '文旅', '旧改', '居住', '商办', '学校', '规划'])
-    ),
+    // 改为数组，支持多个分类，和博客一致，不限制枚举
+    category: z.array(z.string()),
 
     // ✨ 把原本的 z.string() 改成 image()
     // 这样打包时，Astro 才会把它当成真实的图片文件去打包迁移，并自动修复空格路径问题
@@ -49,7 +47,10 @@ const projectsCollection = defineCollection({
     coverMedia: z.string().optional(),
 
     description: z.string().optional(),
-    date: z.string().optional(),
+    // 和博客一致：兼容 Date 对象和字符串日期
+    date: z.union([z.date(), z.string()]).optional().transform((d) =>
+      d instanceof Date ? d.toISOString().slice(0, 10) : d
+    ),
   }),
 });
 
