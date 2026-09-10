@@ -1,12 +1,13 @@
 ---
 /**
- * /blog/[...slug] — Individual blog post page.
- *
- * The blog index (/blog) already links to /blog/<slug>; this page makes
- * those links resolve. Slug = the markdown filename without .md, matching
- * the hrefs generated in blog.astro.
+ * /blog/[...slug] — Individual blog post page（三栏骨架，借鉴 Herschel）：
+ *   左栏 = 标题树（h2 大节 / h3 子标题手风琴 + 滚动高亮 + 上下篇导航，吸顶）
+ *   中栏 = 正文（typography prose + 元数据行）
+ *   右栏 = 引注（frontmatter notes，可选）
+ * 字体保持 OpenLink 现有（Noto Serif SC / IM Fell），与 Herschel 拉开差别。
  */
 import { getCollection, render } from 'astro:content';
+import { statSync } from 'node:fs';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import MediaGallery from '../../components/MediaGallery.astro';
 
@@ -26,129 +27,195 @@ export async function getStaticPaths() {
 
 const { post } = Astro.props;
 const { Content, headings } = await render(post);
+const { title, name, date, description, notes = [], author, update, category = [], status } = post.data;
 
-/**
- * 通用多级目录构建：自动识别 h2/h3/h4 层级
- * 支持任意深度嵌套，按文档中出现顺序排列
- */
-type TocNode = { slug: string; text: string; depth: number; children: TocNode[] };
-const tocItems: TocNode[] = [];
-const stack: { depth: number; node: TocNode }[] = [];
-
-for (const heading of headings) {
-  // 只取 h2~h4，更细的层级忽略
-  if (heading.depth < 2 || heading.depth > 4) continue;
-
-  const node: TocNode = {
-    slug: heading.slug,
-    text: heading.text,
-    depth: heading.depth,
-    children: [],
-  };
-
-  // 弹出栈中所有深度 >= 当前的节点
-  while (stack.length > 0 && stack[stack.length - 1].depth >= heading.depth) {
-    stack.pop();
+// update 自动识别：frontmatter 未写 update 时，取文件最后修改日期作为更新日期（借鉴 Herschel）
+let updateDate = update;
+if (!updateDate && post.filePath) {
+  try {
+    updateDate = statSync(post.filePath).mtime.toISOString().slice(0, 10);
+  } catch {
+    updateDate = undefined;
   }
-
-  if (stack.length === 0) {
-    // 顶级节点
-    tocItems.push(node);
-  } else {
-    // 挂到父节点下
-    stack[stack.length - 1].node.children.push(node);
-  }
-  stack.push({ depth: heading.depth, node });
 }
+
+// 目录组装（Herschel 逻辑）：h2 为大节，其后的 h3 作为子标题；无前置 h2 的 h3 平铺
+interface Heading { depth: number; slug: string; text: string; }
+interface TocGroup { heading: Heading; children: Heading[]; }
+const tocGroups: TocGroup[] = [];
+let lastGroup: TocGroup | null = null;
+for (const heading of headings) {
+  if (heading.depth !== 2 && heading.depth !== 3) continue;
+  if (heading.depth === 2) {
+    const group: TocGroup = { heading, children: [] };
+    tocGroups.push(group);
+    lastGroup = group;
+  } else if (lastGroup) {
+    lastGroup.children.push(heading);
+  } else {
+    tocGroups.push({ heading, children: [] });
+  }
+}
+
+// 按日期降序排列全部文章，计算相邻的上/下一篇（借鉴 Herschel）
+const allPosts = (await getCollection('blog')).sort(
+  (a, b) => new Date(b.data.date || 0).getTime() - new Date(a.data.date || 0).getTime(),
+);
+const currentIndex = allPosts.findIndex((p) => p.id === post.id);
+const toPostLink = (p) => ({ url: `/blog/${p.id.replace(/\.md$/, '')}`, title: p.data.name || p.data.title });
+const prevPost = currentIndex > 0 ? toPostLink(allPosts[currentIndex - 1]) : undefined;
+const nextPost =
+  currentIndex >= 0 && currentIndex < allPosts.length - 1
+    ? toPostLink(allPosts[currentIndex + 1])
+    : undefined;
 ---
 
-<BaseLayout title={post.data.title} description={post.data.description}>
-  <div class="blog-layout">
-    <div class="blog-main">
-      <!-- ── Post header ─────────────────────────────── -->
-      <header class="post-header">
-        <div class="post-super">
-          <span class="post-category">{post.data.category.join(' / ')}</span>
-          {post.data.date && <span class="post-date">{post.data.date}</span>}
-        </div>
-        <h1 class="post-title">{post.data.name}</h1>
-        <p class="post-title-en">{post.data.title}</p>
-        {post.data.description && <p class="post-desc">{post.data.description}</p>}
-      </header>
+<BaseLayout title={title} description={description}>
+  <div
+    class:list={[
+      'grid grid-cols-1 lg:items-start lg:gap-12',
+      notes.length > 0
+        ? 'lg:grid-cols-[min(220px,20vw)_1fr_240px]'
+        : 'lg:grid-cols-[min(220px,20vw)_1fr]',
+    ]}
+  >
+    <!-- ── 左栏：标题树（吸顶 + 上下篇导航）────────────── -->
+    <div class="hidden lg:block self-start sticky top-[3.75rem]">
+      <!-- 顶行：上/下篇导航（右对齐，借鉴 Herschel） -->
+      <div class="mb-10 flex items-center justify-between pr-4">
+        <nav class="flex items-center gap-2.5 text-neutral-400 dark:text-neutral-500 text-xs">
+          <a
+            href={prevPost ? prevPost.url : '#'}
+            aria-label="上一篇"
+            title={prevPost ? `上一篇: ${prevPost.title}` : '没有上一篇了'}
+            class={`transition-colors duration-200 ${!prevPost ? 'opacity-30 pointer-events-none' : 'hover:text-neutral-900 dark:hover:text-white'}`}
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+          </a>
+          <a
+            href="/blog"
+            aria-label="博客列表"
+            title="返回博客列表"
+            class="hover:text-neutral-900 dark:hover:text-white transition-colors duration-200 p-0.5 flex items-center justify-center"
+          >
+            <span class="inline-block w-1 h-1 rounded-full bg-current"></span>
+          </a>
+          <a
+            href={nextPost ? nextPost.url : '#'}
+            aria-label="下一篇"
+            title={nextPost ? `下一篇: ${nextPost.title}` : '没有下一篇了'}
+            class={`transition-colors duration-200 ${!nextPost ? 'opacity-30 pointer-events-none' : 'hover:text-neutral-900 dark:hover:text-white'}`}
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </a>
+        </nav>
+      </div>
 
-      <!-- ── Markdown body ─────────────────────────── -->
-      <article class="prose post-body">
+      <!-- 顶部标题（英文，回顶链接）：与目录条目同款滚动高亮 -->
+      {tocGroups.length > 0 && (
+        <a
+          href="#top"
+          aria-label="回到顶部"
+          title="回到顶部"
+          data-toc-top
+          class="block font-semibold tracking-wide uppercase mb-3 transition-colors duration-200"
+        >
+          {title}
+        </a>
+      )}
+
+      {tocGroups.length > 0 && (
+        <aside class="text-xs space-y-3 max-h-[calc(100vh-8rem)] overflow-y-auto pr-4 border-r border-neutral-200 dark:border-neutral-800">
+          {tocGroups.map((group) =>
+            group.children.length > 0 ? (
+              <details class="toc-group">
+                <summary class="flex items-center gap-1.5">
+                  <a
+                    href={`#${group.heading.slug}`}
+                    data-heading-link={group.heading.slug}
+                    data-toc-root
+                    class="flex-1 py-0.5 block transition-colors duration-200"
+                  >
+                    {group.heading.text}
+                  </a>
+                  <span class="toc-caret text-neutral-400 dark:text-neutral-600" aria-hidden="true">▸</span>
+                </summary>
+                <div class="mt-1 ml-2 pl-2 border-l border-neutral-200 dark:border-neutral-800 flex flex-col space-y-1">
+                  {group.children.map((child) => (
+                    <a
+                      href={`#${child.slug}`}
+                      data-heading-link={child.slug}
+                      class="block py-0.5 transition-colors duration-200"
+                    >
+                      {child.text}
+                    </a>
+                  ))}
+                </div>
+              </details>
+            ) : (
+              <a
+                href={`#${group.heading.slug}`}
+                data-heading-link={group.heading.slug}
+                data-toc-root
+                class="block py-0.5 transition-colors duration-200"
+              >
+                {group.heading.text}
+              </a>
+            ),
+          )}
+        </aside>
+      )}
+    </div>
+
+    <!-- ── 中栏：正文 ────────────────────────────────── -->
+    <article class="max-w-2xl mx-auto lg:mx-0">
+      <!-- h1 上方放 #top 哨兵：回顶锚点目标 + 顶部高亮观察哨兵 -->
+      <span id="top" aria-hidden="true"></span>
+      <h1 class="post-title text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900 dark:text-white">
+        {name}
+      </h1>
+
+      <!-- 元数据行：分类 / 日期 / 更新 / 状态徽章（借鉴 Herschel 元数据行） -->
+      <div class="mt-4 flex flex-wrap items-center gap-3 pb-8 border-b border-neutral-200 dark:border-neutral-800 text-sm text-neutral-500 dark:text-neutral-400">
+        {category.length > 0 && (
+          <span class="post-category">{category.join(' / ')}</span>
+        )}
+        {date && <time datetime={date}>{date}</time>}
+        {updateDate && <span>（upd&thinsp;{updateDate.replace(/-/g, '').slice(2)}）</span>}
+        {status !== 'public' && (
+          <span class="rounded-full border border-neutral-300 dark:border-neutral-700 px-2 py-0.5 text-xs leading-none text-neutral-600 dark:text-neutral-300">
+            {status}
+          </span>
+        )}
+      </div>
+
+      <div
+        class="mt-8 prose prose-neutral dark:prose-invert max-w-none
+          prose-headings:font-normal prose-headings:tracking-tight"
+      >
         <Content />
-      </article>
+      </div>
 
-      <!-- Back link -->
-      <nav class="back-nav">
+      <nav class="mt-16 pt-6 border-t border-neutral-200 dark:border-neutral-800">
         <a href="/blog" class="back-link">
           <span aria-hidden="true">←</span>&ensp;全部文章
         </a>
       </nav>
-    </div>
+    </article>
 
-    {tocItems.length > 0 && (
-      <aside class="blog-toc">
-        <h2 class="toc-label" data-toc-top>{post.data.title}</h2>
-
-        <nav>
-          <ul class="toc-list">
-            {tocItems.map((item) => (
-              <li class="toc-item">
-                <a
-                  href={`#${item.slug}`}
-                  class="toc-parent"
-                  {...(item.children.length > 0 ? { 'data-toc-parent': item.slug } : {})}
-                  data-toc-link={item.slug}
-                  data-depth={item.depth}
-                >
-                  {item.text}
-                </a>
-
-                {item.children.length > 0 && (
-                  <ul
-                    class="toc-sublist collapsed"
-                    data-toc-sublist={item.slug}
-                  >
-                    {item.children.map((child) => (
-                      <li class="toc-subitem">
-                        <a
-                          href={`#${child.slug}`}
-                          class="toc-parent"
-                          {...(child.children.length > 0 ? { 'data-toc-parent': child.slug } : {})}
-                          data-toc-link={child.slug}
-                          data-depth={child.depth}
-                        >
-                          {child.text}
-                        </a>
-                        {child.children.length > 0 && (
-                          <ul
-                            class="toc-sublist collapsed"
-                            data-toc-sublist={child.slug}
-                          >
-                            {child.children.map((grandchild) => (
-                              <li>
-                                <a
-                                  href={`#${grandchild.slug}`}
-                                  data-toc-link={grandchild.slug}
-                                  data-depth={grandchild.depth}
-                                >
-                                  {grandchild.text}
-                                </a>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-          </ul>
-        </nav>
+    <!-- ── 右栏：引注（notes，可选）──────────────────── -->
+    {notes.length > 0 && (
+      <aside class="hidden lg:block pt-2 text-xs text-neutral-500 dark:text-neutral-400 space-y-3 pl-6">
+        {notes.map((note, index) => (
+          <p class="leading-relaxed text-neutral-600 dark:text-neutral-400" data-note-index={index + 1}>
+            <span class="font-normal shrink-0">{index + 1}:</span>
+            <span>{note}</span>
+          </p>
+        ))}
       </aside>
     )}
   </div>
@@ -156,115 +223,100 @@ for (const heading of headings) {
 </BaseLayout>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  // 点击侧边栏顶部 title 平滑回到页面顶部
-  const tocLabel = document.querySelector('.toc-label');
-  if (tocLabel) {
-    tocLabel.addEventListener('click', () => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-  }
+  // ── 标题树：手风琴互斥 + 滚动高亮 + 顶部高亮（借鉴 Herschel 逻辑）──
 
-  // 初始化：折叠状态的子列表，对应箭头初始旋转90度
-  document.querySelectorAll('.toc-sublist.collapsed').forEach(sublist => {
-    const slug = sublist.dataset.tocSublist;
-    const parent = document.querySelector(`[data-toc-parent="${slug}"]`);
-    if (parent) {
-      parent.style.setProperty('--arrow-rotate', '90deg');
+  const setActiveHeading = (id) => {
+    document.querySelectorAll('[data-heading-link]').forEach((link) => {
+      const isActive = link.getAttribute('data-heading-link') === id;
+      link.classList.toggle('toc-active', isActive);
+      link.classList.toggle('font-medium', isActive);
+    });
+    // 章节激活时，顶部标题恢复灰色（与 Herschel 一致：章节与顶部互斥）
+    const top = document.querySelector('[data-toc-top]');
+    if (top) {
+      top.classList.remove('toc-active');
+      top.classList.remove('font-medium');
     }
-  });
-
-  // 滚动高亮：当前章节对应的导航项变黑，顶部标题变灰
-  const tocLinks = document.querySelectorAll('[data-toc-link]');
-  const headings = document.querySelectorAll('.prose h2, .prose h3, .prose h4');
-
-  if (headings.length === 0) return;
-
-  const setActive = (slug) => {
-    tocLinks.forEach(link => {
-      link.classList.toggle('active', link.dataset.tocLink === slug);
-    });
-    // 有章节激活时，顶部标题变灰
-    if (tocLabel) tocLabel.classList.add('inactive');
   };
 
-  // 点击任意导航项立刻高亮，同时处理折叠展开
-  tocLinks.forEach(link => {
-    link.addEventListener('click', (e) => {
-      // 立刻设置激活状态
-      const slug = link.dataset.tocLink;
-      if (slug) setActive(slug);
+  // 手风琴：同一时间只展开一个目录子树
+  const tocGroups = Array.from(document.querySelectorAll('details.toc-group'));
+  tocGroups.forEach((group) => {
+    group.addEventListener('toggle', () => {
+      if (!group.open) return;
+      tocGroups.forEach((other) => {
+        if (other !== group && other.open) other.removeAttribute('open');
+      });
+    });
+  });
 
-      // 如果是有子项的父级，切换折叠并平滑滚动
-      const parentSlug = link.dataset.tocParent;
-      if (parentSlug) {
-        const sublist = document.querySelector(`[data-toc-sublist="${parentSlug}"]`);
-        if (sublist) {
-          e.preventDefault();
-          sublist.classList.toggle('collapsed');
-          link.style.setProperty('--arrow-rotate',
-            sublist.classList.contains('collapsed') ? '90deg' : '0deg'
-          );
-          // 同时滚动到对应位置
-          const target = document.getElementById(parentSlug);
-          if (target) {
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        }
+  // 点击 2 级标题：只保留/展开被点击的那一棵，其余收拢
+  document.querySelectorAll('[data-toc-root]').forEach((link) => {
+    link.addEventListener('click', () => {
+      const ownGroup = link.closest('details.toc-group');
+      tocGroups.forEach((group) => {
+        if (group !== ownGroup) group.removeAttribute('open');
+      });
+      if (ownGroup) {
+        if (ownGroup.open) ownGroup.removeAttribute('open');
+        else ownGroup.setAttribute('open', '');
       }
     });
   });
 
-  const observer = new IntersectionObserver((entries) => {
-    // 取当前视口内最靠上的可见标题
-    const visible = entries
-      .filter(entry => entry.isIntersecting)
-      .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-    if (visible.length > 0) {
-      const slug = visible[0].target.id;
-      setActive(slug);
-    }
-  }, {
-    rootMargin: '-80px 0px -70% 0px',
-    threshold: 0
-  });
-
-  headings.forEach(h => observer.observe(h));
-
-  // 页面滚动到顶部区域（还没进入正文）时，清除高亮，顶部标题变黑
-  const onScroll = () => {
-    const scrollY = window.scrollY;
-    if (scrollY < 300) {
-      if (tocLabel) tocLabel.classList.remove('inactive');
-      tocLinks.forEach(link => link.classList.remove('active'));
-    }
+  // 滚动高亮：IntersectionObserver 观察带（-20% 0px -60% 0px）
+  const observerOptions = { root: null, rootMargin: '-20% 0px -60% 0px', threshold: 0 };
+  const observerCallback = (entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        const id = entry.target.getAttribute('id');
+        if (id) setActiveHeading(id);
+      }
+    });
   };
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll(); // 初始化
-});
+  const observer = new IntersectionObserver(observerCallback, observerOptions);
+  document.querySelectorAll('article h2, article h3').forEach((heading) => observer.observe(heading));
+
+  // 顶部标题（回顶）：回到顶部时激活常亮（与 Herschel 一致），离开顶部恢复灰。
+  const tocTopLink = document.querySelector('[data-toc-top]');
+  const topSentinel = document.getElementById('top');
+  if (tocTopLink && topSentinel) {
+    const setTopActive = (atTop) => {
+      // 顶部标题：激活常亮 / 恢复灰
+      tocTopLink.classList.toggle('toc-active', atTop);
+      tocTopLink.classList.toggle('font-medium', atTop);
+      // 仅在回到顶部时清空章节高亮（与 Herschel 一致）；
+      // 离开顶部时不清空，避免点击后的章节高亮被闪掉
+      if (atTop) {
+        document.querySelectorAll('[data-heading-link]').forEach((link) => {
+          link.classList.toggle('toc-active', false);
+          link.classList.toggle('font-medium', false);
+        });
+      }
+    };
+    const topObserver = new IntersectionObserver(
+      (entries) => entries.forEach((entry) => setTopActive(entry.isIntersecting)),
+      { root: null, rootMargin: '-20% 0px -60% 0px', threshold: 0 },
+    );
+    topObserver.observe(topSentinel);
+  }
+
+  // 点击目录：立即高亮并常驻（不再依赖 scrollend 确认；后续滚动由章节 observer 平滑接管）
+  document.querySelectorAll('[data-heading-link]').forEach((link) => {
+    link.addEventListener('click', () => {
+      const id = link.getAttribute('data-heading-link');
+      if (!id) return;
+      setActiveHeading(id);
+    });
+  });
 </script>
 
-<style>
-  /* ── Two-column layout: article + outline sidebar ─── */
-  .blog-layout {
-    display: flex;
-    align-items: flex-start;
-    gap: 4rem;
-  }
-  .blog-main {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .post-header {
-    padding: 4rem 0 2.5rem;
-    border-bottom: 1px solid var(--c-rule);
-  }
-  .post-super {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    margin-bottom: 1rem;
+<style is:global>
+  /* 保持 OpenLink 字体：标题衬线大写 / 正文宋体（与 Herschel 无衬线系统字体拉开差别） */
+  .post-title {
+    font-family: var(--ff-caps);
+    letter-spacing: 0.04em;
+    font-weight: 700;
   }
   .post-category {
     font-family: var(--ff-caps);
@@ -273,49 +325,19 @@ document.addEventListener('DOMContentLoaded', () => {
     text-transform: uppercase;
     color: var(--c-mid);
   }
-  .post-date {
+  [data-heading-link], [data-toc-top], .toc-caret {
     font-family: var(--ff-serif);
-    font-size: var(--fs-xs);
+  }
+  /* 标题树颜色继承正文小标题（--c-mid 灰），悬停/高亮加深为 --c-ink */
+  [data-heading-link], [data-toc-top] {
     color: var(--c-mid);
-    font-variant-numeric: tabular-nums;
+    transition: color 0.18s ease;
   }
-  .post-date::before {
-    content: '—';
-    margin-right: 0.5em;
-    color: var(--c-rule);
-  }
-  .post-title {
-    font-family: var(--ff-caps);
-    font-size: 22pt;
-    font-weight: 400;
-    letter-spacing: 0.04em;
+  [data-heading-link]:hover,
+  [data-toc-top]:hover,
+  [data-heading-link].toc-active,
+  [data-toc-top].toc-active {
     color: var(--c-ink);
-    margin: 0 0 0.25rem;
-    line-height: 1.2;
-  }
-  .post-title-en {
-    font-family: var(--ff-serif);
-    font-size: var(--fs-sm);
-    color: var(--c-mid);
-    margin: 0 0 0.75rem;
-    font-style: italic;
-  }
-  .post-desc {
-    font-family: var(--ff-serif);
-    font-size: var(--fs-sm);
-    color: var(--c-mid);
-    margin: 0;
-    font-style: italic;
-  }
-
-  .post-body {
-    padding-top: 2.5rem;
-  }
-
-  .back-nav {
-    margin-top: 5rem;
-    padding-top: 2rem;
-    border-top: 1px solid var(--c-rule);
   }
   .back-link {
     font-family: var(--ff-caps);
@@ -327,95 +349,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   .back-link:hover { color: var(--c-ink); }
 
-  /* ── Outline sidebar ──────────────────────────────── */
-  .blog-toc {
-    width: 200px;
-    flex-shrink: 0;
-    position: sticky;
-    top: 6rem;
-    padding-top: 4rem;
-  }
-  .toc-label {
-    font-family: 'PingFang SC', 'Hiragino Sans GB', 'Heiti SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
-    font-size: var(--fs-body);
-    font-weight: 700;
-    color: var(--c-ink);
-    margin: 0 0 1.25rem;
-    cursor: pointer;
-    transition: color 0.18s ease;
-  }
-  .toc-label.inactive {
-    color: #a8a8a8;
-  }
-  .toc-list, .toc-sublist {
+  /* 原生 details 默认箭头隐藏，用自绘 ▸ 旋转表示展开 */
+  .toc-group > summary {
     list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  .toc-list > li {
-    margin-bottom: 0.5rem;
-  }
-
-  .toc-list a {
-    display: block;
-    font-family: var(--ff-serif);
-    font-size: var(--fs-sm);
-    color: #a8a8a8;
-    padding: 0.15rem 0;
-    transition: color 0.18s ease;
-  }
-
-  .toc-parent {
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
+    user-select: none;
   }
-
-  /* 父级标题前的小三角箭头，Obsidian 风格 */
-  .toc-parent::before {
-    content: '▾';
-    display: inline-block;
-    font-size: 0.75em;
-    transition: transform 0.15s ease;
-    color: #a8a8a8;
-    flex-shrink: 0;
-    width: 0.8em;
-    text-align: center;
-    transform: rotate(var(--arrow-rotate, 0deg));
-  }
-  /* 没有子项的父级不显示箭头 */
-  .toc-parent:not([data-toc-parent])::before {
+  .toc-group > summary::-webkit-details-marker {
     display: none;
   }
-
-  .toc-list a:hover { color: var(--c-ink); }
-  .toc-list a.active {
-    color: var(--c-ink);
-    font-weight: 500;
+  .toc-group .toc-caret {
+    display: inline-block;
+    transition: transform 0.18s ease;
   }
-
-  .toc-sublist {
-    margin-left: 1.1rem;
-    margin-top: 0.25rem;
-    overflow: hidden;
-    max-height: 500px;
-    opacity: 1;
-    transition:
-      max-height 0.2s ease,
-      opacity 0.2s ease;
-  }
-
-  .toc-sublist.collapsed {
-    max-height: 0;
-    opacity: 0;
-  }
-
-  .toc-sublist a {
-    font-size: var(--fs-xs);
-  }
-
-  @media (max-width: 900px) {
-    .blog-toc { display: none; }
+  .toc-group[open] .toc-caret {
+    transform: rotate(90deg);
   }
 </style>

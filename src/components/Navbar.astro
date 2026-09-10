@@ -38,6 +38,7 @@ const currentPath = Astro.url.pathname;
     top: 0;
     z-index: 100;
     background: var(--c-bg);
+    transition: background-color 0.3s ease;
   }
 
   .nav-inner {
@@ -47,6 +48,12 @@ const currentPath = Astro.url.pathname;
     max-width: var(--max-w);
     margin: 0 auto;
     padding: 2.5rem var(--pad-x) 1.25rem;
+    /* 避退：视口左缘空隙小于左上角主题按钮安全区时，连续补足 padding-left，
+       wordmark 与按钮保持 ≥12px 间距（与 .site-main 同款公式） */
+    padding-left: max(
+      var(--pad-x),
+      calc(var(--toggle-safe) - (100vw - min(100vw, var(--max-w))) / 2)
+    );
   }
 
   .wordmark {

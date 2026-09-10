@@ -1,0 +1,13 @@
+---
+// 主题初始化：页面加载最开始瞬间根据 localStorage 设置 dark 类，防止闪烁。
+// 必须放在 <head> 内联执行（is:inline 不打包），由 BaseLayout 引入。
+// 逻辑与 Herschel 一致：默认 dark，仅 localStorage 显式为 light 时切亮色。
+---
+<script is:inline>
+  const theme = localStorage.getItem('theme');
+  if (theme === 'light') {
+    document.documentElement.classList.remove('dark');
+  } else {
+    document.documentElement.classList.add('dark');
+  }
+</script>

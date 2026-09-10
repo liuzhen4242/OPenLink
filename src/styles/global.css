@@ -1,0 +1,18 @@
+/* ── OpenLink · Tailwind 入口与全局基础样式 ───────── */
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* 明暗主题：class 策略（html.dark），由 ThemeHead 内联脚本按 localStorage 控制 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* 让 Tailwind 也扫描 Markdown 正文里用到的工具类 */
+@source "../content/**/*.md";
+
+/* 全局字体栈（保持 OpenLink 现有字体，与 Herschel 拉开差别）：
+   西文衬线 Noto Serif SC / Georgia；大写标题 IM Fell English SC；
+   中文回退系统黑体。字体族变量定义在 BaseLayout 的 :root 中 */
+body {
+  font-family: var(--ff-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

@@ -11,11 +11,11 @@ const PUBLIC_IMAGES_ROOT = fileURLToPath(new URL('../public/project-images/', im
 const PROJECTS_ROOT_MARKER = 'content/projects/';
 
 /**
- * 轮播图 <img> 的 sizes 属性。正文容器最大宽度 = --max-w 1100px − 2×--pad-x
- * 2rem = 1036px（BaseLayout.astro）；低于该断点时容器宽 = 100vw − 4rem。
+ * 轮播图 <img> 的 sizes 属性。三栏骨架中正文列被 max-w-2xl（672px）封顶，
+ * 桌面端（容器 1280px 完整展开时）实际渲染宽 672px，即图片下载目标。
  * 构建期内联，与 BaseLayout 的 --max-w / --pad-x 保持一致。
  */
-const GALLERY_SIZES = '(min-width: 1164px) 1036px, calc(100vw - 4rem)';
+const GALLERY_SIZES = '(min-width: 1344px) 672px, calc(100vw - 4rem)';
 
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.webm', '.mov', '.m4v', '.ogv']);
 
