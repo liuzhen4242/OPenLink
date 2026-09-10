@@ -1,0 +1,18 @@
+---
+// 主题切换按钮：左上角固定定位（top-6 left-6，24px 圆点），点击切换 dark/light 并写入 localStorage。
+// 实现与 Herschel 一致；页面左侧内容（wordmark / 主标题）通过避让公式保持最小间距。
+---
+<button
+  id="theme-toggle"
+  aria-label="切换黑白模式"
+  class="fixed top-6 left-6 z-[110] w-6 h-6 rounded-full border border-neutral-400 dark:border-neutral-600 bg-black dark:bg-white transition-transform duration-200 hover:scale-110 focus:outline-none cursor-pointer"
+></button>
+
+<script>
+  const toggleBtn = document.getElementById('theme-toggle');
+
+  toggleBtn?.addEventListener('click', () => {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  });
+</script>

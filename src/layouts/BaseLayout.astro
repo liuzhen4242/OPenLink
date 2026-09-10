@@ -1,5 +1,8 @@
 ---
 import Navbar from '../components/Navbar.astro';
+import ThemeHead from '../components/ThemeHead.astro';
+import ThemeToggle from '../components/ThemeToggle.astro';
+import '../styles/global.css';
 
 interface Props {
   title?: string;
@@ -10,7 +13,7 @@ const { title, description } = Astro.props;
 const pageTitle = title ? `${title} · OpenLink` : 'OpenLink — Architecture Portfolio';
 const metaDesc = description ?? 'A minimalist architecture and design portfolio.';
 ---
-<html lang="zh-CN">
+<html lang="zh-CN" class="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -27,7 +30,14 @@ const metaDesc = description ?? 'A minimalist architecture and design portfolio.
       rel="stylesheet"
     />
 
+    <!-- 主题初始化（防闪烁）：必须在首帧渲染前按 localStorage 设置 dark 类 -->
+    <ThemeHead />
+
     <style is:global>
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 22vh; /* 目录锚点跳转避让吸顶元素 */
+      }
       /* ─── Reset ───────────────────────────────────── */
       *, *::before, *::after { box-sizing: border-box; }
 
@@ -38,6 +48,11 @@ const metaDesc = description ?? 'A minimalist architecture and design portfolio.
         --c-mid:      #666666;
         --c-rule:     #d0cfc9;   /* hairline rule colour */
         --c-hover:    #888888;
+        --c-img-bg:   #f0efec;   /* letterbox behind full-width drawings */
+
+        /* 左上角主题按钮安全区 = 按钮右缘 48px（left-6 24px + 直径 24px）+ 最小间距 12px = 60px。
+           视口左缘空隙小于该值时，左侧内容用 calc 连续避让（与 Herschel 同款参数，见 .site-main / .nav-inner） */
+        --toggle-safe: 60px;
 
         --ff-serif:   'Noto Serif SC', 'Georgia', serif;
         --ff-caps:    'IM Fell English SC', serif;
@@ -54,13 +69,22 @@ const metaDesc = description ?? 'A minimalist architecture and design portfolio.
         --lh-tight:   1.3;
         --lh-body:    1.75;
 
-        --max-w:      1100px;
+        /* 容器宽度与 Herschel max-w-7xl（1280px）一致，保证三栏骨架中正文列宽度相同 */
+        --max-w:      1280px;
         --pad-x:      2rem;
       }
 
-      /* ─── Base ───────────────────────────────────── */
-      html { scroll-behavior: smooth; }
+      /* ─── 黑白模式（dark class 切换，localStorage 记忆）─── */
+      html.dark {
+        --c-bg:       #000000;   /* pure black */
+        --c-ink:      #e8e5dd;
+        --c-mid:      #9d9a90;
+        --c-rule:     #3a3a3a;
+        --c-hover:    #cfcbc0;
+        --c-img-bg:   #1a1a1a;
+      }
 
+      /* ─── Base ───────────────────────────────────── */
       body {
         margin: 0;
         background: var(--c-bg);
@@ -70,6 +94,7 @@ const metaDesc = description ?? 'A minimalist architecture and design portfolio.
         line-height: var(--lh-body);
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        transition: background-color 0.3s ease, color 0.3s ease;
       }
 
       a {
@@ -85,28 +110,40 @@ const metaDesc = description ?? 'A minimalist architecture and design portfolio.
         display: block;
       }
 
-      /* ─── Prose (markdown body) ──────────────────── */
+      /*
+        内容区：居中容器。左侧保留 var(--pad-x) 基础留白；
+        当视口左缘空隙小于左上角主题按钮的安全区（--toggle-safe）时，
+        连续计算补足 padding-left，使内容始终与按钮保持 ≥12px 间距（避退）。
+      */
+      .site-main {
+        max-width: var(--max-w);
+        margin: 0 auto;
+        padding: 0 var(--pad-x) 6rem;
+        /* 避退（Herschel 同款参数）：wordmark/正文左缘 ≥ 按钮右缘 48px + 间距 12px = 60px */
+        padding-left: max(
+          var(--pad-x),
+          calc(var(--toggle-safe) - (100vw - min(100vw, var(--max-w))) / 2)
+        );
+      }
+
+      /* ─── Prose (markdown body) ────────────────────
+         基础排版（正文 1rem/1.75、标题档位、列表/引用/表格）由
+         @tailwindcss/typography 提供；这里仅保留 OpenLink 的字体与建筑感细节，
+         字号字重体系借鉴 Herschel。 */
       .prose {
-        font-size: var(--fs-body);
-        line-height: var(--lh-body);
-        color: #1a1a1a;
+        max-width: none;
       }
       .prose h1, .prose h2, .prose h3 {
         font-family: var(--ff-caps);
         font-weight: 400;
         letter-spacing: 0.04em;
-        margin-top: 3rem;
-        margin-bottom: 1.25rem;
       }
       .prose h3 {
-        font-size: var(--fs-h3);
-        font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.12em;
         color: var(--c-mid);
       }
       .prose p {
-        margin: 0 0 1.5rem;
         text-align: justify;
         hyphens: auto;
       }
@@ -138,7 +175,7 @@ const metaDesc = description ?? 'A minimalist architecture and design portfolio.
         width: 100%;
         height: auto;
         margin: 3.5rem 0;
-        background: #f0efec;
+        background: var(--c-img-bg);
       }
       /* 视频与正文图片同宽，高度跟随真实比例自适应，不产生黑边 */
       .prose video {
@@ -232,8 +269,9 @@ const metaDesc = description ?? 'A minimalist architecture and design portfolio.
     </style>
   </head>
   <body>
+    <ThemeToggle />
     <Navbar />
-    <main style={`max-width: var(--max-w); margin: 0 auto; padding: 0 var(--pad-x) 6rem;`}>
+    <main class="site-main">
       <slot />
     </main>
   </body>

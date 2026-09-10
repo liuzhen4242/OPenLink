@@ -1,28 +1,18 @@
 ---
 /**
  * /projects/[...slug] — Project detail page
+ * 排版布局完全复刻 Herschel 博客内页（PostLayout）：
+ *   左栏 = 圆钮（桌面端）+ 上/下篇导航 + 标题树（手风琴 + 滚动高亮 + 回顶，吸顶）
+ *   中栏 = 项目文章（header + typography prose）
+ *   右栏 = 注释引注（Herschel 完整系统：静态 notes + 内联 {目标|注释} 语法、对齐、点击高亮）
  *
- * In Astro v7 Content Layer API, entries use `id` (the file path relative to
- * the glob base, e.g. "Projects/Xinjiang-museum/Xinjiang-museum.md") instead
- * of the legacy `slug`.
- *
- * We derive:
- * • URL slug:      "Projects/Xinjiang-museum/Xinjiang-museum"  (no .md)
- * • Project dir:   "Projects/Xinjiang-museum"                  (directory)
- * • Image base:    /project-images/<projectDir>/images/  (static, works
- *   identically in `astro dev`, `astro build`, and on Netlify — populated
- *   by scripts/sync-project-images.mjs, which runs automatically before
- *   both `npm run dev` and `npm run build`)
- *
- * Features:
- * • Full-width architectural drawings (margin: 3.5rem 0 via .prose img rule)
+ * 保留 OpenLink 自有能力：
  * • Runtime image rewriting: body <img> src attrs → /project-images/ paths
- * • Gallery slider + PhotoSwipe lightbox (shared MediaGallery component)
+ * • Gallery slider + PhotoSwipe lightbox（相册轮播 / 点击缩放 / 尺寸自适应）
+ * • has-caption 图片说明吸附
  *
  * NOTE: the frontmatter `coverImage` is intentionally NOT rendered on this
- * page — it's only used as the thumbnail on the /projects listing page
- * (see src/pages/projects/index.astro). The detail page goes straight from
- * the header into the article body.
+ * page — it's only used as the thumbnail on the /projects listing page.
  */
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
@@ -43,7 +33,6 @@ function idToProjectDir(id: string): string {
 export async function getStaticPaths() {
   const projects = await getCollection('projects');
   return projects.map((project) => {
-    // Convert entry id → URL slug (strip .md extension and leading Projects/)
     const slug = project.id.replace(/\.md$/, '').replace(/^[Pp]rojects\//, '');
     return {
       params: { slug },
@@ -59,44 +48,174 @@ const { Content, headings } = await render(project);
 
 const projectDir = idToProjectDir(project.id);
 
+// 全部项目按日期降序：用于左栏上/下篇导航
+const allProjects = (await getCollection('projects')).sort(
+  (a, b) => new Date(b.data.date || 0).getTime() - new Date(a.data.date || 0).getTime(),
+);
+const curIndex = allProjects.findIndex((p) => p.id === project.id);
+const prevProject = curIndex > 0 ? allProjects[curIndex - 1] : null;
+const nextProject = curIndex >= 0 && curIndex < allProjects.length - 1 ? allProjects[curIndex + 1] : null;
+
 /**
- * Build a nested outline from the flat `headings` array Astro's render()
- * gives us — h3 (### in the source note) becomes a top-level item, and any
- * h4 immediately following is nested under it. Mirrors the outline you'd
- * see in Obsidian's own sidebar. h1/h2 and anything deeper than h4 is
- * ignored to keep the sidebar readable.
+ * 标题树（完全参考 Herschel 手风琴逻辑，适配项目文章的 h3/h4 层级）：
+ * 顶层取文章里第一个出现的 h2 或 h3，其后一级标题作为子标题；其余层级忽略。
  */
-const tocItems: { slug: string; text: string; children: { slug: string; text: string }[] }[] = [];
+interface Heading { depth: number; slug: string; text: string; }
+interface TocGroup { heading: Heading; children: Heading[]; }
+const topDepth =
+  headings.find((h) => h.depth === 2 || h.depth === 3)?.depth ?? 3;
+const tocGroups: TocGroup[] = [];
+let lastGroup: TocGroup | null = null;
 for (const heading of headings) {
-  if (heading.depth === 3) {
-    tocItems.push({ slug: heading.slug, text: heading.text, children: [] });
-  } else if (heading.depth === 4 && tocItems.length > 0) {
-    tocItems[tocItems.length - 1].children.push({ slug: heading.slug, text: heading.text });
+  if (heading.depth === topDepth) {
+    const group: TocGroup = { heading, children: [] };
+    tocGroups.push(group);
+    lastGroup = group;
+  } else if (lastGroup && heading.depth === topDepth + 1) {
+    lastGroup.children.push(heading);
+  } else if (!lastGroup && heading.depth === topDepth + 1) {
+    tocGroups.push({ heading, children: [] });
   }
 }
+
+const hasNotes = (data.notes?.length ?? 0) > 0;
+// 三栏骨架与 Herschel 文章页一致（右栏固定 240px，即使无注释也占位保持正文列宽）
+const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_240px]';
 ---
 
 <BaseLayout title={data.title} description={data.description}>
+  <div class:list={['grid grid-cols-1 lg:items-start lg:gap-12', gridCols]}>
+    <!-- ── 左栏（吸顶）：圆钮 + 上/下篇导航 + 标题树（复刻 Herschel）────── -->
+    <div class="hidden lg:block self-start sticky top-[5rem] lg:mt-[3.5rem]">
+      <div class="mb-10 flex items-center justify-between pr-4">
+        <button
+          id="theme-toggle-desktop"
+          aria-label="切换黑白模式"
+          class="w-6 h-6 rounded-full border border-neutral-400 dark:border-neutral-600 bg-black dark:bg-white transition-transform duration-200 hover:scale-110 focus:outline-none cursor-pointer"
+        ></button>
 
-  <div class="project-layout">
-    <div class="project-main">
-      <!-- ── Project header ─────────────────────────────── -->
-      <header class="project-header">
-        <div class="project-super">
+        <!-- 桌面端纤细符号导航：上一篇、回列表、下一篇（右对齐） -->
+        <nav class="flex items-center gap-2.5 text-neutral-400 dark:text-neutral-500 text-xs">
+          <a
+            href={prevProject ? `/projects/${idToSlug(prevProject.id)}` : '#'}
+            aria-label="上一篇"
+            title={prevProject ? `上一篇: ${prevProject.data.name}` : '没有上一篇了'}
+            class:list={[
+              'transition-colors duration-200',
+              !prevProject
+                ? 'opacity-30 pointer-events-none'
+                : 'hover:text-neutral-900 dark:hover:text-white',
+            ]}
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+          </a>
+          <a
+            href="/projects"
+            aria-label="所有项目"
+            title="返回项目列表"
+            class="hover:text-neutral-900 dark:hover:text-white transition-colors duration-200 p-0.5 flex items-center justify-center"
+          >
+            <span class="inline-block w-1 h-1 rounded-full bg-current"></span>
+          </a>
+          <a
+            href={nextProject ? `/projects/${idToSlug(nextProject.id)}` : '#'}
+            aria-label="下一篇"
+            title={nextProject ? `下一篇: ${nextProject.data.name}` : '没有下一篇了'}
+            class:list={[
+              'transition-colors duration-200',
+              !nextProject
+                ? 'opacity-30 pointer-events-none'
+                : 'hover:text-neutral-900 dark:hover:text-white',
+            ]}
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </a>
+        </nav>
+      </div>
+
+      <!-- 标题树（Herschel 手风琴） -->
+      <aside class="text-xs space-y-3 max-h-[calc(100vh-7rem)] overflow-y-auto pr-4 border-r border-neutral-200 dark:border-neutral-800">
+        {tocGroups.length > 0 && (
+          <>
+            <a
+              href="#top"
+              aria-label="回到顶部"
+              title="回到顶部"
+              data-toc-top
+              class="block font-semibold tracking-wide uppercase mb-3 transition-colors duration-200"
+            >
+              {data.title}
+            </a>
+            <nav class="flex flex-col space-y-1">
+              {tocGroups.map((group) =>
+                group.children.length > 0 ? (
+                  <details class="toc-group">
+                    <summary class="flex items-center gap-1.5">
+                      <a
+                        href={`#${group.heading.slug}`}
+                        data-heading-link={group.heading.slug}
+                        data-toc-root
+                        class="flex-1 py-0.5 block transition-colors duration-200"
+                      >
+                        {group.heading.text}
+                      </a>
+                      <span class="toc-caret text-neutral-400 dark:text-neutral-600" aria-hidden="true">▸</span>
+                    </summary>
+                    <div class="mt-1 ml-2 pl-2 border-l border-neutral-200 dark:border-neutral-800 flex flex-col space-y-1">
+                      {group.children.map((child) => (
+                        <a
+                          href={`#${child.slug}`}
+                          data-heading-link={child.slug}
+                          class="block py-0.5 transition-colors duration-200"
+                        >
+                          {child.text}
+                        </a>
+                      ))}
+                    </div>
+                  </details>
+                ) : (
+                  <a
+                    href={`#${group.heading.slug}`}
+                    data-heading-link={group.heading.slug}
+                    data-toc-root
+                    class="block py-0.5 transition-colors duration-200"
+                  >
+                    {group.heading.text}
+                  </a>
+                ),
+              )}
+            </nav>
+          </>
+        )}
+      </aside>
+    </div>
+
+    <!-- ── 中栏：项目文章 ────────────────────────────── -->
+    <article class="max-w-2xl mx-auto lg:mx-0 min-w-0">
+      <!-- Project header（id="top"：回顶锚点目标 + 顶部高亮观察哨兵） -->
+      <header id="top" class="pt-16 pb-10 border-b border-neutral-200 dark:border-neutral-800">
+        <div class="mb-4 flex items-center gap-4">
           <span class="project-category">{data.category.join(' / ')}</span>
           {data.date && <span class="project-date">{data.date}</span>}
         </div>
-        <h1 class="project-title">{data.name}</h1>
+        <h1 class="project-title text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900 dark:text-white">
+          {data.name}
+        </h1>
         <p class="project-title-en">{data.title}</p>
-        {data.description && (
-          <p class="project-desc">{data.description}</p>
-        )}
+        {data.description && <p class="project-desc">{data.description}</p>}
       </header>
 
-      <!-- ── Markdown body (drawings, prose) ────────────── -->
-      <article class="prose">
+      <!-- Markdown body (drawings, prose) -->
+      <div
+        class="mt-10 prose prose-neutral dark:prose-invert max-w-none
+          prose-headings:font-normal prose-headings:tracking-tight"
+      >
         <Content />
-      </article>
+      </div>
 
       <!-- Back link -->
       <nav class="back-nav">
@@ -104,56 +223,42 @@ for (const heading of headings) {
           <span aria-hidden="true">←</span>&ensp;所有项目
         </a>
       </nav>
-    </div>
+    </article>
 
-    {tocItems.length > 0 && (
-      <aside class="project-toc">
-        <h2 class="toc-label" data-toc-top>{data.title}</h2>
-
-
-        <nav>
-          <ul class="toc-list">
-            {tocItems.map((item) => (
-              <li class="toc-item">
-                <a
-                  href={`#${item.slug}`}
-                  class="toc-parent"
-                  {...(item.children.length > 0 ? { 'data-toc-parent': item.slug } : {})}
-                  data-toc-link={item.slug}
-                >
-                  {item.text}
-                </a>
-
-                {item.children.length > 0 && (
-                  <ul
-                    class="toc-sublist collapsed"
-                    data-toc-sublist={item.slug}
-                  >
-                    {item.children.map((child) => (
-                      <li>
-                        <a
-                          href={`#${child.slug}`}
-                          data-toc-link={child.slug}
-                        >
-                          {child.text}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-
-      </aside>
-    )}
+    <!-- ── 右栏：注释引注（Herschel 完整系统）──────────
+         始终渲染（hidden lg:block），静态 notes 直接 SSR，正文 {词|注释}
+         由 buildNotePanels 在加载后收集进来；两者都为空时 JS 隐藏。 -->
+    <aside id="notes-aside" class="hidden lg:block pt-2 text-xs text-neutral-500 dark:text-neutral-400 space-y-3 pl-6">
+      {hasNotes &&
+        data.notes!.map((note, index) => (
+          <p class="note-item leading-relaxed text-neutral-600 dark:text-neutral-400" data-note-index={index + 1}>
+            <span class="note-num font-normal shrink-0">{index + 1}:</span><span class="note-text">{note}</span>
+          </p>
+        ))}
+    </aside>
   </div>
+
+  {/* 窄屏（<lg）时右侧引注栏不可用，注释自动落到文末作为脚注（Herschel 同款） */}
+  <section
+    id="notes-footer"
+    class="lg:hidden mt-14 max-w-2xl mx-auto lg:mx-0 border-t border-neutral-200 dark:border-neutral-800 pt-6"
+  >
+    <h2 class="text-xs font-semibold tracking-wide uppercase text-neutral-800 dark:text-neutral-300 mb-4">
+      注释
+    </h2>
+    <div id="notes-footer-list" class="space-y-3 text-sm text-neutral-600 dark:text-neutral-400">
+      {hasNotes &&
+        data.notes!.map((note, index) => (
+          <p class="leading-relaxed" data-note-index={index + 1}>
+            <span class="font-normal mr-2">{index + 1}.</span>
+            {note}
+          </p>
+        ))}
+    </div>
+  </section>
+
   <MediaGallery />
 </BaseLayout>
-
-
 
 <!--
   Rewrite relative Obsidian image src attributes at runtime, as a safety
@@ -191,117 +296,307 @@ for (const heading of headings) {
 </script>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+  // ── 注释系统（Herschel 完整移植）─────────────────────────────────────
 
-  // 点击侧边栏顶部 title 平滑回到页面顶部
-  const tocLabel = document.querySelector('.toc-label');
-  if (tocLabel) {
-    tocLabel.addEventListener('click', () => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-  }
+  // 内联注释（{目标|注释} 语法）：从正文 sup[data-note] 收集到右栏与文末脚注
+  const buildNotePanels = () => {
+    const article = document.querySelector('article');
+    const aside = document.getElementById('notes-aside');
+    const footer = document.getElementById('notes-footer');
+    const footerList = document.getElementById('notes-footer-list');
+    if (!article || !aside || !footer) return;
+    if (footer.dataset.inlineNotes) return;
+    footer.dataset.inlineNotes = '1';
 
-  // 初始化：折叠状态的子列表，对应箭头初始旋转90度
-  document.querySelectorAll('.toc-sublist.collapsed').forEach(sublist => {
-    const slug = sublist.dataset.tocSublist;
-    const parent = document.querySelector(`[data-toc-parent="${slug}"]`);
-    if (parent) {
-      parent.style.setProperty('--arrow-rotate', '90deg');
+    const sups = Array.from(article.querySelectorAll('sup[data-note]'));
+    if (sups.length === 0) {
+      // 既无内联注释也无静态 notes：右栏与文末脚注整体隐藏
+      if (
+        aside.querySelectorAll('.note-item').length === 0 &&
+        footerList && footerList.children.length === 0
+      ) {
+        aside.style.display = 'none';
+        footer.classList.add('hidden');
+      }
+      return;
     }
-  });
 
-  // 滚动高亮：当前章节对应的导航项变黑，顶部标题变灰
-  const tocLinks = document.querySelectorAll('[data-toc-link]');
-  const headings = document.querySelectorAll('.prose h2, .prose h3, .prose h4');
+    // 有内联注释：右栏 / 脚注必须可见
+    aside.style.display = '';
+    footer.classList.remove('hidden');
 
-  if (headings.length === 0) return;
+    // 桌面：右侧栏（与旧式注释共用 .note-item 结构，便于对齐）
+    sups.forEach((sup) => {
+      const noteText = sup.getAttribute('data-note') || '';
+      const num = sup.textContent.trim();
+      const item = document.createElement('p');
+      item.className = 'note-item leading-relaxed text-neutral-600 dark:text-neutral-400';
+      item.dataset.noteIndex = num;
+      const numEl = document.createElement('span');
+      numEl.className = 'note-num font-normal shrink-0';
+      numEl.textContent = `${num}:`;
+      const textEl = document.createElement('span');
+      textEl.className = 'note-text';
+      textEl.textContent = noteText;
+      item.append(numEl, textEl);
+      aside.appendChild(item);
 
-  const setActive = (slug) => {
-    tocLinks.forEach(link => {
-      link.classList.toggle('active', link.dataset.tocLink === slug);
+      // 窄屏：文末脚注
+      const fItem = document.createElement('p');
+      fItem.className = 'leading-relaxed';
+      fItem.dataset.noteIndex = num;
+      const fNum = document.createElement('span');
+      fNum.className = 'font-normal mr-2';
+      fNum.textContent = `${num}.`;
+      const fText = document.createElement('span');
+      fText.textContent = noteText;
+      fItem.append(fNum, fText);
+      footerList?.appendChild(fItem);
     });
-    // 有章节激活时，顶部标题变灰
-    if (tocLabel) tocLabel.classList.add('inactive');
+
+    footer.classList.remove('hidden');
   };
 
-  // 点击任意导航项立刻高亮，同时处理折叠展开
-  tocLinks.forEach(link => {
-    link.addEventListener('click', () => {
-      // 立刻设置激活状态
-      const slug = link.dataset.tocLink;
-      if (slug) setActive(slug);
+  // 右侧引注与正文上标 [n] 水平对齐（margin note 效果，防重叠）
+  const alignNotes = () => {
+    const aside = document.getElementById('notes-aside');
+    const article = document.querySelector('article');
+    if (!aside || !article) return;
 
-      // 如果是有子项的父级，切换折叠
-      const parentSlug = link.dataset.tocParent;
-      if (parentSlug) {
-        const sublist = document.querySelector(`[data-toc-sublist="${parentSlug}"]`);
-        if (sublist) {
-          sublist.classList.toggle('collapsed');
-          link.style.setProperty('--arrow-rotate',
-            sublist.classList.contains('collapsed') ? '90deg' : '0deg'
-          );
-        }
+    // 建立 上标数字 -> sup 元素 映射（正文上标为纯数字，如 <sup>1</sup>）
+    const supMap = new Map();
+    article.querySelectorAll('sup').forEach((sup) => {
+      const m = sup.textContent.match(/(\d+)/);
+      if (m) supMap.set(parseInt(m[1], 10), sup);
+    });
+
+    const items = Array.from(aside.querySelectorAll('.note-item'));
+
+    // 先全部复位，基于原始流式布局位置计算，避免平移量累积
+    items.forEach((note) => {
+      note.style.transform = '';
+    });
+
+    let cursor = null; // 上一条注释的视觉底部（相对视口）
+    items.forEach((note) => {
+      const idx = parseInt(note.dataset.noteIndex, 10);
+      const sup = supMap.get(idx);
+      if (!sup) return;
+
+      const rect = note.getBoundingClientRect();
+      // 理想对齐位：注释顶部与正文上标顶部平齐
+      let y = sup.getBoundingClientRect().top - rect.top;
+      // 防重叠：不得高于上一条注释底部 + 12px 间距
+      if (cursor !== null) {
+        y = Math.max(y, cursor - rect.top + 12);
+      }
+      note.style.transform = `translateY(${y}px)`;
+      cursor = rect.top + y + note.offsetHeight;
+    });
+  };
+
+  // 先收集内联注释，再做垂直对齐；图片等资源加载完成后再重算
+  const initNotes = () => {
+    buildNotePanels();
+    alignNotes();
+  };
+  if (document.readyState === 'complete') initNotes();
+  else window.addEventListener('load', initNotes);
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(alignNotes, 150);
+  });
+
+  // ── 点击被注释词 → 正文词与对应注释（右栏或文末脚注）同时灰底高亮，1.8s 后自动消退 ──
+  const flashNote = (num) => {
+    const aside = document.getElementById('notes-aside');
+    const footerList = document.getElementById('notes-footer-list');
+    const article = document.querySelector('article');
+    const clear = () => {
+      article?.querySelectorAll('.note-word.note-highlight').forEach((n) => n.classList.remove('note-highlight'));
+      aside?.querySelectorAll('.note-item').forEach((n) => n.classList.remove('note-highlight'));
+      footerList?.querySelectorAll('p').forEach((n) => n.classList.remove('note-highlight'));
+    };
+
+    clear();
+    // 正文：编号相同的 sup 前一个兄弟若为 .note-word 则高亮（兼容旧式 [n] 写法）
+    article?.querySelectorAll('sup').forEach((sup) => {
+      const s = sup.textContent.trim();
+      if (s === num || s === `[${num}]`) {
+        const prev = sup.previousElementSibling;
+        if (prev && prev.classList.contains('note-word')) prev.classList.add('note-highlight');
+      }
+    });
+
+    const a = aside?.querySelector(`.note-item[data-note-index="${num}"]`);
+    const f = footerList?.querySelector(`p[data-note-index="${num}"]`);
+    let shown = null;
+    if (a) { a.classList.add('note-highlight'); shown = a; }
+    if (f) { f.classList.add('note-highlight'); shown = shown || f; }
+    if (!shown) return;
+    shown.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+    clearTimeout(window.__noteFlashTimer);
+    window.__noteFlashTimer = setTimeout(clear, 1800);
+  };
+
+  document.addEventListener('click', (e) => {
+    const word = e.target.closest('.note-word');
+    const sup = e.target.closest('sup[data-note]');
+    const el = word || sup;
+    if (!el) return;
+    // 被注释词后面紧跟其编号 sup（旧式 <sup>[n]</sup> 则直接是 sup）
+    const supEl = word ? word.nextElementSibling : sup;
+    if (!supEl || supEl.tagName !== 'SUP') return;
+    const m = supEl.textContent.match(/\d+/);
+    if (m) flashNote(m[0]);
+  });
+
+  // ── 标题树：手风琴互斥 + 滚动高亮 + 顶部高亮（与博客文章页同款逻辑）──
+
+  const setActiveHeading = (id) => {
+    document.querySelectorAll('[data-heading-link]').forEach((link) => {
+      const isActive = link.getAttribute('data-heading-link') === id;
+      link.classList.toggle('toc-active', isActive);
+      link.classList.toggle('font-medium', isActive);
+    });
+    // 章节激活时，顶部标题恢复灰色（与 Herschel 一致：章节与顶部互斥）
+    const top = document.querySelector('[data-toc-top]');
+    if (top) {
+      top.classList.remove('toc-active');
+      top.classList.remove('font-medium');
+    }
+  };
+
+  // 手风琴：同一时间只展开一个目录子树
+  const tocGroups = Array.from(document.querySelectorAll('details.toc-group'));
+  tocGroups.forEach((group) => {
+    group.addEventListener('toggle', () => {
+      if (!group.open) return;
+      tocGroups.forEach((other) => {
+        if (other !== group && other.open) other.removeAttribute('open');
+      });
+    });
+  });
+
+  // 点击 2 级标题：只保留/展开被点击的那一棵，其余收拢
+  document.querySelectorAll('[data-toc-root]').forEach((link) => {
+    link.addEventListener('click', () => {
+      const ownGroup = link.closest('details.toc-group');
+      tocGroups.forEach((group) => {
+        if (group !== ownGroup) group.removeAttribute('open');
+      });
+      if (ownGroup) {
+        if (ownGroup.open) ownGroup.removeAttribute('open');
+        else ownGroup.setAttribute('open', '');
       }
     });
   });
 
-  const observer = new IntersectionObserver((entries) => {
-    const visible = entries
-      .filter(entry => entry.isIntersecting)
-      .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-    if (visible.length > 0) {
-      const slug = visible[0].target.id;
-      setActive(slug);
-    }
-  }, {
-    rootMargin: '-80px 0px -70% 0px',
-    threshold: 0
+  // 滚动高亮：IntersectionObserver 观察带（-20% 0px -60% 0px）
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const id = entry.target.getAttribute('id');
+          if (id) setActiveHeading(id);
+        }
+      });
+    },
+    { root: null, rootMargin: '-20% 0px -60% 0px', threshold: 0 },
+  );
+  document.querySelectorAll('article h2, article h3, article h4').forEach((heading) => observer.observe(heading));
+
+  // 顶部标题（回顶）：回到顶部时激活常亮（与 Herschel 一致），离开顶部恢复灰。
+  // 点击 HAINAN → 原生锚点跳 #top → 滚动后由本 observer 接管，保持常亮。
+  const tocTopLink = document.querySelector('[data-toc-top]');
+  const topSentinel = document.getElementById('top');
+  if (tocTopLink && topSentinel) {
+    const setTopActive = (atTop) => {
+      // 顶部标题：激活常亮 / 恢复灰
+      tocTopLink.classList.toggle('toc-active', atTop);
+      tocTopLink.classList.toggle('font-medium', atTop);
+      // 仅在回到顶部时清空章节高亮（与 Herschel 一致）；
+      // 离开顶部时不清空，避免点击后的章节高亮被闪掉
+      if (atTop) {
+        document.querySelectorAll('[data-heading-link]').forEach((link) => {
+          link.classList.toggle('toc-active', false);
+          link.classList.toggle('font-medium', false);
+        });
+      }
+    };
+    const topObserver = new IntersectionObserver(
+      (entries) => entries.forEach((entry) => setTopActive(entry.isIntersecting)),
+      { root: null, rootMargin: '-20% 0px -60% 0px', threshold: 0 },
+    );
+    topObserver.observe(topSentinel);
+  }
+
+  // 点击目录：立即高亮并常驻（不再依赖 scrollend 确认；后续滚动由章节 observer 平滑接管）
+  document.querySelectorAll('[data-heading-link]').forEach((link) => {
+    link.addEventListener('click', () => {
+      const id = link.getAttribute('data-heading-link');
+      if (!id) return;
+      setActiveHeading(id);
+    });
   });
 
-  headings.forEach(h => observer.observe(h));
-
-  // 页面滚动到顶部区域（还没进入正文）时，清除高亮，顶部标题变黑
-  const onScroll = () => {
-    const scrollY = window.scrollY;
-    // 滚动到文章标题下方约 200px 以内，认为是页面顶部
-    if (scrollY < 300) {
-      if (tocLabel) tocLabel.classList.remove('inactive');
-      tocLinks.forEach(link => link.classList.remove('active'));
-    }
-  };
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll(); // 初始化
-
-});
+  // ── 黑白主题切换：全局 fixed 圆钮（移动端）+ 左栏桌面圆钮共用同一逻辑 ──
+  document.querySelectorAll('#theme-toggle, #theme-toggle-desktop').forEach((btn) => {
+    btn?.addEventListener('click', () => {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    });
+  });
 </script>
 
-
-
+<style is:global>
+  /* ── 注释系统样式（Herschel 原版，作用于正文与右栏）── */
+  .note-word {
+    text-decoration: underline;
+    text-decoration-color: rgb(163 163 163 / 35%);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+  sup[data-note] {
+    cursor: pointer;
+  }
+  /* 注释高亮（灰）：点击正文被注释词时，注释词与对应注释统一灰色底；仅视觉变化，不动布局。
+     左右用 box-shadow 偏移各扩 4px（垂直偏移 0，上下不扩），字符位置与元素大小完全不变，无重排抖动 */
+  .note-highlight {
+    background: rgb(163 163 163 / 25%);
+    border-radius: 6px;
+    box-shadow:
+      -4px 0 0 0 rgb(163 163 163 / 25%),
+      4px 0 0 0 rgb(163 163 163 / 25%);
+    transition: background-color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .dark .note-highlight {
+    background: rgb(82 82 82 / 45%);
+    box-shadow: inset 0 0 0 1px rgb(115 115 115 / 35%);
+  }
+  .note-word.note-highlight {
+    background: rgb(163 163 163 / 25%);
+    text-decoration-color: rgb(163 163 163 / 65%);
+    box-shadow: none;
+  }
+  .dark .note-word.note-highlight {
+    background: rgb(82 82 82 / 45%);
+    text-decoration-color: rgb(163 163 163 / 70%);
+  }
+  /* 桌面端（lg+）：全局 fixed 圆钮隐藏，由左栏 Herschel 圆钮承担；移动端保留全局圆钮 */
+  @media (min-width: 1024px) {
+    #theme-toggle {
+      display: none;
+    }
+  }
+</style>
 
 <style>
-  /* ── Two-column layout: article + outline sidebar ─── */
-  .project-layout {
-    display: flex;
-    align-items: flex-start;
-    gap: 4rem;
-  }
-  .project-main {
-    flex: 1;
-    min-width: 0;
-  }
-
-  /* ── Project header ──────────────────────────────── */
-  .project-header {
-    padding: 4rem 0 2.5rem;
-    border-bottom: 1px solid var(--c-rule);
-    margin-bottom: 0;
-  }
-  .project-super {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    margin-bottom: 1rem;
-  }
+  /* ── 保持 OpenLink 字体与细节 ────────────────────── */
   .project-category {
     font-family: var(--ff-caps);
     font-size: var(--fs-xs);
@@ -320,15 +615,11 @@ document.addEventListener('DOMContentLoaded', () => {
     margin-right: 0.5em;
     color: var(--c-rule);
   }
-
   .project-title {
     font-family: var(--ff-caps);
-    font-size: 22pt;
-    font-weight: 400;
     letter-spacing: 0.04em;
-    color: var(--c-ink);
-    margin: 0 0 0.25rem;
-    line-height: 1.2;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
   }
   .project-title-en {
     font-family: var(--ff-serif);
@@ -367,95 +658,34 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   .back-link:hover { color: var(--c-ink); }
 
-  /* ── Outline sidebar ──────────────────────────────── */
-  .project-toc {
-    width: 200px;
-    flex-shrink: 0;
-    position: sticky;
-    top: 6rem;
-    padding-top: 4rem; /* roughly align with the article header */
-  }
-  .toc-label {
-    font-family: 'PingFang SC', 'Hiragino Sans GB', 'Heiti SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
-    font-size: var(--fs-body);
-    font-weight: 700;
-    color: var(--c-ink);
-    margin: 0 0 1.25rem;
-    cursor: pointer;
-    transition: color 0.18s ease;
-  }
-  .toc-label.inactive {
-    color: #a8a8a8;
-  }
-  .toc-list, .toc-sublist {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  .toc-list > li {
-    margin-bottom: 0.5rem;
-  }
-
-  .toc-list a {
-    display: block;
+  /* ── 标题树（Herschel 手风琴）────────────────────── */
+  /* 颜色继承正文 HAINAN 小标题（--c-mid 灰），悬停/高亮加深为 --c-ink（黑/暗色米白） */
+  [data-heading-link], [data-toc-top], .toc-caret {
     font-family: var(--ff-serif);
-    font-size: var(--fs-sm);
-    color: #a8a8a8;
-    padding: 0.15rem 0;
+  }
+  [data-heading-link], [data-toc-top] {
+    color: var(--c-mid);
     transition: color 0.18s ease;
   }
-
-  .toc-parent {
+  [data-heading-link]:hover,
+  [data-toc-top]:hover,
+  [data-heading-link].toc-active,
+  [data-toc-top].toc-active {
+    color: var(--c-ink);
+  }
+  .toc-group > summary {
+    list-style: none;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
+    user-select: none;
   }
-
-  /* 父级标题前的小三角箭头，Obsidian 风格 */
-  .toc-parent::before {
-    content: '▾';
-    display: inline-block;
-    font-size: 0.75em;
-    transition: transform 0.15s ease;
-    color: #a8a8a8;
-    flex-shrink: 0;
-    width: 0.8em;
-    text-align: center;
-    transform: rotate(var(--arrow-rotate, 0deg));
-  }
-  /* 没有子项的父级不显示箭头 */
-  .toc-parent:not([data-toc-parent])::before {
+  .toc-group > summary::-webkit-details-marker {
     display: none;
   }
-
-  .toc-list a:hover { color: var(--c-ink); }
-  .toc-list a.active {
-    color: var(--c-ink);
-    font-weight: 500;
+  .toc-group .toc-caret {
+    display: inline-block;
+    transition: transform 0.18s ease;
   }
-
-  .toc-sublist {
-    margin-left: 1.1rem;
-    margin-top: 0.25rem;
-    overflow: hidden;
-    max-height: 500px;
-    opacity: 1;
-    transition:
-      max-height 0.2s ease,
-      opacity 0.2s ease;
-  }
-
-  .toc-sublist.collapsed {
-    max-height: 0;
-    opacity: 0;
-  }
-
-  .toc-sublist a {
-    font-size: var(--fs-xs);
-  }
-
-  @media (max-width: 900px) {
-    .project-toc { display: none; }
+  .toc-group[open] .toc-caret {
+    transform: rotate(90deg);
   }
 </style>
