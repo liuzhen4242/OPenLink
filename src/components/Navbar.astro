@@ -41,6 +41,29 @@ const currentPath = Astro.url.pathname;
     transition: background-color 0.3s ease;
   }
 
+  /* 桌面端：导航白色背景从 OPENLINK 位置开始，左边目录栏上方留空，不遮挡主题按钮 */
+  @media (min-width: 1024px) {
+    nav {
+      background: linear-gradient(
+        to right,
+        transparent 0,
+        transparent calc(
+          max(
+            calc((100vw - min(100vw, var(--max-w))) / 2 + var(--pad-x)),
+            var(--toggle-safe)
+          ) + 220px + 3rem
+        ),
+        var(--c-bg) calc(
+          max(
+            calc((100vw - min(100vw, var(--max-w))) / 2 + var(--pad-x)),
+            var(--toggle-safe)
+          ) + 220px + 3rem
+        ),
+        var(--c-bg) 100%
+      );
+    }
+  }
+
   .nav-inner {
     display: flex;
     align-items: baseline;
@@ -54,6 +77,18 @@ const currentPath = Astro.url.pathname;
       var(--pad-x),
       calc(var(--toggle-safe) - (100vw - min(100vw, var(--max-w))) / 2)
     );
+  }
+
+  /* 桌面端：详情页默认 OPENLINK 右移，对齐中间正文栏左边界 */
+  @media (min-width: 1024px) {
+    .nav-inner {
+      padding-left: calc(
+        max(
+          var(--pad-x),
+          calc(var(--toggle-safe) - (100vw - min(100vw, var(--max-w))) / 2)
+        ) + 220px + 3rem
+      );
+    }
   }
 
   .wordmark {
@@ -104,9 +139,41 @@ const currentPath = Astro.url.pathname;
   }
 
   .nav-rule {
-    max-width: var(--max-w);
-    margin: 0 auto;
     height: 1px;
     background: var(--c-rule);
+    max-width: var(--max-w);
+    margin: 0 auto;
+  }
+
+  /* 桌面端：详情页默认下划线左右收窄，和正文分隔线同宽 */
+  @media (min-width: 1024px) {
+    .nav-rule {
+      margin-left: calc(
+        (100vw - min(100vw, var(--max-w))) / 2 + var(--pad-x) + 220px + 3rem
+      );
+      margin-right: calc(
+        (100vw - min(100vw, var(--max-w))) / 2 + var(--pad-x) + 200px + 3rem
+      );
+    }
+  }
+
+  /* 列表页（项目 / 博客）：导航和下划线直接对齐内容左右，不做详情页三栏偏移 */
+  @media (min-width: 1024px) {
+    body.page-project-list .nav-inner,
+    body.page-list .nav-inner {
+      padding-left: max(
+        var(--pad-x),
+        calc(var(--toggle-safe) - (100vw - min(100vw, var(--max-w))) / 2)
+      );
+    }
+    body.page-project-list .nav-rule,
+    body.page-list .nav-rule {
+      margin-left: calc((100vw - min(100vw, var(--max-w))) / 2 + var(--pad-x));
+      margin-right: calc((100vw - min(100vw, var(--max-w))) / 2 + var(--pad-x));
+    }
+    body.page-project-list nav,
+    body.page-list nav {
+      background: var(--c-bg);
+    }
   }
 </style>

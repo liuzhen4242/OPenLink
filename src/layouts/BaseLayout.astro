@@ -7,9 +7,10 @@ import '../styles/global.css';
 interface Props {
   title?: string;
   description?: string;
+  pageClass?: string;
 }
 
-const { title, description } = Astro.props;
+const { title, description, pageClass = '' } = Astro.props;
 const pageTitle = title ? `${title} · OpenLink` : 'OpenLink — Architecture Portfolio';
 const metaDesc = description ?? 'A minimalist architecture and design portfolio.';
 ---
@@ -268,7 +269,7 @@ const metaDesc = description ?? 'A minimalist architecture and design portfolio.
       }
     </style>
   </head>
-  <body>
+  <body class={pageClass}>
     <ThemeToggle />
     <Navbar />
     <main class="site-main">

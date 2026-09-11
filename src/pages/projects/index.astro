@@ -46,7 +46,7 @@ function projectDirOf(id: string): string {
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)$/i;
 ---
 
-<BaseLayout title="项目" description="建筑与设计作品集">
+<BaseLayout title="项目" description="建筑与设计作品集" pageClass="page-project-list page-list">
   <!-- Page header -->
   <header class="gallery-header">
     <p class="gallery-sub">Architecture &amp; Design</p>
@@ -287,7 +287,6 @@ const VIDEO_EXT = /\.(mp4|webm|mov|m4v)$/i;
   /* ── Page header ─────────────────────────────────── */
   .gallery-header {
     padding: 4rem 0 3rem;
-    border-bottom: 1px solid var(--c-rule);
     margin-bottom: 3rem;
   }
   .gallery-sub {

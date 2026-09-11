@@ -70,19 +70,22 @@ const nextPost =
     : undefined;
 ---
 
-<BaseLayout title={title} description={description}>
+<BaseLayout title={title} description={description} pageClass="page-detail">
   <div
     class:list={[
       'grid grid-cols-1 lg:items-start lg:gap-12',
-      notes.length > 0
-        ? 'lg:grid-cols-[min(220px,20vw)_1fr_240px]'
-        : 'lg:grid-cols-[min(220px,20vw)_1fr]',
+      'lg:grid-cols-[min(220px,20vw)_1fr_200px]'
     ]}
   >
     <!-- ── 左栏：标题树（吸顶 + 上下篇导航）────────────── -->
-    <div class="hidden lg:block self-start sticky top-[3.75rem]">
-      <!-- 顶行：上/下篇导航（右对齐，借鉴 Herschel） -->
+    <div class="hidden lg:block self-start sticky top-[2.7rem] z-10">
+      <!-- 顶行：黑白开关（左）+ 上/下篇导航（右），和项目页结构一致 -->
       <div class="mb-10 flex items-center justify-between pr-4">
+        <button
+          id="theme-toggle-desktop"
+          aria-label="切换黑白模式"
+          class="w-6 h-6 rounded-full border border-neutral-400 dark:border-neutral-600 bg-black dark:bg-white transition-transform duration-200 hover:scale-110 focus:outline-none cursor-pointer"
+        ></button>
         <nav class="flex items-center gap-2.5 text-neutral-400 dark:text-neutral-500 text-xs">
           <a
             href={prevPost ? prevPost.url : '#'}
@@ -116,63 +119,60 @@ const nextPost =
       </div>
 
       <!-- 顶部标题（英文，回顶链接）：与目录条目同款滚动高亮 -->
-      {tocGroups.length > 0 && (
-        <a
-          href="#top"
-          aria-label="回到顶部"
-          title="回到顶部"
-          data-toc-top
-          class="block font-semibold tracking-wide uppercase mb-3 transition-colors duration-200"
-        >
-          {title}
-        </a>
-      )}
-
-      {tocGroups.length > 0 && (
-        <aside class="text-xs space-y-3 max-h-[calc(100vh-8rem)] overflow-y-auto pr-4 border-r border-neutral-200 dark:border-neutral-800">
-          {tocGroups.map((group) =>
-            group.children.length > 0 ? (
-              <details class="toc-group">
-                <summary class="flex items-center gap-1.5">
-                  <a
-                    href={`#${group.heading.slug}`}
-                    data-heading-link={group.heading.slug}
-                    data-toc-root
-                    class="flex-1 py-0.5 block transition-colors duration-200"
-                  >
-                    {group.heading.text}
-                  </a>
-                  <span class="toc-caret text-neutral-400 dark:text-neutral-600" aria-hidden="true">▸</span>
-                </summary>
-                <div class="mt-1 ml-2 pl-2 border-l border-neutral-200 dark:border-neutral-800 flex flex-col space-y-1">
-                  {group.children.map((child) => (
+      <aside class="text-xs space-y-3 max-h-[calc(100vh-7rem)] overflow-y-auto pr-4 border-r border-neutral-200 dark:border-neutral-800">
+          <a
+            href="#top"
+            aria-label="回到顶部"
+            title="回到顶部"
+            data-toc-top
+            class="block font-semibold tracking-wide uppercase mb-3 transition-colors duration-200"
+          >
+            {title}
+          </a>
+          <nav class="flex flex-col space-y-1">
+            {tocGroups.map((group) =>
+              group.children.length > 0 ? (
+                <details class="toc-group">
+                  <summary class="flex items-center gap-1.5">
                     <a
-                      href={`#${child.slug}`}
-                      data-heading-link={child.slug}
-                      class="block py-0.5 transition-colors duration-200"
+                      href={`#${group.heading.slug}`}
+                      data-heading-link={group.heading.slug}
+                      data-toc-root
+                      class="flex-1 py-0.5 block transition-colors duration-200"
                     >
-                      {child.text}
+                      {group.heading.text}
                     </a>
-                  ))}
-                </div>
-              </details>
-            ) : (
-              <a
-                href={`#${group.heading.slug}`}
-                data-heading-link={group.heading.slug}
-                data-toc-root
-                class="block py-0.5 transition-colors duration-200"
-              >
-                {group.heading.text}
-              </a>
-            ),
-          )}
-        </aside>
-      )}
+                    <span class="toc-caret text-neutral-400 dark:text-neutral-600" aria-hidden="true">▸</span>
+                  </summary>
+                  <div class="mt-1 ml-2 pl-2 border-l border-neutral-200 dark:border-neutral-800 flex flex-col space-y-1">
+                    {group.children.map((child) => (
+                      <a
+                        href={`#${child.slug}`}
+                        data-heading-link={child.slug}
+                        class="block py-0.5 transition-colors duration-200"
+                      >
+                        {child.text}
+                      </a>
+                    ))}
+                  </div>
+                </details>
+              ) : (
+                <a
+                  href={`#${group.heading.slug}`}
+                  data-heading-link={group.heading.slug}
+                  data-toc-root
+                  class="block py-0.5 transition-colors duration-200"
+                >
+                  {group.heading.text}
+                </a>
+              ),
+            )}
+          </nav>
+      </aside>
     </div>
 
     <!-- ── 中栏：正文 ────────────────────────────────── -->
-    <article class="max-w-2xl mx-auto lg:mx-0">
+    <article class="w-full min-w-0">
       <!-- h1 上方放 #top 哨兵：回顶锚点目标 + 顶部高亮观察哨兵 -->
       <span id="top" aria-hidden="true"></span>
       <h1 class="post-title text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900 dark:text-white">
@@ -208,23 +208,27 @@ const nextPost =
     </article>
 
     <!-- ── 右栏：引注（notes，可选）──────────────────── -->
-    {notes.length > 0 && (
-      <aside class="hidden lg:block pt-2 text-xs text-neutral-500 dark:text-neutral-400 space-y-3 pl-6">
-        {notes.map((note, index) => (
-          <p class="leading-relaxed text-neutral-600 dark:text-neutral-400" data-note-index={index + 1}>
-            <span class="font-normal shrink-0">{index + 1}:</span>
-            <span>{note}</span>
-          </p>
-        ))}
-      </aside>
-    )}
+    <aside class="hidden lg:block pt-2 text-xs text-neutral-500 dark:text-neutral-400 space-y-3 pl-4">
+      {notes.map((note, index) => (
+        <p class="leading-relaxed text-neutral-600 dark:text-neutral-400" data-note-index={index + 1}>
+          <span class="font-normal shrink-0">{index + 1}:</span>
+          <span>{note}</span>
+        </p>
+      ))}
+    </aside>
   </div>
   <MediaGallery />
 </BaseLayout>
 
 <script>
-  // ── 标题树：手风琴互斥 + 滚动高亮 + 顶部高亮（借鉴 Herschel 逻辑）──
+  // 本地主题切换按钮逻辑，和项目页一致
+  const localToggle = document.getElementById('theme-toggle-desktop');
+  localToggle?.addEventListener('click', () => {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  });
 
+  // ── 标题树：手风琴互斥 + 滚动高亮 + 顶部高亮（借鉴 Herschel 逻辑）──
   const setActiveHeading = (id) => {
     document.querySelectorAll('[data-heading-link]').forEach((link) => {
       const isActive = link.getAttribute('data-heading-link') === id;
@@ -264,9 +268,13 @@ const nextPost =
     });
   });
 
+  // 点击锁定：点击目录条目后，滚动期间冻结高亮（避免平滑滚动途中被滚动跟踪抢高亮），滚动结束解锁恢复跟踪
+  let tocLockId = null;
+
   // 滚动高亮：IntersectionObserver 观察带（-20% 0px -60% 0px）
   const observerOptions = { root: null, rootMargin: '-20% 0px -60% 0px', threshold: 0 };
   const observerCallback = (entries) => {
+    if (tocLockId) return;
     entries.forEach((entry) => {
       if (entry.isIntersecting) {
         const id = entry.target.getAttribute('id');
@@ -282,6 +290,7 @@ const nextPost =
   const topSentinel = document.getElementById('top');
   if (tocTopLink && topSentinel) {
     const setTopActive = (atTop) => {
+      if (tocLockId) return;
       // 顶部标题：激活常亮 / 恢复灰
       tocTopLink.classList.toggle('toc-active', atTop);
       tocTopLink.classList.toggle('font-medium', atTop);
@@ -301,12 +310,20 @@ const nextPost =
     topObserver.observe(topSentinel);
   }
 
-  // 点击目录：立即高亮并常驻（不再依赖 scrollend 确认；后续滚动由章节 observer 平滑接管）
+  // 点击目录：锁定高亮，滚动期间不被滚动跟踪覆盖；滚动结束（scrollend）解锁恢复跟踪
   document.querySelectorAll('[data-heading-link]').forEach((link) => {
     link.addEventListener('click', () => {
       const id = link.getAttribute('data-heading-link');
       if (!id) return;
+      tocLockId = id;
       setActiveHeading(id);
+      const finalize = () => {
+        tocLockId = null;
+        setActiveHeading(id);
+        window.removeEventListener('scrollend', finalize);
+      };
+      if ('onscrollend' in window) window.addEventListener('scrollend', finalize);
+      else setTimeout(finalize, 600);
     });
   });
 </script>
@@ -338,6 +355,10 @@ const nextPost =
   [data-heading-link].toc-active,
   [data-toc-top].toc-active {
     color: var(--c-ink);
+  }
+  /* 详情页隐藏左上角全局固定开关，用左栏里的本地开关 */
+  @media (min-width: 1024px) {
+    #theme-toggle { display: none; }
   }
   .back-link {
     font-family: var(--ff-caps);
