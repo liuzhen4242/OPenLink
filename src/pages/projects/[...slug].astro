@@ -80,13 +80,13 @@ for (const heading of headings) {
 
 const hasNotes = (data.notes?.length ?? 0) > 0;
 // 三栏骨架与 Herschel 文章页一致（右栏固定 240px，即使无注释也占位保持正文列宽）
-const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_240px]';
+const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
 ---
 
-<BaseLayout title={data.title} description={data.description}>
+<BaseLayout title={data.title} description={data.description} pageClass="page-detail">
   <div class:list={['grid grid-cols-1 lg:items-start lg:gap-12', gridCols]}>
     <!-- ── 左栏（吸顶）：圆钮 + 上/下篇导航 + 标题树（复刻 Herschel）────── -->
-    <div class="hidden lg:block self-start sticky top-[5rem] lg:mt-[3.5rem]">
+    <div class="hidden lg:block self-start sticky top-[2.7rem] z-10">
       <div class="mb-10 flex items-center justify-between pr-4">
         <button
           id="theme-toggle-desktop"
@@ -195,7 +195,7 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_240px]';
     </div>
 
     <!-- ── 中栏：项目文章 ────────────────────────────── -->
-    <article class="max-w-2xl mx-auto lg:mx-0 min-w-0">
+    <article class="w-full min-w-0">
       <!-- Project header（id="top"：回顶锚点目标 + 顶部高亮观察哨兵） -->
       <header id="top" class="pt-16 pb-10 border-b border-neutral-200 dark:border-neutral-800">
         <div class="mb-4 flex items-center gap-4">
@@ -228,7 +228,7 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_240px]';
     <!-- ── 右栏：注释引注（Herschel 完整系统）──────────
          始终渲染（hidden lg:block），静态 notes 直接 SSR，正文 {词|注释}
          由 buildNotePanels 在加载后收集进来；两者都为空时 JS 隐藏。 -->
-    <aside id="notes-aside" class="hidden lg:block pt-2 text-xs text-neutral-500 dark:text-neutral-400 space-y-3 pl-6">
+    <aside id="notes-aside" class="hidden lg:block pt-2 text-xs text-neutral-500 dark:text-neutral-400 space-y-3 pl-4">
       {hasNotes &&
         data.notes!.map((note, index) => (
           <p class="note-item leading-relaxed text-neutral-600 dark:text-neutral-400" data-note-index={index + 1}>
@@ -495,9 +495,13 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_240px]';
     });
   });
 
+  // 点击锁定：点击目录条目后，滚动期间冻结高亮（避免平滑滚动途中被滚动跟踪抢高亮），滚动结束解锁恢复跟踪
+  let tocLockId = null;
+
   // 滚动高亮：IntersectionObserver 观察带（-20% 0px -60% 0px）
   const observer = new IntersectionObserver(
     (entries) => {
+      if (tocLockId) return;
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           const id = entry.target.getAttribute('id');
@@ -515,6 +519,7 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_240px]';
   const topSentinel = document.getElementById('top');
   if (tocTopLink && topSentinel) {
     const setTopActive = (atTop) => {
+      if (tocLockId) return;
       // 顶部标题：激活常亮 / 恢复灰
       tocTopLink.classList.toggle('toc-active', atTop);
       tocTopLink.classList.toggle('font-medium', atTop);
@@ -534,12 +539,20 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_240px]';
     topObserver.observe(topSentinel);
   }
 
-  // 点击目录：立即高亮并常驻（不再依赖 scrollend 确认；后续滚动由章节 observer 平滑接管）
+  // 点击目录：锁定高亮，滚动期间不被滚动跟踪覆盖；滚动结束（scrollend）解锁恢复跟踪
   document.querySelectorAll('[data-heading-link]').forEach((link) => {
     link.addEventListener('click', () => {
       const id = link.getAttribute('data-heading-link');
       if (!id) return;
+      tocLockId = id;
       setActiveHeading(id);
+      const finalize = () => {
+        tocLockId = null;
+        setActiveHeading(id);
+        window.removeEventListener('scrollend', finalize);
+      };
+      if ('onscrollend' in window) window.addEventListener('scrollend', finalize);
+      else setTimeout(finalize, 600);
     });
   });
 
