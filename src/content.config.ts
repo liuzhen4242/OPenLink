@@ -8,8 +8,9 @@ const blogCollection = defineCollection({
     base: new URL('./content/blog/', import.meta.url),
   }),
   schema: z.object({
-    title: z.string(), // 英文标题，用于 slug、SEO、副标题显示
-    name: z.string(), // 中文标题，页面上大标题显示用
+    title: z.string(), // 中文标题（主标题），用于 H1 下方元数据、SEO；与 Herschel 一致
+    titleEn: z.string().optional(), // 英文标题（可选，借鉴 Herschel）：目录顶部优先显示、SEO 用
+    name: z.string(), // 中文短标题，页面 H1 大标题显示用（OpenLink 特有，兼容旧文章）
     // blog 分类：任意字符串数组（不限制枚举，方便自由打标签）
     category: z.array(z.string()).optional().default([]),
     description: z.string().optional(),

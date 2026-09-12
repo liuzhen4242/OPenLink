@@ -1,5 +1,6 @@
 ---
-title: "OpenLink Blog Writing Guide"
+title: "OpenLink 博客写作指南"
+titleEn: "OpenLink Blog Writing Guide"
 name: "OpenLink 博客写作指南"
 date: "2026-09-12"
 description: "OpenLink 博客写作速查模板：frontmatter、注释、gallery 轮播、视频嵌入、项目信息、文章互链引用。所有元素都是本站真实支持的能力，照着写即可。本文会随网页优化持续更新。"
@@ -18,25 +19,28 @@ status: "public"
 
 一篇新文章 = 在 `src/content/blog/` 下新建一个 `.md` 文件（扁平目录，**不要建子文件夹**）。文件名会成为网址（slug）。
 
+头部与 Hershel 一致：`title` 写中文主标题、`titleEn` 写英文标题（目录顶部优先显示，缺省回退 title），`name` 写页面 H1 大标题（一般同中文标题）。
+
 ```markdown
 // src/content/blog/示例文章.md —— frontmatter 模板
 ---
-title: "Article English Title"     # 必填：英文标题，用于网址/SEO/目录顶部
-name: "中文标题"                    # 必填：中文标题，页面 H1 大标题
-date: "2026-09-12"                  # 可选：一律 "YYYY-MM-DD"；不写则取文件修改日期
-description: "一句话摘要"            # 可选
-author: "zhenliu"                   # 可选，默认 zhenliu；多作者写数组 ["a","b"]
+title: "文章中文标题"             # 必填：中文主标题，SEO 用
+titleEn: "Article English Title"  # 可选：英文标题，目录顶部优先显示；不写回退 title
+name: "文章中文标题"              # 必填：中文标题，页面 H1 大标题
+date: "2026-09-12"               # 可选：一律 "YYYY-MM-DD"；不写则取文件修改日期
+description: "一句话摘要"         # 可选
+author: "zhenliu"                # 可选，默认 zhenliu；多作者写数组 ["a","b"]
 category:
-  - 学习                           # 可选，可多个；任意字符串，参考：学习/工厂/设计
-status: "public"                    # public/private/hidden/draft，默认 public
-update: "2026-09-13"                # 可选：不写则自动识别文件修改日期（upd YYMMDD）
-notes:                              # 可选：右栏引注（新文章推荐用 {花括号} 语法，见第 3 节）
+  - 学习                        # 可选，可多个；任意字符串，参考：学习/工厂/设计
+status: "public"                 # public/private/hidden/draft，默认 public
+update: "2026-09-13"             # 可选：不写则自动识别文件修改日期（upd YYMMDD）
+notes:                           # 可选：右栏引注（新文章推荐用 {花括号} 语法，见第 3 节）
   - "引注一"
   - "引注二"
 ---
 ```
 
-**注意**：本站 schema 没有 `titleEn` 字段（那是 Hershel 博客的写法），OpenLink 用 `title`（英文）+ `name`（中文）两个字段分工。
+**与 Hershel 的差异**：Hershel 用 `title`（中文）+ `titleEn`（英文）两个字段，H1 显示 `title`；OpenLink 多一个 `name` 字段作 H1（兼容旧文章），`title`/`titleEn` 显示在目录顶部与 SEO。头部效果一致：中文大标题 + 英文目录顶。
 
 ### - 可见性 status
 
@@ -81,7 +85,15 @@ notes:                              # 可选：右栏引注（新文章推荐用
 - 序号（1、2、3…）**自动生成**，注释自动进右栏，悬停上标可看解释；
 - 屏幕不够宽时，注释自动落到文章末尾。
 
-实际效果：所谓{参数化|用参数驱动形态生成}设计，核心是……（词级）
+### - 实际效果演示
+
+下面是真实渲染的注释效果（不是代码块），把鼠标悬停在带下划线的词上，或看右栏 1: 2: 3: 引注：
+
+所谓{参数化|用参数驱动形态生成}设计，核心是……
+
+要达到{庖丁解牛|出自《庄子》，指技艺纯熟}的境界，需要反复练习。
+
+{这段整句都需要补充背景。|整句注释：花括号包住完整句子，下划线覆盖整个范围}
 
 **兼容旧写法**：早期文章用的 frontmatter `notes:` + `<sup>编号</sup>` 仍能正常显示；新文章推荐花括号语法。不要用 Markdown 脚注 `[^1]:`，本站不渲染。
 
@@ -111,6 +123,28 @@ notes:                              # 可选：右栏引注（新文章推荐用
 
 - 多图自动轮播（每张 1s，悬停暂停），点击进全屏灯箱；单图只显示不轮播。
 - 容器比例构建期自动按"最瘦图"内联，加载不跳动。
+
+#### 真实轮播演示
+
+下面这个轮播是**真实渲染效果**（用的本站 blog/images 里的图，可直接点击进灯箱看大图）：
+
+```gallery
+![](images/商业效果图02.jpg)
+![](images/商业效果图03.jpg)
+![](images/商业效果图04.jpg)
+```
+
+#### 修改轮播速度
+
+轮播间隔在 `src/components/MediaGallery.astro`：
+
+- 第 51、55 行 `window.setTimeout(tick, 1000)`：**1000 = 每张停留 1 秒**，改大放慢、改小加快；
+- 第 44 行 `new Promise((resolve) => window.setTimeout(resolve, 8000))`：慢图等待上限 8s，防止图片加载慢时轮播卡死（一般不用改）。
+
+```js
+// src/components/MediaGallery.astro 第 51 行 —— 轮播节奏
+window.setTimeout(tick, 1000);   // ← 1000ms = 每张停留 1 秒，改这里调整轮播速度
+```
 
 ### - 项目文章（projects）的图片路径
 
@@ -235,7 +269,8 @@ name: "碲化镉光伏组件材料笔记"
 
 写完后逐条核对：
 
-- [ ] frontmatter 只有本站字段（title/name/category/description/status/notes/author/update/date，无 titleEn）
+- [ ] frontmatter 只有本站字段（title/titleEn/name/category/description/status/notes/author/update/date）
+- [ ] title 写中文、titleEn 写英文（可选）、name 写中文 H1
 - [ ] 正文没有 `#` 一级标题，章节从 `##` 起步
 - [ ] 注释用 `{范围|注释}`，没写 Markdown 脚注
 - [ ] gallery 用 ```gallery 代码块包多图，不用普通多张 `![]()` 堆叠（除非想要单图效果）
@@ -253,3 +288,9 @@ name: "碲化镉光伏组件材料笔记"
 
 - 初版：覆盖 frontmatter、标题层级、注释、图片/gallery、视频、项目信息、文章互链、检查清单。
 - 依据：`src/content.config.ts`（schema）、`src/pages/blog/[...slug].astro`（三栏渲染）、`scripts/remark-obsidian-media.mjs`（gallery/图片/视频插件）、`src/pages/projects/index.astro`（封面缩略图/小视频）。
+
+### 2026-09-12 (v1.1)
+
+- **头部与 Hershel 一致**：frontmatter 支持 `titleEn` 英文标题（目录顶部优先显示、SEO 用，缺省回退 title）；`name` 仍是页面 H1。同步改了 `src/content.config.ts`（schema 加 titleEn）与 `src/pages/blog/[...slug].astro`（渲染 headerTitle）。
+- 注释章节新增**真实效果演示**（悬停下划线词 / 右栏引注）。
+- gallery 章节新增**真实轮播演示**（用 `src/content/blog/images/商业效果图*.jpg`），并写明轮播速度修改位置（`src/components/MediaGallery.astro` 第 51/55 行 `setTimeout(tick, 1000)`）。
