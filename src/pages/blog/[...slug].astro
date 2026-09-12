@@ -27,7 +27,9 @@ export async function getStaticPaths() {
 
 const { post } = Astro.props;
 const { Content, headings } = await render(post);
-const { title, name, date, description, notes = [], author, update, category = [], status } = post.data;
+const { title, titleEn, name, date, description, notes = [], author, update, category = [], status } = post.data;
+// 头部英文标题：titleEn 优先，缺省回退 title（兼容旧文章）；与 Herschel 目录顶部逻辑一致
+const headerTitle = titleEn || title;
 
 // update 自动识别：frontmatter 未写 update 时，取文件最后修改日期作为更新日期（借鉴 Herschel）
 let updateDate = update;
@@ -70,7 +72,7 @@ const nextPost =
     : undefined;
 ---
 
-<BaseLayout title={title} description={description} pageClass="page-detail">
+<BaseLayout title={headerTitle} description={description} pageClass="page-detail">
   <div
     class:list={[
       'grid grid-cols-1 lg:items-start lg:gap-12',
@@ -127,7 +129,7 @@ const nextPost =
             data-toc-top
             class="block font-semibold tracking-wide uppercase mb-3 transition-colors duration-200"
           >
-            {title}
+            {headerTitle}
           </a>
           <nav class="flex flex-col space-y-1">
             {tocGroups.map((group) =>
