@@ -26,7 +26,7 @@ const categories = Array.from(new Set(posts.flatMap((p) => p.data.category)));
 
 /** "turtle pluging.md" → "turtle pluging" */
 function idToSlug(id: string): string {
-  return id.replace(/\.md$/, '');
+  return id.replace(/\.md$/, '').split('/')[1];
 }
 ---
 

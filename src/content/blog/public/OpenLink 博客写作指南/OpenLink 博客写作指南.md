@@ -25,18 +25,15 @@ status: "public"
 // src/content/blog/示例文章.md —— frontmatter 模板
 ---
 title: "文章中文标题"             # 必填：中文主标题，SEO 用
-titleEn: "Article English Title"  # 可选：英文标题，目录顶部优先显示；不写回退 title
-name: "文章中文标题"              # 必填：中文标题，页面 H1 大标题
+titleEn: "Article English Title"  # 可选：英文标题，目录顶部优先显示；
 date: "2026-09-12"               # 可选：一律 "YYYY-MM-DD"；不写则取文件修改日期
 description: "一句话摘要"         # 可选
 author: "zhenliu"                # 可选，默认 zhenliu；多作者写数组 ["a","b"]
 category:
-  - 学习                        # 可选，可多个；任意字符串，参考：学习/工厂/设计
+  - 学习                         # 可选，可多个；任意字符串，参考：学习/工厂/设计
 status: "public"                 # public/private/hidden/draft，默认 public
 update: "2026-09-13"             # 可选：不写则自动识别文件修改日期（upd YYMMDD）
-notes:                           # 可选：右栏引注（新文章推荐用 {花括号} 语法，见第 3 节）
-  - "引注一"
-  - "引注二"
+
 ---
 ```
 

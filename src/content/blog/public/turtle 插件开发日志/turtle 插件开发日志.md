@@ -8,8 +8,189 @@ description: soft
 date: 2025-02-16
 status: public
 ---
+## rhino toolbar
+### 材质
+{颜色转换材质|可以实现属性面板里的材质球联动，但每次颜色转换材质时，材质球会重复创建时}：可以将颜色一键生成对应颜色的材质，命名为Color_r_g_b，
+- 读取每个对象的{实际显示颜色|若图层颜色继承，也会正确取到}
+- 相同颜色的对象自动共用同一个材质，不会重复创建
+- 创建新材质前，会先检查文档里是否已存在{同名材质|比如之前跑过一次
+    本脚本、或者之前手动建过}，有就直接复用，不会再新建重复的一份，
+    这样反复运行本脚本也不会再产生重复材质
+- 材质使用 Rhino.Render.RenderMaterial（Basic Material），
+    也就是材质库同款机制：无论从"材质面板"改材质球，
+    还是从"属性面板"改选中物体的材质，其他共用该材质的物体都会联动
+  
+0.2版本
+```python
+# -*- coding: utf-8 -*-
+"""
+Rhino 脚本：将对象颜色一键转换为材质（RenderMaterial 版，防重复）
+用法：
+  1. 在 Rhino 命令行输入 EditPythonScript (Rhino 6/7) 或 ScriptEditor (Rhino 8)
+  2. 粘贴本脚本并运行 (F5)
+  3. 若有选中的对象，只处理选中对象；若没有选中任何对象，则处理场景中所有对象
+
+功能：
+  - 读取每个对象的"实际显示颜色"（若图层颜色继承，也会正确取到）
+  - 相同颜色的对象自动共用同一个材质，不会重复创建
+  - 创建新材质前，会先检查文档里是否已存在同名材质（比如之前跑过一次
+    本脚本、或者之前手动建过），有就直接复用，不会再新建重复的一份，
+    这样反复运行本脚本也不会再产生重复材质
+  - 材质使用 Rhino.Render.RenderMaterial（Basic Material），
+    也就是材质库同款机制：无论从"材质面板"改材质球，
+    还是从"属性面板"改选中物体的材质，其他共用该材质的物体都会联动
+"""
+
+import rhinoscriptsyntax as rs
+import scriptcontext as sc
+import Rhino
 
 
+def find_existing_render_material(doc, name):
+    """在文档已有的 RenderMaterial 里查找同名材质，找到就返回它，找不到返回 None"""
+    for mat in doc.RenderMaterials:
+        if mat.Name == name:
+            return mat
+    return None
+
+
+def color_to_material():
+    doc = sc.doc
+
+    # 优先使用选中对象，没有选中则处理全部对象
+    selected = rs.SelectedObjects()
+    obj_ids = selected if selected else rs.AllObjects()
+
+    if not obj_ids:
+        print("场景中没有找到任何对象。")
+        return
+
+    color_material_map = {}  # {(R,G,B): RenderMaterial}
+    count = 0
+    created_count = 0
+    reused_count = 0
+
+    for obj_id in obj_ids:
+        rhobj = rs.coercerhinoobject(obj_id)
+        if rhobj is None:
+            continue
+
+        # 获取对象的实际显示颜色（若按图层显示颜色，会自动取图层颜色）
+        color = rhobj.Attributes.DrawColor(doc)
+        key = (color.R, color.G, color.B)
+
+        if key in color_material_map:
+            mat = color_material_map[key]
+        else:
+            mat_name = "Color_{}_{}_{}".format(color.R, color.G, color.B)
+
+            # 先看文档里有没有同名材质，有就直接复用，不新建
+            existing_mat = find_existing_render_material(doc, mat_name)
+
+            if existing_mat is not None:
+                mat = existing_mat
+                reused_count += 1
+            else:
+                # 创建 Basic Material（材质库同款的 RenderContent 对象）
+                mat = Rhino.Render.RenderContentType.NewContentFromTypeId(
+                    Rhino.Render.ContentUuids.BasicMaterialType, doc)
+                mat.BeginChange(Rhino.Render.RenderContent.ChangeContexts.Program)
+                mat.Fields.Set("diffuse", color)
+                mat.EndChange()
+                mat.Name = mat_name
+
+                doc.RenderMaterials.Add(mat)
+                created_count += 1
+
+            color_material_map[key] = mat
+
+        # 赋值给物体（RenderMaterial 属性走的是渲染内容系统，天然支持联动）
+        rhobj.RenderMaterial = mat
+        rhobj.CommitChanges()
+        count += 1
+
+    doc.Views.Redraw()
+    print("完成：共处理 {} 个对象，涉及 {} 种颜色（新建 {} 个材质，复用已有 {} 个材质）。".format(
+        count, len(color_material_map), created_count, reused_count))
+
+
+color_to_material()
+```
+0.1版本
+```python
+_-RunPythonScript (# -*- coding: utf-8 -*-
+"""
+Rhino 脚本：将对象颜色一键转换为材质（RenderMaterial 版）
+用法：
+  1. 在 Rhino 命令行输入 EditPythonScript (Rhino 6/7) 或 ScriptEditor (Rhino 8)
+  2. 粘贴本脚本并运行 (F5)
+  3. 若有选中的对象，只处理选中对象；若没有选中任何对象，则处理场景中所有对象
+
+功能：
+  - 读取每个对象的"实际显示颜色"（若图层颜色继承，也会正确取到）
+  - 相同颜色的对象自动共用同一个材质，不会重复创建（仅本次运行内合并）
+  - 材质使用 Rhino.Render.RenderMaterial（Basic Material），
+    也就是材质库同款机制：无论从"材质面板"改材质球，
+    还是从"属性面板"改选中物体的材质，其他共用该材质的物体都会联动
+"""
+
+import rhinoscriptsyntax as rs
+import scriptcontext as sc
+import Rhino
+
+
+def color_to_material():
+    doc = sc.doc
+
+    # 优先使用选中对象，没有选中则处理全部对象
+    selected = rs.SelectedObjects()
+    obj_ids = selected if selected else rs.AllObjects()
+
+    if not obj_ids:
+        print("场景中没有找到任何对象。")
+        return
+
+    color_material_map = {}  # {(R,G,B): RenderMaterial}
+    count = 0
+
+    for obj_id in obj_ids:
+        rhobj = rs.coercerhinoobject(obj_id)
+        if rhobj is None:
+            continue
+
+        # 获取对象的实际显示颜色（若按图层显示颜色，会自动取图层颜色）
+        color = rhobj.Attributes.DrawColor(doc)
+        key = (color.R, color.G, color.B)
+
+        if key in color_material_map:
+            mat = color_material_map[key]
+        else:
+            # 创建 Basic Material（材质库同款的 RenderContent 对象）
+            mat = Rhino.Render.RenderContentType.NewContentFromTypeId(
+                Rhino.Render.ContentUuids.BasicMaterialType, doc)
+            mat.BeginChange(Rhino.Render.RenderContent.ChangeContexts.Program)
+            mat.Fields.Set("diffuse", color)
+            mat.EndChange()
+            mat.Name = "Color_{}_{}_{}".format(color.R, color.G, color.B)
+
+            doc.RenderMaterials.Add(mat)
+            color_material_map[key] = mat
+
+        # 赋值给物体（RenderMaterial 属性走的是渲染内容系统，天然支持联动）
+        rhobj.RenderMaterial = mat
+        rhobj.CommitChanges()
+        count += 1
+
+    doc.Views.Redraw()
+    print("完成：共处理 {} 个对象，生成 {} 个材质（相同颜色已合并）。".format(
+        count, len(color_material_map)))
+
+
+color_to_material()
+)
+```
+
+### 
 ## facad
 #### radomLine
 ```c#
@@ -443,3 +624,118 @@ public class Script_Instance : GH_ScriptInstance
 }
 ```
 
+
+## 文件添加规范（2026-09-15 整理）
+
+新增 Rhino 相关文件时，按"嵌入 / 分发 / 存档"三类归位，一句话：**能嵌入的进 `Scripts/` 或 `Grasshopper/`，随插件分发的进 `Resources/`，只存档案的进 `assets/`**。
+
+### 三条去向
+
+| 去向 | 含义 | 目录 | 安装后到哪 |
+|---|---|---|---|
+| 嵌入 .rhp | 编译时打包进 Turtle.rhp，随插件走 | `Scripts/`（.py）、`Grasshopper/`（.ghuser） | 插件启动时解压/释放到本地 |
+| 随插件分发 | 不嵌入，和 .rhp 一起发布 | `Resources/`（及其子目录） | 和 Turtle.rhp 放同一文件夹 |
+| 只存档 | 不参与编译、不分发，留底备查 | `assets/` | 永远不进用户电脑 |
+
+### 加入新 GH 电池（三步）
+
+新打包的 GH 电池（`.ghuser`）放 `Grasshopper/` 目录，每次加入做三步：
+
+```text
+// Grasshopper/ 目录 —— 新电池放这里
+Grasshopper/
+├── 新电池.ghuser        ← ① 文件放这里
+├── Arrows.ghuser
+└── ...
+```
+
+1. **放文件**：`.ghuser` 放进 `Grasshopper/` 目录；
+2. **登记 csproj**（最容易漏）：打开 `Turtle.csproj`，在 `<ItemGroup>` 里补一行：
+
+```xml
+<!-- Turtle.csproj 第 25 行附近：登记新电池 -->
+<EmbeddedResource Include="Grasshopper\新电池.ghuser" />
+```
+
+3. **Category 填 `Turtle`**：制作电池时（`File > Create User Object` 属性窗口），
+   Category 填 `Turtle`，SubCategory 填想显示的子分类名，和 GHA 组件合并进同一标签页。
+
+三个坑：
+
+| 坑 | 后果 | 怎么避 |
+|---|---|---|
+| 忘了登记 csproj | 电池不被分发，别人装插件看不到 | 放文件后立刻补 csproj 行 |
+| Category 写了别的（如 toto） | 电池出现在 GH 面板别的分类 | 属性窗口统一填 `Turtle` |
+| 改名后 Name 字段没同步 | 显示名和文件名不一致 | 属性窗口一并核对 Name |
+
+> 一句话：**文件进 `Grasshopper/`，名字进 csproj，Category 填 `Turtle`——三步缺一不可。**
+> （`.py` 脚本不同：放进 `Scripts/` 即可，csproj 通配符自动覆盖，不用登记。）
+
+### 文件去向总表
+
+| 文件类型 | 放哪里 | 机制 | 备注 |
+|---|---|---|---|
+| Python 脚本 `.py` | `Scripts/` | csproj 通配符 `Scripts\**\*.py` 自动嵌入 | 新脚本放进来即嵌入，无需改工程 |
+| GH 用户对象 `.ghuser` | `Grasshopper/` | 嵌入 + 启动时释放到 GH 用户对象目录 | **新增需在 csproj 补一行 EmbeddedResource**（通配符不覆盖 ghuser） |
+| GH 组件源码 `.cs` | `Grasshopper/` | 编译进 .rhp，GH 自动注册 | Category 统一用 TurtleInfo.Category |
+| 工具栏 `.rui` | `Resources/` | 随插件分发 | 与 .rhp 同文件夹 |
+| 显示样式 `.ini` | `Resources/DisplayStyles/` | 随插件分发 | 子目录按需建 |
+| 材质 `.rmtl` | `Resources/Materials/` | 随插件分发 | 子目录按需建 |
+| 其他独立资源 `.3dm` 等 | `Resources/<子目录>/` | 随插件分发 | 建语义化子目录 |
+| 原始素材 / 历史版本 | `assets/<类型>/` | 只存档 | 不进 .rhp、不分发 |
+| 工具脚本 | `tools/` | 开发期工具 | 如 patch_ghuser.py |
+| 命令源码 `.cs` | `Commands/` | 编译进 .rhp | 复制 TurtleRun.cs 模板改名 |
+
+### 分发脚本（只维护 assets/，一键同步）
+
+建议工作流：**新文件只放进 `assets/`，跑一次 `distribute.ps1` 自动同步到 `Resources/`**，不用手动双份维护。
+
+```powershell
+// Turtle/distribute.ps1 —— 资源分发脚本（assets → Resources，只复制不移动）
+# 用法：右键 -> 使用 PowerShell 运行，或终端里 .\distribute.ps1
+$ErrorActionPreference = "Stop"
+$root = $PSScriptRoot
+
+# 1. ini 显示样式：assets/ini -> Resources/DisplayStyles
+$srcIni = Join-Path $root "assets\ini"
+$dstIni = Join-Path $root "Resources\DisplayStyles"
+if (Test-Path $srcIni) {
+    New-Item -ItemType Directory -Path $dstIni -Force | Out-Null
+    $iniCount = @(Get-ChildItem (Join-Path $srcIni "*.ini")).Count
+    Copy-Item (Join-Path $srcIni "*.ini") $dstIni -Force
+    Write-Host "  [ini] $iniCount 个显示样式 -> Resources\DisplayStyles" -ForegroundColor Green
+}
+
+# 2. 材质：assets/materials -> Resources/Materials
+$srcMat = Join-Path $root "assets\materials"
+$dstMat = Join-Path $root "Resources\Materials"
+if (Test-Path $srcMat) {
+    New-Item -ItemType Directory -Path $dstMat -Force | Out-Null
+    $matCount = @(Get-ChildItem (Join-Path $srcMat "*.rmtl")).Count
+    Copy-Item (Join-Path $srcMat "*.rmtl") $dstMat -Force
+    Write-Host "  [材质] $matCount 个材质 -> Resources\Materials" -ForegroundColor Green
+}
+
+# 3. 工具栏：assets/rui -> Resources
+$srcRui = Join-Path $root "assets\rui"
+$dstRui = Join-Path $root "Resources"
+if (Test-Path $srcRui) {
+    Copy-Item (Join-Path $srcRui "*.rui") $dstRui -Force
+    Write-Host "  [rui] assets\rui -> Resources\" -ForegroundColor Green
+}
+Write-Host "分发完成。ghuser 需手动 patch 后放 Grasshopper\，脚本不自动处理。" -ForegroundColor Yellow
+```
+
+> 注意：脚本文件需保存为 **UTF-8 with BOM**，否则 Windows PowerShell 5.1 按 GBK 解析中文注释会报 "Missing closing '}'"。
+
+### 本次分发结果（2026-09-15）
+
+```
+Resources/
+├── Turtle.rui                    # 工具栏
+├── DisplayStyles/ (6 个 .ini)    # Arctic / ArcticBlack / ArcticWhite / OutLine / Shaded / Wireframe
+└── Materials/ (79 个 .rmtl)      # 全部材质
+```
+
+- 完整规范文档见 `Turtle/docs/文件添加规范.md`。
+- 发布包 = `bin/Release/net7.0/Turtle.rhp` + `Resources/` 整个文件夹。
