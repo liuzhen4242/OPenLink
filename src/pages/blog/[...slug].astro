@@ -13,8 +13,10 @@ import MediaGallery from '../../components/MediaGallery.astro';
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog');
+  // id 形如 文件夹名/文章名，取第一段作为 URL slug
+  const idToSlug = (id) => id.replace(/\.md$/, '').split('/')[1];
   return posts.flatMap((post) => {
-    const slug = post.id.replace(/\.md$/, '');
+    const slug = idToSlug(post.id);
     const status = post.data.status;
     // 线上：hidden 彻底不生成页面（网上不可见）；本地 dev 正常显示，方便自己查看。
     if (import.meta.env.PROD && status === 'hidden') return [];
@@ -64,7 +66,7 @@ const allPosts = (await getCollection('blog')).sort(
   (a, b) => new Date(b.data.date || 0).getTime() - new Date(a.data.date || 0).getTime(),
 );
 const currentIndex = allPosts.findIndex((p) => p.id === post.id);
-const toPostLink = (p) => ({ url: `/blog/${p.id.replace(/\.md$/, '')}`, title: p.data.name || p.data.title });
+const toPostLink = (p) => ({ url: `/blog/${idToSlug(p.id)}`, title: p.data.name || p.data.title });
 const prevPost = currentIndex > 0 ? toPostLink(allPosts[currentIndex - 1]) : undefined;
 const nextPost =
   currentIndex >= 0 && currentIndex < allPosts.length - 1
@@ -209,10 +211,10 @@ const nextPost =
       </nav>
     </article>
 
-    <!-- ── 右栏：引注（notes，可选）──────────────────── -->
-    <aside class="hidden lg:block pt-2 text-xs text-neutral-500 dark:text-neutral-400 space-y-3 pl-4">
+    <!-- ── 右栏：引注（frontmatter notes + 内联 {词|注释}）──────────── -->
+    <aside id="notes-aside" class="hidden lg:block pt-2 text-xs text-neutral-500 dark:text-neutral-400 space-y-3 pl-4">
       {notes.map((note, index) => (
-        <p class="leading-relaxed text-neutral-600 dark:text-neutral-400" data-note-index={index + 1}>
+        <p class="note-item leading-relaxed text-neutral-600 dark:text-neutral-400" data-note-index={index + 1}>
           <span class="font-normal shrink-0">{index + 1}:</span>
           <span>{note}</span>
         </p>
@@ -328,6 +330,103 @@ const nextPost =
       else setTimeout(finalize, 600);
     });
   });
+
+  // ── 内联旁注系统（{词|注释} 语法）：从正文 sup[data-note] 收集到右栏 ──
+  const buildNotePanels = () => {
+    const article = document.querySelector('article');
+    const aside = document.getElementById('notes-aside');
+    if (!article || !aside) return;
+
+    const sups = Array.from(article.querySelectorAll('sup[data-note]'));
+    if (sups.length === 0) return;
+
+    sups.forEach((sup) => {
+      const noteText = sup.getAttribute('data-note') || '';
+      const num = sup.textContent.trim();
+      const item = document.createElement('p');
+      item.className = 'note-item leading-relaxed text-neutral-600 dark:text-neutral-400';
+      item.dataset.noteIndex = num;
+      const numEl = document.createElement('span');
+      numEl.className = 'note-num font-normal shrink-0';
+      numEl.textContent = `${num}:`;
+      const textEl = document.createElement('span');
+      textEl.className = 'note-text';
+      textEl.textContent = noteText;
+      item.append(numEl, textEl);
+      aside.appendChild(item);
+    });
+  };
+
+  // 右侧引注与正文上标水平对齐（margin note 效果，防重叠）
+  const alignNotes = () => {
+    const aside = document.getElementById('notes-aside');
+    const article = document.querySelector('article');
+    if (!aside || !article) return;
+
+    const supMap = new Map();
+    article.querySelectorAll('sup').forEach((sup) => {
+      const m = sup.textContent.match(/(\d+)/);
+      if (m) supMap.set(parseInt(m[1], 10), sup);
+    });
+
+    const items = Array.from(aside.querySelectorAll('.note-item'));
+    items.forEach((note) => { note.style.transform = ''; });
+
+    let cursor = null;
+    items.forEach((note) => {
+      const idx = parseInt(note.dataset.noteIndex, 10);
+      const sup = supMap.get(idx);
+      if (!sup) return;
+      const rect = note.getBoundingClientRect();
+      let y = sup.getBoundingClientRect().top - rect.top;
+      if (cursor !== null) y = Math.max(y, cursor - rect.top + 12);
+      note.style.transform = `translateY(${y}px)`;
+      cursor = rect.top + y + note.offsetHeight;
+    });
+  };
+
+  const initNotes = () => { buildNotePanels(); alignNotes(); };
+  if (document.readyState === 'complete') initNotes();
+  else window.addEventListener('load', initNotes);
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(alignNotes, 150);
+  });
+
+  // 点击被注释词 → 正文词与对应注释同时灰底高亮
+  const flashNote = (num) => {
+    const aside = document.getElementById('notes-aside');
+    const article = document.querySelector('article');
+    const clear = () => {
+      article?.querySelectorAll('.note-word.note-highlight').forEach((n) => n.classList.remove('note-highlight'));
+      aside?.querySelectorAll('.note-item').forEach((n) => n.classList.remove('note-highlight'));
+    };
+    clear();
+    article?.querySelectorAll('sup').forEach((sup) => {
+      const s = sup.textContent.trim();
+      if (s === num || s === `[${num}]`) {
+        const prev = sup.previousElementSibling;
+        if (prev && prev.classList.contains('note-word')) prev.classList.add('note-highlight');
+      }
+    });
+    const a = aside?.querySelector(`.note-item[data-note-index="${num}"]`);
+    if (a) { a.classList.add('note-highlight'); a.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    clearTimeout(window.__noteFlashTimer);
+    window.__noteFlashTimer = setTimeout(clear, 1800);
+  };
+
+  document.addEventListener('click', (e) => {
+    const word = e.target.closest('.note-word');
+    const sup = e.target.closest('sup[data-note]');
+    const el = word || sup;
+    if (!el) return;
+    const supEl = word ? word.nextElementSibling : sup;
+    if (!supEl || supEl.tagName !== 'SUP') return;
+    const m = supEl.textContent.match(/\d+/);
+    if (m) flashNote(m[0]);
+  });
 </script>
 
 <style is:global>
@@ -387,5 +486,49 @@ const nextPost =
   }
   .toc-group[open] .toc-caret {
     transform: rotate(90deg);
+  }
+
+  /* ── 旁注引注样式（与 Herschel 一致）───────────────────── */
+  .note-word {
+    text-decoration: underline;
+    text-decoration-color: rgb(163 163 163 / 35%);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+  sup[data-note] {
+    font-size: 0.7em;
+    color: var(--c-mid);
+    margin-left: 1px;
+    cursor: pointer;
+  }
+  .note-item {
+    position: relative;
+  }
+  /* 注释高亮（灰）：点击正文被注释词时统一灰底；用 box-shadow 扩展，不动布局 */
+  .note-highlight {
+    background: rgb(163 163 163 / 25%);
+    border-radius: 6px;
+    box-shadow:
+      -4px 0 0 0 rgb(163 163 163 / 25%),
+      4px 0 0 0 rgb(163 163 163 / 25%);
+    transition: background-color 0.25s ease, box-shadow 0.25s ease;
+  }
+  /* 正文内的被注释词：行内元素只铺灰底 + 下划线加深，不做描边圆角 */
+  .note-word.note-highlight {
+    background: rgb(163 163 163 / 25%);
+    text-decoration-color: rgb(163 163 163 / 65%);
+    box-shadow: none;
+  }
+  .dark .note-highlight {
+    background: rgb(82 82 82 / 45%);
+    box-shadow:
+      -4px 0 0 0 rgb(82 82 82 / 45%),
+      4px 0 0 0 rgb(82 82 82 / 45%);
+  }
+  .dark .note-word.note-highlight {
+    background: rgb(82 82 82 / 45%);
+    text-decoration-color: rgb(163 163 163 / 70%);
+    box-shadow: none;
   }
 </style>

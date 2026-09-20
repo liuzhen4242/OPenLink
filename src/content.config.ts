@@ -3,8 +3,8 @@ import { glob } from 'astro/loaders';
 
 const blogCollection = defineCollection({
   loader: glob({
-    // 匹配 blog 目录下所有 .md 文件（不含子目录嵌套，保持扁平）
-    pattern: ['*.md'],
+    // 匹配 blog 目录下所有子文件夹中的 .md 文件（每篇文章一个文件夹，和项目一致）
+    pattern: ['*/*.md', '*/*/*.md'],
     base: new URL('./content/blog/', import.meta.url),
   }),
   schema: z.object({
@@ -42,7 +42,7 @@ const blogCollection = defineCollection({
 const projectsCollection = defineCollection({
   loader: glob({
     // 匹配所有项目子目录下的 .md 文件
-    pattern: ['*/*.md'],
+    pattern: ['*/*.md', '*/*/*.md'],
     base: new URL('./content/projects/', import.meta.url),
   }),
   // ✨ 关键点：这里改成函数形式，引入 image 处理器
