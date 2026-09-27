@@ -1,6 +1,5 @@
 ---
 title: "Rhino 工作站一键安装指南"
-name: "Rhino 工作站一键安装指南"
 titleEn: "Rhino Workspace One-Click Setup Guide"
 date: "2026-09-10"
 description: "把整个 Rhino 工作环境（脚本、工具栏、模板、别名）打包成一个文件夹，U 盘拷到同事电脑，跑一次脚本全部生效。本文讲清它的用法、原理，并按功能给出术语索引。"

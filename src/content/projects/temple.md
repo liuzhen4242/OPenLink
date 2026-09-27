@@ -1,6 +1,6 @@
 ---
-title: Xinjiang Silk Road Ceramics Museum
-name: 新疆丝绸之路陶瓷博物馆
+titleEn: Xinjiang Silk Road Ceramics Museum
+title: 新疆丝绸之路陶瓷博物馆
 category:
   - 工厂
 coverImage: ./images/Pasted image 20260714162102.png
