@@ -3,6 +3,8 @@ title: "AI 提示词"
 titleEn: "AI Prompt"
 description: "AI 提示词模板与写法参考"
 date: "2026-09-12"
+category:
+  - AI
 status: "public"
 ---
 

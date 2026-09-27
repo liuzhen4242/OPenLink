@@ -13,6 +13,24 @@ status: "public"
 
 ---
 
+
+## 初始设置
+### 自动导入
+- toolbar(include python script)
+- aliases
+- ini view
+### 手动导入
+- 鼠标中键
+- 3dm模版文件
+- 材质库
+- 原生的view
+- 空间布局
+- package里的插件包
+  ```path
+  
+  ```
+### 布局设置
+- page 的颜色，
 ## 1. 插件骨架
 
 Turtle 是一个 {net7.0|.NET 7 目标框架，Rhino 8 跨平台（Win+Mac）插件标准} 的 Rhino 8 插件，整体结构如下：
@@ -843,6 +861,13 @@ public class Script_Instance : GH_ScriptInstance
 
 ## 7. 版本更新
 
+### 2026-09-27（补充合并）
+
+- 新增 §8 功能规划笔记（显示模式 / 表皮 / 电池图形界面，合并自本地草稿）。
+- 新增 §9 Toolbar 图标修复记录（Mac Rhino 经 yak 从 packages 目录加载 rui，修复 31 个按钮图标显示问题，合并自"Turtle development log"本地新增内容）。
+- 新增 §10 Toolbars 面板空白与工具列固化（tool_bar_groups 残留空 item 根因、GUI 恢复流程、删除旧工具列并清理孤儿宏/图标）。
+- "Turtle development log" 文章全部内容已并入本文档，日志文章下架删除。
+
 ### 2026-09-22（合并开发日志）
 
 - 合并"turtle 插件开发日志"内容：新增 §5 工具脚本与组件（材质工具 0.2、facad RandomLine、线条双向挤出），扩充 §4 文件添加规范（三条去向、GH 电池三步、文件去向总表、distribute.ps1 分发脚本）；原日志文章删除，内容归档至此。
@@ -866,3 +891,129 @@ public class Script_Instance : GH_ScriptInstance
 - 按 README 搭建 Rhino 8 跨平台插件骨架（net7.0，Mac+Windows）。
 - 修复 MyToolsPlugin.cs 缺 `using System.Runtime.InteropServices` 导致的 CS0616。
 - 命令 + 嵌入式 Python 脚本 + 工具栏基础链路打通。
+
+
+---
+
+## 8. 功能规划笔记（2026-09-27）
+
+（合并自本地"Turtle 插件开发要点"草稿，功能构思记录）
+
+### 显示模式
+白线模式
+> 分析图时，以白色为显示模式，忽略材质  
+> 以黑色为显示模式，局部进入白色模式中  
+> 还原材质  
+
+### 表皮
+> 根据输入数字划分柜子
+> 吊顶表皮类型
+> 路径成矩的几种方式，等分，步长，
+> 三角面生成与楼梯
+
+### 电池图形界面
+> graph map 外置于电池  
+> 时间轴
+
+---
+
+## 9. Toolbar 图标修复记录（2026-09-27）
+
+> 背景：`color-material-turtle` 工具列 31 个按钮图标长期显示"默认蓝 → 文字"，反复重做无效。最终根因是 **Mac 上 Rhino 加载的 rui 文件根本不是一直在改的那份**。以下是完整排查方法与结论，后续做 toolbar 直接照此流程。
+
+### 问题现象
+
+| 阶段 | 现象 | 原因 |
+|---|---|---|
+| 最初 | 31 个按钮全是默认蓝 | `macro_item` 的 `bitmap_id` 悬空（引用的 icon guid 在 rui 里不存在） |
+| 插入 SVG+3PNG 后 | 蓝色消失、按钮变文字 | Mac Rhino 不渲染 Windows 风格 `<light><svg>` 图标 → 找不到图标就显示按钮文字 |
+| 插入单 PNG 后 | 仍显示文字 | **真正根因：改的文件 Rhino 根本不读**，PNG 格式本身没问题 |
+| 决定性测试（复制能渲染的白圆） | 仍显示文字 | 同样证实：不是图标数据问题，是加载文件不对 |
+
+### 最终根因（重点）
+
+**Mac Rhino 通过 yak 包加载 rui，加载位是 packages 目录，不是 UI 目录**：
+
+```text
+// 5 处 Turtle.rui 的 md5 对比结论（2026-09-27）
+// 我一直在改的 4 处（内容一致，含 275 个 icon）：
+~/Library/Application Support/McNeel/Rhinoceros/8.0/UI/Turtle.rui
+~/Library/Application Support/McNeel/Rhinoceros/8.0/MacPlugIns/Turtle.rhp/Turtle.rui
+~/Library/Application Support/McNeel/Rhinoceros/MacPlugIns/Turtle.rhp/Turtle.rui
+~/study/coding/rhinoPluging/Resources/Turtle.rui（git 源）
+
+// Rhino 实际加载的 yak 安装位（旧版，仅 244 个 icon，不含任何新增图标 guid）：
+~/Library/Application Support/McNeel/Rhinoceros/packages/8.0/turtle/1.0.0/Turtle.rui   ← 真正加载位！
+```
+
+- `packages/8.0/turtle/1.0.0/` 是 yak 双击安装后落位，Rhino 启动时从这里读 rui。
+- 旧版里 `color-turtle` 的白圆图标（guid `837c614b-…`）本来就有 → 显示正常；`color-material-turtle` 的 31 个新图标 guid 旧版里全都没有 → 悬空 → 文字。
+- **修复动作**：把新版 rui 覆盖到 packages 加载位（先 `cp` 备份为 `.bak-yakold`），5 处 md5 全部一致后重启 Rhino 即正常。
+
+### 可渲染 vs 不可渲染的图标格式（Mac Rhino）
+
+```xml
+<!-- ✅ 可渲染：单张 32x32 PNG，name 为 "guid.png"（参考 color-turtle 白圆 837c614b） -->
+<icon guid="837c614b-c763-41b8-98d4-dda7ffd07f3c" name="837c614b-c763-41b8-98d4-dda7ffd07f3c.png">
+  <png>iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0…</png>
+</icon>
+
+<!-- ✅ 可渲染：material-co 的 e8e6c9d1（name 以 .svg 结尾但无 light/svg，3 张 png 16/24/32） -->
+<icon guid="e8e6c9d1-c715-4ce3-9473-f670f4adcb34" name="be6272d0-….svg">
+  <png>16x16</png><png>24x24</png><png>32x32</png>
+</icon>
+
+<!-- ❌ 不可渲染：Windows 风格 <light><svg><rect/>，Mac 上显示文字（弃用模板 /tmp/turtle_icons.xml） -->
+```
+
+- **纯色方块 PNG 生成**：PIL 生成 32x32 RGB 纯色 PNG（无 alpha），`Image.new('RGB',(32,32),color)` → base64 约 152 字符即可被 Rhino 渲染。A120 半透明项用 RGBA + 黑描边。
+- 图标 guid 必须与 `macro_item bitmap_id` 一致，且 name 建议用 `guid.png`。
+
+### 其他必踩的坑（toolbar 开发速查）
+
+1. **改 rui 前必须完全退出 Rhino**：Rhino 退出时会用自己状态覆盖 rui；进程名是 `Rhinoceros`（不是 "Rhino 8"），用 `kill <pid>` / `kill -9 <pid>`（pkill 受系统限制不可用）。用户可能正在用 Rhino，先确认再动手。
+2. **工具栏 dock 位置在 `containers.xml`**：`~/Library/Application Support/McNeel/Rhinoceros/8.0/settings/Scheme__Default/containers.xml` 定义每个 dock_bar 的 `dock_location`/`float_point`/`visible`。删了它会丢浮动位置 → "勾选可见但找不到"。
+3. **覆盖层会覆盖新 rui**：`settings/Scheme__Default/OpenLink_7338352c-….xml`（guid 7338352c=Turtle 库）内含旧图标 `light_svg` override 与 toolbar 布局修改，启动时覆盖新 rui → 症状"重启又变旧"。删它 → 图标恢复读 rui，但工具栏 dock 可能重置。
+4. **按钮显示文字 = bitmap_id 悬空 或 icon 不被加载**：Rhino 找不到图标就显示 `<button_text>`。
+5. **GUI 验证流程**：命令行 `_-Toolbar` 库名必须输 **Turtle**（输 color-material-turtle 会报 not found）→ Show → color-material-turtle → Yes；或 Window → Containers 勾选。
+6. **AX 操作**：菜单卡住（AXCancel）用多次 esc 或点击其它菜单项切换；元素索引每次观察后重排，不可跨观察复用；屏幕锁定时报 MAC_GUI_ERROR_7_0，等解锁再操作。
+
+### 关键位置索引
+
+| 项 | 位置 | 说明 |
+|---|---|---|
+| 加载位 rui | `packages/8.0/turtle/1.0.0/Turtle.rui` | **改图标必同步这里**，否则 Mac 不生效 |
+| 插件内置 rui | `8.0/MacPlugIns/Turtle.rhp/Turtle.rui`、`MacPlugIns/Turtle.rhp/Turtle.rui` | 同步项 |
+| UI 目录 rui | `8.0/UI/Turtle.rui` | 同步项（Rhino 可能不读，但仍保持同步） |
+| git 源 rui | `rhinoPluging/Resources/Turtle.rui` | 同步项 |
+| 工具栏 dock | `settings/Scheme__Default/containers.xml` | 浮动位置/可见性 |
+| 覆盖层（旧图标 override） | `settings/Scheme__Default/OpenLink_7338352c-….xml` | 症状"重启变旧"时检查/删除 |
+| 插件加载日志 | `~/.config/Turtle/onload.log` | 确认插件加载与"Mac 跳过 ToolbarFiles API" |
+| 31 色映射 | 索引 0–30，24–30 为 A120 半透明+黑描边 | 见 color-turtle 面板顺序 |
+
+
+## 10. Toolbars 面板空白与工具列固化（2026-09-27）
+
+### Toolbars 面板空白修复记录
+
+**症状**：删除 4 个旧工具列（ColorOL-CO / material-co / Material-ma / Mouse-mo）后重启 Rhino，Toolbars 面板空白/变灰，4 个新工具列一个都不显示。
+
+**结论**：库加载正常（`_-Toolbar` → Library → List 显示 4 工具列名齐全），缺失的是**显示状态**，根因在 rui / 覆盖层 / containers.xml 三处残留：
+
+1. **rui 的 `tool_bar_groups` 残留空 `<item>`**（引用已删工具列，无 tool_bar_reference）＋ 新工具列未入组 → 重启后默认不显示。**最终根因**。
+2. **覆盖层** `settings/Scheme__Default/Turtle_7338352c-….xml` 被 Rhino 重写后仍引用已删工具列 → 备份后删除。
+3. **containers.xml** 残留已删工具列 dock_bar → 备份后清理。
+
+**修复**：重写 rui 的 `tool_bar_groups`——清空残留 item，4 个工具列全部 `<tool_bar_reference guid="…"><dock_bar_info visible="1" dock_location="top"/></tool_bar_reference>` → 同步 5 处 → 重启。
+
+**GUI 恢复显示（已验证）**：`_-Toolbar` → Library → 输入 `Turtle` → List → Toolbar → Show → 输入工具列名 → Yes。
+**坑**：在「Choose toolbar option:」直接输入+回车会送进命令行报 `Unknown command`；正确顺序：填入 → 点 Show → 变「Toolbar name:」→ 再填入+回车 → 「Show toolbar "xxx"?」→ Yes。
+
+**持久化验证**：Show 后状态写入 containers.xml（`<dock_bar><tabs selected_item=工具列guid><tool_bar guid=… file=7338352c…/></tabs>`，`visible="True"`），重启后保持；Show 不会重新生成覆盖层。
+
+### 删除旧工具列与固化
+
+- 保留 4 个新工具列：Turtle 主（`609e6fcc`）/ color-turtle（`c479780d`）/ color-material-turtle（`97eb5b7a`）/ material-turtle（`3cdefd34`）。
+- 删除 4 个旧工具列 + 孤儿宏 238 + 孤儿图标 236；文件 1.27MB → 400KB；备份 `Resources/Turtle.rui.bak-del-old4`。
+- rui 同步 5 处（Mac 真正加载位：`packages/8.0/turtle/1.0.0/Turtle.rui`）；两份 rui（Resources/assets）以时间最新为准统一 md5。
+- git 提交链：`d9bf2cc`→`e1aa0d8`→`1ff067a`→`ea1ffa6`→`e187425`（删旧工具列）→`6161d2d`（tool_bar_groups 修复，已 push）。
