@@ -1,9 +1,8 @@
 ---
 title: "OpenLink 博客写作指南"
 titleEn: "OpenLink Blog Writing Guide"
-name: "OpenLink 博客写作指南"
 date: "2026-09-12"
-description: "OpenLink 博客写作速查模板：frontmatter、注释、gallery 轮播、视频嵌入、项目信息、文章互链引用。所有元素都是本站真实支持的能力，照着写即可。本文会随网页优化持续更新。"
+description: "OpenLink 博客写作速查模板：frontmatter、文件夹结构、注释、gallery 轮播、视频嵌入、文章互链。所有元素都是本站真实支持的能力，照着写即可。本文会随网页优化持续更新。"
 author: "zhenliu"
 category:
   - 日志
@@ -11,50 +10,77 @@ category:
 status: "public"
 ---
 
-这篇是 OpenLink 的写作指南模板，目标是"想写任何东西都能照抄结构"。每个元素都经过本站渲染代码实测：**frontmatter 字段、注释语法、gallery 轮播、视频、项目信息、文章互链**。随网页优化不断更新，遇到新能力就加一节。
+这篇是 OpenLink 的写作指南模板，目标是"想写任何东西都能照抄结构"。每个元素都经过本站渲染代码实测：**frontmatter 字段、文件夹结构、注释语法、gallery 轮播、视频、文章互链**。随网页优化不断更新，遇到新能力就加一节。
 
 ---
 
 ## 1. 文件与 frontmatter
 
-一篇新文章 = 在 `src/content/blog/` 下新建一个 `.md` 文件（扁平目录，**不要建子文件夹**）。文件名会成为网址（slug）。
+### - 文件夹结构（和项目一致）
 
-头部与 Hershel 一致：`title` 写中文主标题、`titleEn` 写英文标题（目录顶部优先显示，缺省回退 title），`name` 写页面 H1 大标题（一般同中文标题）。
+每篇博客文章一个独立文件夹，放在 `src/content/blog/public/` 下：
+
+```
+src/content/blog/
+  public/
+    我的文章/
+      images/              ← 这篇文章的图片、视频都放这里
+        封面.png
+        图1.jpg
+      我的文章.md           ← 文章本体
+    另一篇文章/
+      images/
+      另一篇文章.md
+  draft/                   ← 草稿（线上不显示）
+```
+
+- 新建文章：在 `public/` 下建一个**和文章同名的文件夹**，里面建 `images/` 子文件夹，再把 `.md` 文件放进去
+- Obsidian 粘贴图片时，自动存入当前文章的 `images/` 文件夹（Obsidian 设置：附件 → 当前文件夹下 → images）
+- 网址 = 文件夹名，例如 `public/我的文章/我的文章.md` → `/blog/我的文章/`
+
+### - frontmatter 模板
 
 ```markdown
-// src/content/blog/示例文章.md —— frontmatter 模板
+// src/content/blog/public/示例文章/示例文章.md —— frontmatter 模板
 ---
-title: "文章中文标题"             # 必填：中文主标题，SEO 用
-titleEn: "Article English Title"  # 可选：英文标题，目录顶部优先显示；
-date: "2026-09-12"               # 可选：一律 "YYYY-MM-DD"；不写则取文件修改日期
-description: "一句话摘要"         # 可选
-author: "zhenliu"                # 可选，默认 zhenliu；多作者写数组 ["a","b"]
+title: 文章中文标题             # 必填：主标题，SEO 用；H1 用这个（不再有 name）
+titleEn: Article English Title  # 可选：英文标题，目录顶部优先显示
+date: 2026-09-12              # 可选：一律 "YYYY-MM-DD"；不写则取文件修改日期
+description: 一句话摘要         # 可选
+author: 
+  - zhenliu                # 可选，默认 zhenliu；单作者写字符串，多作者写数组
 category:
-  - 学习                         # 可选，可多个；任意字符串，参考：学习/工厂/设计
-status: "public"                 # public/private/hidden/draft，默认 public
-update: "2026-09-13"             # 可选：不写则自动识别文件修改日期（upd YYMMDD）
-
+  - 学习                         # 可选，可多个；任意字符串
+status: public                 # public/private/hidden/draft，默认 public
+update: 2026-09-13             # 可选：不写则自动识别文件修改日期（upd YYMMDD）
+notes:                           # 可选：右栏引注（旧式写法，推荐用花括号语法见第 3 节）
+  - 第一条引注
 ---
 ```
 
-**与 Hershel 的差异**：Hershel 用 `title`（中文）+ `titleEn`（英文）两个字段，H1 显示 `title`；OpenLink 多一个 `name` 字段作 H1（兼容旧文章），`title`/`titleEn` 显示在目录顶部与 SEO。头部效果一致：中文大标题 + 英文目录顶。
+**字段说明**：
+- `title` 必填，中文主标题，页面 H1 与 SEO 都用它（**已去掉 `name` 字段**，旧文章的 name 已并入 title）
+- `titleEn` 可选，英文标题，左侧目录顶部显示（项目文章同理：中文 title + 英文 titleEn）
+- `date` 可选，带引号或不带引号都可以，一律 `YYYY-MM-DD`
+- `update` 可选，不写自动取文件最后修改日期
+- 引号可用可不用：`title: 文章中文标题` 与 `title: "文章中文标题"` 等效
 
 ### - 可见性 status
 
 | status | 效果 |
 |---|---|
-| `public` | 正常公开 |
+| `public` | 正常公开，放 `public/` 文件夹 |
 | `private` | 线上列表隐藏，独立页走 `/blog/private/` 密码路径 |
 | `hidden` | 线上彻底不生成页面，仅本地 dev 可见 |
-| `draft` | 草稿，线上列表隐藏 |
+| `draft` | 草稿，放 `draft/` 文件夹，线上列表隐藏 |
 
 ---
 
 ## 2. 标题与目录
 
-- 正文**不要再写 `#`**：H1 由 frontmatter 的 `name` 自动生成，目录顶部显示 `title`。
-- 章节用 `##`，子章节用 `###`——两者自动进入左侧标题树（`###` 自动缩进折叠）。
-- 标题层级连续递进，不要从 `####` 起步。
+- 正文**不要再写 `#`**：H1 由 frontmatter 的 `title` 自动生成
+- 章节用 `##`，子章节用 `###`——两者自动进入左侧标题树（`###` 自动缩进折叠）
+- 标题层级连续递进，不要从 `####` 起步
 
 ```markdown
 ## 项目背景
@@ -78,21 +104,11 @@ update: "2026-09-13"             # 可选：不写则自动识别文件修改日
 
 规则三条：
 
-- `{被注释的文字|注释内容}`：花括号内是范围，竖线后是注释；
-- 序号（1、2、3…）**自动生成**，注释自动进右栏，悬停上标可看解释；
-- 屏幕不够宽时，注释自动落到文章末尾。
+- `{被注释的文字|注释内容}`：花括号内是范围，竖线后是注释
+- 序号（1、2、3…）**自动生成**，注释自动进右栏
+- 点击带下划线的词，正文词和右栏注释同时灰底高亮，1.8 秒后消退
 
-### - 实际效果演示
-
-下面是真实渲染的注释效果（不是代码块），把鼠标悬停在带下划线的词上，或看右栏 1: 2: 3: 引注：
-
-所谓{参数化|用参数驱动形态生成}设计，核心是……
-
-要达到{庖丁解牛|出自《庄子》，指技艺纯熟}的境界，需要反复练习。
-
-{这段整句都需要补充背景。|整句注释：花括号包住完整句子，下划线覆盖整个范围}
-
-**兼容旧写法**：早期文章用的 frontmatter `notes:` + `<sup>编号</sup>` 仍能正常显示；新文章推荐花括号语法。不要用 Markdown 脚注 `[^1]:`，本站不渲染。
+**兼容旧写法**：frontmatter `notes:` 数组仍能显示；新文章推荐花括号语法。不要用 Markdown 脚注 `[^1]:`，本站不渲染。
 
 ---
 
@@ -104,11 +120,11 @@ update: "2026-09-13"             # 可选：不写则自动识别文件修改日
 ![建筑渲染图](images/渲染图.png)
 ```
 
-图片会自动做响应式压缩（srcset）+ 点击全屏灯箱（PhotoSwipe）。**图片放哪**：博客文章图片放 `src/content/blog/images/`，正文里写相对路径 `images/文件名`。
+图片放当前文章文件夹的 `images/` 里，正文写相对路径 `images/文件名`。图片自动响应式压缩 + 点击全屏灯箱。
 
 ### - 多图轮播 gallery
 
-把多张图包进 ```gallery 代码块，自动变成轮播 + 灯箱（把示例路径换成真实图片）：
+把多张图包进 ```gallery 代码块，自动变成轮播 + 灯箱：
 
 ````markdown
 ```gallery
@@ -118,49 +134,25 @@ update: "2026-09-13"             # 可选：不写则自动识别文件修改日
 ```
 ````
 
-- 多图自动轮播（每张 1s，悬停暂停），点击进全屏灯箱；单图只显示不轮播。
-- 容器比例构建期自动按"最瘦图"内联，加载不跳动。
-
-#### 真实轮播演示
-
-下面这个轮播是**真实渲染效果**（用的本站 blog/images 里的图，可直接点击进灯箱看大图）：
-
-```gallery
-![](images/商业效果图02.jpg)
-![](images/商业效果图03.jpg)
-![](images/商业效果图04.jpg)
-```
+- 多图自动轮播（每张 1 秒，悬停暂停），点击进全屏灯箱
+- 容器比例构建期自动按"最瘦图"内联，加载不跳动
 
 #### 修改轮播速度
 
 轮播间隔在 `src/components/MediaGallery.astro`：
 
-- 第 51、55 行 `window.setTimeout(tick, 1000)`：**1000 = 每张停留 1 秒**，改大放慢、改小加快；
-- 第 44 行 `new Promise((resolve) => window.setTimeout(resolve, 8000))`：慢图等待上限 8s，防止图片加载慢时轮播卡死（一般不用改）。
-
 ```js
-// src/components/MediaGallery.astro 第 51 行 —— 轮播节奏
-window.setTimeout(tick, 1000);   // ← 1000ms = 每张停留 1 秒，改这里调整轮播速度
-```
-
-### - 项目文章（projects）的图片路径
-
-项目文章在 `src/content/projects/<项目名>/` 子目录下，图片放同目录 `images/`，正文写 `images/文件名`（带 URL 编码如 `Pasted%20image...` 也行）。
-
-```markdown
-// src/content/projects/某项目/某项目.md
-![](images/照片1.jpg)
+// 1000ms = 每张停留 1 秒，改这里调整轮播速度
+window.setTimeout(tick, 1000);
 ```
 
 ---
 
 ## 5. 视频
 
-两种方式，按场景选：
-
 ### - 本地视频文件（mp4 等）
 
-直接把视频文件放进文章图片目录，用图片语法引用，构建期自动转成 `<video controls>`：
+直接放进当前文章的 `images/` 文件夹，用图片语法引用：
 
 ```markdown
 ![](images/方案动画.mp4)
@@ -168,7 +160,7 @@ window.setTimeout(tick, 1000);   // ← 1000ms = 每张停留 1 秒，改这里�
 
 ### - 外链视频（B 站 / YouTube 等）
 
-直接嵌 HTML iframe，Tailwind 工具类同样生效：
+直接嵌 HTML iframe：
 
 ```html
 <div class="relative w-full aspect-video rounded-xl overflow-hidden border my-6">
@@ -179,46 +171,7 @@ window.setTimeout(tick, 1000);   // ← 1000ms = 每张停留 1 秒，改这里�
 
 ---
 
-## 6. 项目信息（projects 集合）
-
-项目是独立的内容集合：`src/content/projects/<项目名>/<项目名>.md`，**封面缩略图/小视频是项目列表页才有的能力**（博客列表页目前不显示缩略图）。
-
-### - 项目 frontmatter
-
-```markdown
-// src/content/projects/某项目/某项目.md —— frontmatter 模板
----
-title: "Project English Title"     # 必填：英文标题
-name: "中文项目名"                  # 必填：中文标题
-category:
-  - 设计                           # 必填：分类
-coverImage: "./images/封面图.png"   # 封面缩略图（列表页卡片用）
-coverMedia: "./images/封面.mp4"     # 封面小视频，与 coverImage 二选一、优先；mp4/gif 均可
-description: "一句话摘要"
-date: "2025-02-16"
-status: "public"
-notes:
-  - "引注"
----
-```
-
-**封面小视频**：想要项目卡片上是动图效果，用 `coverMedia` 指到 `images/` 下的 mp4，列表页自动"进视口播放、滚出暂停"。
-
-### - 项目信息怎么写
-
-正文底部用 `#### 项目信息` 小节列关键数据，中英对照：
-
-```markdown
-#### 项目信息
-- 项目类型：厂房 / Project Type: Factory Building
-- 完成年份：2025 / Completion Year: 2025
-- 建筑面积：139455 m² / Project Area: 139455 m²
-- 主要材料：耐候钢、碲化镉光伏 / Materials: Weathering Steel, CdTe PV
-```
-
----
-
-## 7. 文章之间相互引用
+## 6. 文章之间相互引用
 
 用**标准 Markdown 链接**（不要用 Obsidian 的 `[[]]` 双链，网页不渲染）。
 
@@ -228,66 +181,48 @@ notes:
 完整工作流见[Turtle 插件开发要点](/blog/Turtle%20插件开发要点)。
 ```
 
-链接路径 = `/blog/` + 文件名（去 `.md`，空格用 `%20`）。
+链接路径 = `/blog/` + 文章文件夹名（空格用 `%20`）。
 
 ### - 引用项目
 
 ```markdown
-材料用法的完整总结见[新疆丝绸之路陶瓷博物馆](/projects/Xinjiang_Museum)。
+材料用法的完整总结见[海南游客驿站](/projects/Hainan-TouristStation)。
 ```
-
-### - 材料单独成文 + 互相引用的推荐模式
-
-项目信息里出现的材料，**单独写一篇材料用法文章**，项目页和材料页互相引用：
-
-```markdown
-// 材料用法文章（放 src/content/blog/）
----
-title: "Material Notes: CdTe PV"
-name: "碲化镉光伏组件材料笔记"
----
-
-本文总结{碲化镉光伏|CdTe 薄膜光伏组件，弱光性能好}的构造与用法……
-
-实际应用案例见[新疆丝绸之路陶瓷博物馆](/projects/Xinjiang_Museum)。
-```
-
-```markdown
-// 项目页里引用材料文章
-- 主要材料：耐热钢、碲化镉光伏 / Materials: ...
-  用法详见[碲化镉光伏组件材料笔记](/blog/碲化镉光伏组件材料笔记)。
-```
-
-这样：项目页给"案例上下文"，材料页给"可复用知识"，两篇互为入口，读者不会迷路。
 
 ---
 
-## 8. 写作检查清单
+## 7. 写作检查清单
 
 写完后逐条核对：
 
-- [ ] frontmatter 只有本站字段（title/titleEn/name/category/description/status/notes/author/update/date）
-- [ ] title 写中文、titleEn 写英文（可选）、name 写中文 H1
+- [ ] 文章放在 `public/` 下，有同名文件夹和 `images/` 子文件夹
+- [ ] frontmatter 必填 `title`（已无 `name` 字段，H1 直接用 title）
 - [ ] 正文没有 `#` 一级标题，章节从 `##` 起步
 - [ ] 注释用 `{范围|注释}`，没写 Markdown 脚注
-- [ ] gallery 用 ```gallery 代码块包多图，不用普通多张 `![]()` 堆叠（除非想要单图效果）
+- [ ] gallery 用 ```gallery 代码块包多图
+- [ ] 图片放当前文章的 `images/`，正文写 `images/文件名`
 - [ ] 本地视频用 `![](xxx.mp4)`，外链视频用 iframe
 - [ ] 文章互链用 `/blog/...` 与 `/projects/...` 标准链接
-- [ ] 图片路径存在，空格用 `%20` 或直接保留（构建期会自动修空格）
 
 ---
 
-## 9. 版本更新
+## 8. 版本更新
 
-本文随网页优化持续更新，每次新增/变更能力在此记录。
+本文随网页优化持续更新。
+
+### 2026-09-22 (v2.1)
+
+- **frontmatter 统一头部（去掉 `name`）**：所有文章（博客 + 项目）frontmatter 对齐统一模板，删除 `name` 字段；`title` 为中文主标题（H1/SEO），`titleEn` 为英文副标题。项目文章原 `title`（英文）→ `titleEn`，原 `name`（中文）→ `title`；博客文章原 `name` 直接并入 `title`
+- 同步修改 `src/content.config.ts`（projects 集合去掉必填 `name`、新增可选 `titleEn`）与页面布局（项目 H1 / 上下篇 / 列表卡片 / 首页 Recent 改用 `title`，标题树顶部英文优先用 `titleEn`）
+- `date` / `update` 引号可用可不用；`update:` 空值会被 schema 拒绝，不写或写日期均可
+
+### 2026-09-20 (v2.0)
+
+- **文件夹结构改版**：每篇文章一个独立文件夹（`public/文章名/images/`），和项目结构一致；图片不再集中放 `blog/images/`，而是各放各的
+- **`name` 改为可选**：不写自动用 `title` 作 H1，两者重复时只写 `title` 即可
+- glob pattern：`src/content.config.ts` blog 集合匹配 `*/*.md` 和 `*/*/*.md`（兼容 draft 单层和 public 双层）
+- slug 取路径第二段（文件夹名），URL 保持 `/blog/文章名/` 单层
 
 ### 2026-09-12 (v1.0)
 
 - 初版：覆盖 frontmatter、标题层级、注释、图片/gallery、视频、项目信息、文章互链、检查清单。
-- 依据：`src/content.config.ts`（schema）、`src/pages/blog/[...slug].astro`（三栏渲染）、`scripts/remark-obsidian-media.mjs`（gallery/图片/视频插件）、`src/pages/projects/index.astro`（封面缩略图/小视频）。
-
-### 2026-09-12 (v1.1)
-
-- **头部与 Hershel 一致**：frontmatter 支持 `titleEn` 英文标题（目录顶部优先显示、SEO 用，缺省回退 title）；`name` 仍是页面 H1。同步改了 `src/content.config.ts`（schema 加 titleEn）与 `src/pages/blog/[...slug].astro`（渲染 headerTitle）。
-- 注释章节新增**真实效果演示**（悬停下划线词 / 右栏引注）。
-- gallery 章节新增**真实轮播演示**（用 `src/content/blog/images/商业效果图*.jpg`），并写明轮播速度修改位置（`src/components/MediaGallery.astro` 第 51/55 行 `setTimeout(tick, 1000)`）。

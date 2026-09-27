@@ -1,6 +1,6 @@
 ---
-title: Private Post Test
-name: 测试私密文章
+title: "测试私密文章"
+titleEn: "Private Post Test"
 category:
   - test
 description: 临时验证私密机制用

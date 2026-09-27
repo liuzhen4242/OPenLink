@@ -1,6 +1,6 @@
 ---
-title: Hidden Post Test
-name: 测试隐藏文章
+title: "测试隐藏文章"
+titleEn: "Hidden Post Test"
 category:
   - test
 description: 临时验证 hidden 机制用

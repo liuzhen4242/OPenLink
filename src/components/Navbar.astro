@@ -41,24 +41,18 @@ const currentPath = Astro.url.pathname;
     transition: background-color 0.3s ease;
   }
 
-  /* 桌面端：导航白色背景从 OPENLINK 位置开始，左边目录栏上方留空，不遮挡主题按钮 */
+  /* 桌面端：导航白色背景从 OPENLINK 位置开始，和正文栏左边界严格对齐 */
   @media (min-width: 1024px) {
     nav {
+      --col-left: calc((100vw - min(100vw, var(--max-w))) / 2);
+      --pad-left: max(var(--pad-x), calc(var(--toggle-safe) - var(--col-left)));
+      --toc-edge: calc(var(--col-left) + var(--pad-left) + min(220px, 20vw));
+      --body-left: calc(var(--toc-edge) + 3rem);
       background: linear-gradient(
         to right,
         transparent 0,
-        transparent calc(
-          max(
-            calc((100vw - min(100vw, var(--max-w))) / 2 + var(--pad-x)),
-            var(--toggle-safe)
-          ) + 220px + 3rem
-        ),
-        var(--c-bg) calc(
-          max(
-            calc((100vw - min(100vw, var(--max-w))) / 2 + var(--pad-x)),
-            var(--toggle-safe)
-          ) + 220px + 3rem
-        ),
+        transparent var(--toc-edge),
+        var(--c-bg) var(--toc-edge),
         var(--c-bg) 100%
       );
     }
@@ -82,12 +76,7 @@ const currentPath = Astro.url.pathname;
   /* 桌面端：详情页默认 OPENLINK 右移，对齐中间正文栏左边界 */
   @media (min-width: 1024px) {
     .nav-inner {
-      padding-left: calc(
-        max(
-          var(--pad-x),
-          calc(var(--toggle-safe) - (100vw - min(100vw, var(--max-w))) / 2)
-        ) + 220px + 3rem
-      );
+      padding-left: var(--nav-pad);
     }
   }
 
@@ -148,12 +137,8 @@ const currentPath = Astro.url.pathname;
   /* 桌面端：详情页默认下划线左右收窄，和正文分隔线同宽 */
   @media (min-width: 1024px) {
     .nav-rule {
-      margin-left: calc(
-        (100vw - min(100vw, var(--max-w))) / 2 + var(--pad-x) + 220px + 3rem
-      );
-      margin-right: calc(
-        (100vw - min(100vw, var(--max-w))) / 2 + var(--pad-x) + 200px + 3rem
-      );
+      margin-left: var(--body-left);
+      margin-right: calc(var(--col-left) + var(--pad-x) + 200px + 3rem);
     }
   }
 

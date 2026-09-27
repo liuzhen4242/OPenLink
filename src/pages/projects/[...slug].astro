@@ -99,7 +99,7 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
           <a
             href={prevProject ? `/projects/${idToSlug(prevProject.id)}` : '#'}
             aria-label="上一篇"
-            title={prevProject ? `上一篇: ${prevProject.data.name}` : '没有上一篇了'}
+            title={prevProject ? `上一篇: ${prevProject.data.title}` : '没有上一篇了'}
             class:list={[
               'transition-colors duration-200',
               !prevProject
@@ -122,7 +122,7 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
           <a
             href={nextProject ? `/projects/${idToSlug(nextProject.id)}` : '#'}
             aria-label="下一篇"
-            title={nextProject ? `下一篇: ${nextProject.data.name}` : '没有下一篇了'}
+            title={nextProject ? `下一篇: ${nextProject.data.title}` : '没有下一篇了'}
             class:list={[
               'transition-colors duration-200',
               !nextProject
@@ -148,7 +148,7 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
               data-toc-top
               class="block font-semibold tracking-wide uppercase mb-3 transition-colors duration-200"
             >
-              {data.title}
+              {data.titleEn || data.title}
             </a>
             <nav class="flex flex-col space-y-1">
               {tocGroups.map((group) =>
@@ -203,9 +203,9 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
           {data.date && <span class="project-date">{data.date}</span>}
         </div>
         <h1 class="project-title text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900 dark:text-white">
-          {data.name}
+          {data.title}
         </h1>
-        <p class="project-title-en">{data.title}</p>
+        {data.titleEn && <p class="project-title-en">{data.titleEn}</p>}
         {data.description && <p class="project-desc">{data.description}</p>}
       </header>
 

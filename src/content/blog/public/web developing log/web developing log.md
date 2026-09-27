@@ -1,6 +1,6 @@
 ---
-title: Web Development Log
-name: Web 开发日志
+title: "Web 开发日志"
+titleEn: "Web Development Log"
 category:
   - web
   - test

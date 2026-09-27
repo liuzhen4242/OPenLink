@@ -13,10 +13,8 @@ import MediaGallery from '../../components/MediaGallery.astro';
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog');
-  // id 形如 文件夹名/文章名，取第一段作为 URL slug
-  const idToSlug = (id) => id.replace(/\.md$/, '').split('/')[1];
   return posts.flatMap((post) => {
-    const slug = idToSlug(post.id);
+    const slug = post.id.replace(/\.md$/, '').split('/')[1];
     const status = post.data.status;
     // 线上：hidden 彻底不生成页面（网上不可见）；本地 dev 正常显示，方便自己查看。
     if (import.meta.env.PROD && status === 'hidden') return [];
@@ -29,9 +27,10 @@ export async function getStaticPaths() {
 
 const { post } = Astro.props;
 const { Content, headings } = await render(post);
-const { title, titleEn, name, date, description, notes = [], author, update, category = [], status } = post.data;
+const { title, titleEn, name: rawName, date, description, notes = [], author, update, category = [], status } = post.data;
 // 头部英文标题：titleEn 优先，缺省回退 title（兼容旧文章）；与 Herschel 目录顶部逻辑一致
 const headerTitle = titleEn || title;
+const displayName = rawName || title;
 
 // update 自动识别：frontmatter 未写 update 时，取文件最后修改日期作为更新日期（借鉴 Herschel）
 let updateDate = update;
@@ -66,7 +65,7 @@ const allPosts = (await getCollection('blog')).sort(
   (a, b) => new Date(b.data.date || 0).getTime() - new Date(a.data.date || 0).getTime(),
 );
 const currentIndex = allPosts.findIndex((p) => p.id === post.id);
-const toPostLink = (p) => ({ url: `/blog/${idToSlug(p.id)}`, title: p.data.name || p.data.title });
+const toPostLink = (p) => ({ url: `/blog/${p.id.replace(/\.md$/, '').split('/')[1]}`, title: p.data.name || p.data.title });
 const prevPost = currentIndex > 0 ? toPostLink(allPosts[currentIndex - 1]) : undefined;
 const nextPost =
   currentIndex >= 0 && currentIndex < allPosts.length - 1
@@ -180,7 +179,7 @@ const nextPost =
       <!-- h1 上方放 #top 哨兵：回顶锚点目标 + 顶部高亮观察哨兵 -->
       <span id="top" aria-hidden="true"></span>
       <h1 class="post-title text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900 dark:text-white">
-        {name}
+        {displayName}
       </h1>
 
       <!-- 元数据行：分类 / 日期 / 更新 / 状态徽章（借鉴 Herschel 元数据行） -->
