@@ -10,7 +10,9 @@ date: 2026-09-04
 status: public
 ---
 
-### 媒体加载优化
+
+- 
+## 媒体加载优化
 #### 视频自适应
 ```html
 <!-- 视频嵌入：宽度100%自适应，高度按比例自动计算，无黑边 -->
@@ -50,8 +52,8 @@ window.setTimeout(tick, 3000);
 
 
 
-### 排版相关
-#### 三栏骨架与宽度调整
+## 排版相关
+### 三栏骨架与宽度调整
 参考 Herschel 博客三栏结构，调整要点如下：
 
 **整体最大宽度**
@@ -98,7 +100,7 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
 ```
 - 左目录栏右内边距 `pr-4`、右注释栏左内边距 `pl-4`，两个值保持一致，视觉间隙才对称；之前右边是 `pl-6` 比左边宽8px，导致不对称。
 
-#### 顶部导航与下划线
+### 顶部导航与下划线
 ```css
 // src/components/Navbar.astro：OPENLINK 对齐正文的左偏移
 .nav-inner {
@@ -136,7 +138,7 @@ nav {
 ```
 - `top-[3.5rem]` 控制黑白按钮滚动时停留位置，调整数值让它和 OPENLINK 水平对齐。
 
-#### 目录折叠与高亮
+### 目录折叠与高亮
 ```html
 <!-- 侧边导航箭头：有子项才显示，无任何子项不显示 -->
 .toc-parent::before { content: '▾'; }
@@ -153,7 +155,7 @@ new IntersectionObserver(callback, {
 - 当前章节导航项自动变黑色，顶部标题同步变灰；页面回顶时清除高亮，顶部标题变黑。
 - 点击导航项立刻高亮，不等平滑滚动结束。
 
-### 文章可见性控制
+## 文章可见性控制
 ```yaml
 # frontmatter 中 status 字段控制文章可见性
 status: public  # 公开：所有人可见，列表页正常展示
@@ -165,7 +167,7 @@ status: public  # 公开：所有人可见，列表页正常展示
 - 线上 build 时自动按 status 过滤：hidden 不生成页面，private 走密码保护路径。
 - 新增文章默认 `public`，不需要手动写。
 
-### 文章 Frontmatter 模板
+## 文章 Frontmatter 模板
 所有博客文章开头统一使用以下模板：
 
 ```yaml
