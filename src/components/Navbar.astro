@@ -48,6 +48,7 @@ const currentPath = Astro.url.pathname;
       --pad-left: max(var(--pad-x), calc(var(--toggle-safe) - var(--col-left)));
       --toc-edge: calc(var(--col-left) + var(--pad-left) + min(220px, 20vw));
       --body-left: calc(var(--toc-edge) + 3rem);
+      --nav-pad: calc(var(--pad-left) + min(220px, 20vw) + 3rem);
       background: linear-gradient(
         to right,
         transparent 0,
