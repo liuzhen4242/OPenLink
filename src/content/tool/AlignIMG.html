@@ -90,6 +90,20 @@
     .btn-minimal:active {
       transform: scale(0.98);
     }
+
+    /* 原位输入框样式 */
+    .inline-editor-box {
+      position: absolute;
+      background: transparent;
+      outline: none;
+      border: 1px dashed #0f172a;
+      padding: 0 4px;
+      margin: 0;
+      white-space: nowrap;
+      line-height: 1.1;
+      z-index: 50;
+      caret-color: #0f172a;
+    }
   </style>
 </head>
 <body class="bg-ink-50 text-ink-900 h-screen w-screen flex flex-col font-sans select-none overflow-hidden">
@@ -151,10 +165,16 @@
       </div>
 
       <!-- Mode & Target Switch -->
-      <div id="layerConfigPanel" class="p-3 border-b border-ink-100 text-xs flex flex-col gap-2.5 bg-ink-50/60">
+      <div id="layerConfigPanel" class="p-3 border-b border-ink-100 text-xs flex flex-col gap-2 bg-ink-50/60">
         <div class="flex items-center justify-between">
           <span class="font-semibold text-ink-900 truncate max-w-[120px]" id="currentEditingLayerName">未选择图层</span>
-          <span id="badgeCurrentRole" class="text-[10px] px-1.5 py-0.5 rounded bg-white border border-ink-200 text-ink-600 font-mono">基准</span>
+          <div class="flex items-center gap-1">
+            <button id="btnResetAnchor" class="text-[10px] text-rose-600 hover:underline" title="一键重置当前图层的标定角点">
+              重置标定
+            </button>
+            <span class="text-ink-300">·</span>
+            <span id="badgeCurrentRole" class="text-[10px] px-1.5 py-0.5 rounded bg-white border border-ink-200 text-ink-600 font-mono">基准</span>
+          </div>
         </div>
 
         <!-- 1-Point / 2-Point Mode Selector -->
@@ -164,7 +184,7 @@
         </div>
 
         <!-- Target Point Selector (A or B) -->
-        <div class="flex items-center justify-between pt-1">
+        <div class="flex items-center justify-between pt-0.5">
           <span class="text-[11px] text-ink-500">当前定点:</span>
           <div class="inline-flex rounded border border-ink-200 p-0.5 bg-white text-[10px]">
             <button id="btnPickPointA" class="px-2 py-0.5 rounded font-mono font-medium bg-ink-900 text-white">点 A</button>
@@ -183,6 +203,12 @@
             <span id="labelTransformInfo" class="text-ink-900 font-semibold">100.0% / 0.0°</span>
           </div>
         </div>
+
+        <!-- CV Auto Refinement Button -->
+        <button id="btnAutoRefineCV" class="w-full py-1 text-[11px] bg-white hover:bg-ink-100 border border-ink-200 rounded font-medium text-ink-700 flex items-center justify-center gap-1.5 transition shadow-sm mt-0.5" title="以基准图局部特征自动滑窗消除 1~3px 细微重影">
+          <i data-lucide="crosshair" class="w-3 h-3 text-ink-600"></i>
+          <span>自动精细对齐 (消除微小重影)</span>
+        </button>
 
         <div id="baseMissingPointBWarning" class="hidden p-2 rounded bg-amber-50 border border-amber-200 text-[11px] text-amber-800 flex flex-col gap-1">
           <span>图 1 尚未标定【基准点 B】</span>
@@ -249,7 +275,7 @@
           <div class="h-3 w-px bg-ink-200"></div>
 
           <!-- Text Tool Trigger -->
-          <button id="btnToggleTextMode" class="btn-minimal inline-flex items-center gap-1 px-2 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-[11px] text-ink-700" title="在画面中添加或编辑文字标注">
+          <button id="btnToggleTextMode" class="btn-minimal inline-flex items-center gap-1 px-2 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-[11px] text-ink-700" title="在画布上直接点击落字，或拖动文字框调整大小">
             <i data-lucide="type" class="w-3 h-3 text-ink-500"></i> 文字
           </button>
         </div>
@@ -257,13 +283,11 @@
         <!-- Right Tools: Streamlined Color Pickers & Ratios -->
         <div class="flex items-center gap-2">
           
-          <!-- Minimal Backdrop Swatch (Text removed as requested) -->
+          <!-- Minimal Backdrop Swatch -->
           <div class="flex items-center gap-1 border border-ink-200 rounded p-0.5 bg-white">
-            <!-- Quick B/W Toggle -->
             <button id="btnToggleBW" class="btn-minimal px-1.5 py-0.5 rounded text-[10px] font-mono hover:bg-ink-100 text-ink-800" title="在纯白与纯黑之间快速切换">
               白/黑
             </button>
-            <!-- Native Color Swatch -->
             <div class="relative w-4 h-4 rounded overflow-hidden border border-ink-300 flex items-center justify-center cursor-pointer" title="自选调色板底色">
               <input type="color" id="bgColorPicker" value="#ffffff" class="absolute -inset-2 w-8 h-8 opacity-0 cursor-pointer">
               <div id="bgColorSwatchPreview" class="w-full h-full bg-white"></div>
@@ -293,9 +317,6 @@
       <!-- Main Canvas Viewport -->
       <div id="viewportWrap" class="flex-1 min-h-0 relative overflow-hidden canvas-bg-pattern flex items-center justify-center cursor-default">
         <canvas id="mainCanvas" class="block w-full h-full"></canvas>
-
-        <!-- Text Annotations Overlay Layer -->
-        <div id="textOverlayContainer" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
 
         <!-- Empty Canvas Hint -->
         <div id="canvasEmptyState" class="absolute inset-0 flex flex-col items-center justify-center text-center p-4 pointer-events-none">
@@ -327,35 +348,10 @@
           </div>
           <div class="h-4 w-px bg-ink-200"></div>
           <div class="flex items-center gap-1">
-            <button id="btnResetAnchor" class="px-1.5 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-ink-700 text-[10px]">
-              重新标定
-            </button>
             <button id="btnFitCrop" class="px-1.5 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-ink-700 text-[10px]">
               适应边界
             </button>
           </div>
-        </div>
-
-        <!-- Floating Text Bar (When Text Tool is active) -->
-        <div id="textEditBar" class="hidden absolute top-3 left-1/2 -translate-x-1/2 bg-white border border-ink-200 rounded-md shadow-md p-1.5 flex items-center gap-2 z-30 text-xs">
-          <span class="text-[11px] font-medium text-ink-700 pl-1">添加文字:</span>
-          <input type="text" id="newTextInput" placeholder="输入标注文字..." value="分析图层 01" class="border border-ink-200 px-2 py-0.5 rounded text-xs outline-none focus:border-ink-900 w-36">
-          <select id="textColorSelect" class="border border-ink-200 rounded px-1 py-0.5 text-xs outline-none bg-white">
-            <option value="#0f172a">黑色</option>
-            <option value="#ffffff">白色</option>
-            <option value="#ef4444">红色</option>
-            <option value="#3b82f6">蓝色</option>
-            <option value="#eab308">黄色</option>
-          </select>
-          <select id="textSizeSelect" class="border border-ink-200 rounded px-1 py-0.5 text-xs outline-none bg-white font-mono">
-            <option value="16">16px</option>
-            <option value="20" selected>20px</option>
-            <option value="28">28px</option>
-            <option value="36">36px</option>
-            <option value="48">48px</option>
-          </select>
-          <button id="btnAddTextItem" class="btn-minimal px-2 py-0.5 rounded bg-ink-900 text-white font-medium text-xs">放置</button>
-          <button id="btnCloseTextBar" class="p-0.5 text-ink-400 hover:text-ink-800"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
         </div>
       </div>
     </main>
@@ -374,17 +370,14 @@
 
     <!-- Export Buttons -->
     <div class="flex items-center gap-2">
-      <!-- Uncompressed PNG Export Button -->
       <button id="btnExportPngDirect" class="btn-minimal inline-flex items-center gap-1 px-3 py-1 rounded border border-ink-200 bg-white hover:bg-ink-50 text-xs font-medium text-ink-800" title="逐张下载无损未压缩的原尺寸PNG序列文件">
         <i data-lucide="image" class="w-3 h-3 text-ink-500"></i> 导出 PNG
       </button>
 
-      <!-- PNG Zip Bundle -->
       <button id="btnExportZip" class="btn-minimal inline-flex items-center gap-1 px-3 py-1 rounded border border-ink-200 bg-white hover:bg-ink-50 text-xs font-medium text-ink-800">
         <i data-lucide="archive" class="w-3 h-3 text-ink-500"></i> 打包 ZIP
       </button>
 
-      <!-- GIF Studio -->
       <button id="btnOpenGifStudio" class="btn-minimal inline-flex items-center gap-1 px-3.5 py-1 rounded bg-ink-900 hover:bg-ink-800 text-white text-xs font-medium">
         <i data-lucide="film" class="w-3 h-3 text-ink-300"></i> 导出 GIF
       </button>
@@ -395,7 +388,6 @@
   <div id="gifModal" class="fixed inset-0 bg-ink-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white border border-ink-200 rounded-lg max-w-xl w-full flex flex-col overflow-hidden shadow-lg max-h-[88vh]">
       
-      <!-- Modal Header -->
       <div class="h-10 px-4 border-b border-ink-100 flex items-center justify-between shrink-0">
         <span class="text-xs font-semibold text-ink-900 flex items-center gap-1.5">
           <i data-lucide="play" class="w-3.5 h-3.5 text-ink-700"></i> 动效与导出
@@ -405,7 +397,6 @@
         </button>
       </div>
 
-      <!-- Live Player Viewport -->
       <div class="p-4 flex-1 min-h-0 flex flex-col items-center justify-center bg-ink-50 canvas-bg-pattern relative overflow-hidden">
         <canvas id="gifPreviewCanvas" class="max-h-[40vh] max-w-full rounded border border-ink-200 object-contain bg-white shadow-sm"></canvas>
         <img id="gifRenderedResult" class="max-h-[40vh] max-w-full rounded border border-ink-200 hidden object-contain bg-white" alt="Rendered GIF">
@@ -416,26 +407,20 @@
         </div>
       </div>
 
-      <!-- Controls Panel (Calibrated in SECONDS) -->
       <div class="p-4 bg-white border-t border-ink-100 flex flex-col gap-3 shrink-0">
-        
-        <!-- Speed in Seconds -->
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="text-xs text-ink-600 font-medium">每帧时长:</span>
             
-            <!-- Exact Number in Seconds Input -->
             <div class="flex items-center rounded border border-ink-200 bg-ink-50 px-1.5 py-0.5 focus-within:border-ink-800">
               <input type="number" id="modalSpeedSecInput" min="0.05" max="5.0" step="0.05" value="0.5" class="w-14 bg-transparent text-xs font-mono text-ink-900 outline-none text-right">
               <span class="text-[10px] text-ink-400 font-mono ml-0.5 select-none">秒 (s)</span>
             </div>
 
-            <!-- Slider mapped to seconds -->
             <input type="range" id="modalSpeedSlider" min="0.05" max="2.0" step="0.05" value="0.5" class="w-24 sm:w-32 h-1 bg-ink-200 rounded cursor-pointer">
             <span id="modalSpeedFpsLabel" class="text-[10px] font-mono text-ink-400">2.0 FPS</span>
           </div>
 
-          <!-- Quick Presets in Seconds -->
           <div class="flex items-center gap-1 text-[10px]">
             <button class="speed-preset-btn px-1.5 py-0.5 rounded border border-ink-200 bg-ink-50 hover:bg-ink-100 text-ink-700 font-mono" data-sec="0.2">0.2s</button>
             <button class="speed-preset-btn px-1.5 py-0.5 rounded bg-ink-900 text-white font-mono" data-sec="0.5">0.5s</button>
@@ -444,7 +429,6 @@
           </div>
         </div>
 
-        <!-- Footer Actions -->
         <div class="flex items-center justify-between pt-2 border-t border-ink-100 text-xs">
           <div class="text-[11px] text-ink-400 font-mono">
             <span id="modalCurFrameIndicator">帧: 1 / 1</span> · 顺向循环
@@ -483,11 +467,16 @@
       camera: { x: 0, y: 0, zoom: 1.0 },
       cropRect: { x: 0, y: 0, w: 0, h: 0 },
 
-      // Text Annotations
+      // Text Annotations (支持直接输入与拖动手柄缩放)
       textItems: [], // { id, text, x, y, size, color }
       selectedTextId: null,
+      isTextModeActive: false,
       isDraggingText: false,
+      isResizingText: false,
+      activeTextHandle: null,
       textDragOffset: { x: 0, y: 0 },
+      initialTextState: null,
+      editingTextId: null,
 
       isPanning: false,
       panStart: { x: 0, y: 0 },
@@ -556,16 +545,12 @@
     const btnPickPointB = document.getElementById('btnPickPointB');
     const checkAllowRotation = document.getElementById('checkAllowRotation');
     const labelTransformInfo = document.getElementById('labelTransformInfo');
-
+    const btnResetAnchor = document.getElementById('btnResetAnchor');
+    const btnAutoRefineCV = document.getElementById('btnAutoRefineCV');
     const btnToggleTextMode = document.getElementById('btnToggleTextMode');
-    const textEditBar = document.getElementById('textEditBar');
-    const newTextInput = document.getElementById('newTextInput');
-    const textColorSelect = document.getElementById('textColorSelect');
-    const textSizeSelect = document.getElementById('textSizeSelect');
-    const btnAddTextItem = document.getElementById('btnAddTextItem');
-    const btnCloseTextBar = document.getElementById('btnCloseTextBar');
 
     const HANDLE_SIZE = 7;
+    const TEXT_HANDLE_SIZE = 6;
 
     function showToast(msg, duration = 1800) {
       toast.textContent = msg;
@@ -578,7 +563,6 @@
       }, duration);
     }
 
-    // Formatting date string as YYYYMMDD
     function getTodayString() {
       const d = new Date();
       const yyyy = d.getFullYear();
@@ -692,11 +676,11 @@
 
     window.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-        if (document.activeElement.tagName === 'INPUT') return;
+        if (document.activeElement.tagName === 'INPUT' || document.activeElement.classList.contains('inline-editor-box')) return;
         e.preventDefault();
         if (e.shiftKey) redo(); else undo();
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
-        if (document.activeElement.tagName === 'INPUT') return;
+        if (document.activeElement.tagName === 'INPUT' || document.activeElement.classList.contains('inline-editor-box')) return;
         e.preventDefault();
         redo();
       }
@@ -890,6 +874,27 @@
       }
     }
 
+    // 互斥控制：对齐模式 vs 文字工具
+    function setAppMode(mode) {
+      if (mode === 'text') {
+        state.isTextModeActive = true;
+        btnToggleTextMode.className = 'btn-minimal inline-flex items-center gap-1 px-2 py-0.5 rounded bg-ink-900 text-white text-[11px] font-medium';
+        viewportWrap.style.cursor = 'text';
+        loupeContainer.classList.add('hidden');
+        showToast('已激活文字模式：直接点击画布输入，拖拽边角缩放字号');
+      } else {
+        state.isTextModeActive = false;
+        btnToggleTextMode.className = 'btn-minimal inline-flex items-center gap-1 px-2 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-[11px] text-ink-700';
+        viewportWrap.style.cursor = 'crosshair';
+        state.selectedTextId = null;
+      }
+      redraw();
+    }
+
+    btnToggleTextMode.addEventListener('click', () => {
+      setAppMode(state.isTextModeActive ? 'align' : 'text');
+    });
+
     function syncSidebarLayerModeUI() {
       const activeFrame = state.frames[state.activeFrameIndex];
       const baseFrame = state.frames[0];
@@ -948,6 +953,7 @@
         baseFrame.mode = '2point';
         state.currentPickPoint = 'B';
       }
+      setAppMode('align');
       syncSidebarLayerModeUI();
       renderFrameList();
       redraw();
@@ -955,6 +961,7 @@
     });
 
     btnMode1Point.addEventListener('click', () => {
+      setAppMode('align');
       const activeFrame = state.frames[state.activeFrameIndex];
       if (!activeFrame) return;
       activeFrame.mode = '1point';
@@ -967,6 +974,7 @@
     });
 
     btnMode2Point.addEventListener('click', () => {
+      setAppMode('align');
       const activeFrame = state.frames[state.activeFrameIndex];
       if (!activeFrame) return;
       activeFrame.mode = '2point';
@@ -979,12 +987,28 @@
     });
 
     btnPickPointA.addEventListener('click', () => {
+      setAppMode('align');
       state.currentPickPoint = 'A';
       syncSidebarLayerModeUI();
     });
     btnPickPointB.addEventListener('click', () => {
+      setAppMode('align');
       state.currentPickPoint = 'B';
       syncSidebarLayerModeUI();
+    });
+
+    btnResetAnchor.addEventListener('click', () => {
+      const activeFrame = state.frames[state.activeFrameIndex];
+      if (!activeFrame) return;
+      activeFrame.anchorA = null;
+      activeFrame.anchorB = null;
+      state.currentPickPoint = 'A';
+      recomputeFrameTransform(activeFrame);
+      saveHistorySnapshot('重置定点');
+      syncSidebarLayerModeUI();
+      renderFrameList();
+      redraw();
+      showToast('已重置定点，请点击画面落【点 A】');
     });
 
     checkAllowRotation.addEventListener('change', (e) => {
@@ -995,6 +1019,83 @@
       saveHistorySnapshot('切换旋转');
       syncSidebarLayerModeUI();
       redraw();
+    });
+
+    btnAutoRefineCV.addEventListener('click', () => {
+      if (state.frames.length < 2) {
+        showToast('请至少载入两张图片以进行微调匹配');
+        return;
+      }
+      const curIdx = state.activeFrameIndex;
+      if (curIdx === 0) {
+        showToast('当前已是基准图，请选中图 2 或图 3 执行精细匹配');
+        return;
+      }
+
+      const cur = state.frames[curIdx];
+      const prev = state.frames[curIdx - 1] || state.frames[0];
+      if (!cur.anchorA || !prev.anchorA) {
+        showToast('请先手动标定大致的“点 A”');
+        return;
+      }
+
+      showToast('正在计算特征滑窗匹配...');
+
+      const tSize = 64;
+      const sRadius = 16;
+
+      const tCanvas = document.createElement('canvas');
+      tCanvas.width = tSize;
+      tCanvas.height = tSize;
+      const tCtx = tCanvas.getContext('2d');
+      tCtx.drawImage(prev.image, prev.anchorA.x - tSize/2, prev.anchorA.y - tSize/2, tSize, tSize, 0, 0, tSize, tSize);
+      const tData = tCtx.getImageData(0, 0, tSize, tSize).data;
+
+      const sSize = tSize + sRadius * 2;
+      const sCanvas = document.createElement('canvas');
+      sCanvas.width = sSize;
+      sCanvas.height = sSize;
+      const sCtx = sCanvas.getContext('2d');
+      sCtx.drawImage(cur.image, cur.anchorA.x - sSize/2, cur.anchorA.y - sSize/2, sSize, sSize, 0, 0, sSize, sSize);
+      const sData = sCtx.getImageData(0, 0, sSize, sSize).data;
+
+      function getGray(d, i) {
+        return d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114;
+      }
+
+      let minDiff = Infinity;
+      let bestDx = 0;
+      let bestDy = 0;
+
+      for (let dy = -sRadius; dy <= sRadius; dy++) {
+        for (let dx = -sRadius; dx <= sRadius; dx++) {
+          let diff = 0;
+          for (let ty = 4; ty < tSize - 4; ty += 2) {
+            for (let tx = 4; tx < tSize - 4; tx += 2) {
+              const tIdx = (ty * tSize + tx) * 4;
+              const sx = tx + dx + sRadius;
+              const sy = ty + dy + sRadius;
+              const sIdx = (sy * sSize + sx) * 4;
+              const d = getGray(tData, tIdx) - getGray(sData, sIdx);
+              diff += d * d;
+            }
+          }
+          if (diff < minDiff) {
+            minDiff = diff;
+            bestDx = dx;
+            bestDy = dy;
+          }
+        }
+      }
+
+      cur.anchorA.x += bestDx;
+      cur.anchorA.y += bestDy;
+      recomputeFrameTransform(cur);
+      saveHistorySnapshot('自动微调误差');
+      syncSidebarLayerModeUI();
+      renderFrameList();
+      redraw();
+      showToast(`已消除误差偏移: Δ(${bestDx > 0 ? '+' : ''}${bestDx}px, ${bestDy > 0 ? '+' : ''}${bestDy}px)`);
     });
 
     function renderFrameList() {
@@ -1017,6 +1118,7 @@
         const isVisible = (frame.visible !== false);
 
         const card = document.createElement('div');
+        card.draggable = !isBase;
         card.className = `p-2 rounded border text-xs cursor-pointer transition flex items-center gap-2 ${
           isActive 
             ? 'bg-ink-100/90 border-ink-900 shadow-sm' 
@@ -1024,7 +1126,6 @@
         } ${!isVisible ? 'opacity-40' : ''}`;
 
         card.innerHTML = `
-          <!-- Visibility Eye Toggle -->
           <button class="btn-toggle-vis p-1 rounded hover:bg-ink-200 text-ink-500 hover:text-ink-900 shrink-0" title="${isVisible ? '隐藏此图层' : '显示此图层'}">
             <i data-lucide="${isVisible ? 'eye' : 'eye-off'}" class="w-3.5 h-3.5 pointer-events-none"></i>
           </button>
@@ -1042,12 +1143,13 @@
               ${frame.mode === '2point' ? `<span class="${frame.anchorB ? 'text-ink-800' : 'text-ink-300'}">B:${frame.anchorB ? `${frame.anchorB.x},${frame.anchorB.y}` : '-'}</span>` : ''}
             </div>
           </div>
-          <button class="btn-delete p-1 rounded hover:bg-rose-50 hover:text-rose-600 text-ink-300" title="删除">
-            <i data-lucide="trash" class="w-3 h-3 pointer-events-none"></i>
-          </button>
+          ${!isBase ? `
+            <button class="btn-delete p-1 rounded hover:bg-rose-50 hover:text-rose-600 text-ink-300" title="删除">
+              <i data-lucide="trash" class="w-3 h-3 pointer-events-none"></i>
+            </button>
+          ` : ''}
         `;
 
-        // Card select
         card.addEventListener('click', (e) => {
           if (e.target.closest('.btn-delete') || e.target.closest('.btn-toggle-vis')) return;
           state.activeFrameIndex = idx;
@@ -1057,7 +1159,6 @@
           redraw();
         });
 
-        // Visibility toggle
         card.querySelector('.btn-toggle-vis').addEventListener('click', (e) => {
           e.stopPropagation();
           frame.visible = !isVisible;
@@ -1066,18 +1167,39 @@
           redraw();
         });
 
-        // Delete frame
-        card.querySelector('.btn-delete').addEventListener('click', (e) => {
-          e.stopPropagation();
-          saveHistorySnapshot('删除帧');
-          state.frames.splice(idx, 1);
-          if (state.activeFrameIndex >= state.frames.length) {
-            state.activeFrameIndex = Math.max(0, state.frames.length - 1);
-          }
-          syncSidebarLayerModeUI();
-          renderFrameList();
-          redraw();
-        });
+        const delBtn = card.querySelector('.btn-delete');
+        if (delBtn) {
+          delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            saveHistorySnapshot('删除帧');
+            state.frames.splice(idx, 1);
+            if (state.activeFrameIndex >= state.frames.length) {
+              state.activeFrameIndex = Math.max(0, state.frames.length - 1);
+            }
+            syncSidebarLayerModeUI();
+            renderFrameList();
+            redraw();
+          });
+        }
+
+        if (!isBase) {
+          card.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', idx));
+          card.addEventListener('dragover', (e) => { e.preventDefault(); card.classList.add('border-t-2', 'border-t-ink-900'); });
+          card.addEventListener('dragleave', () => card.classList.remove('border-t-2', 'border-t-ink-900'));
+          card.addEventListener('drop', (e) => {
+            e.preventDefault();
+            card.classList.remove('border-t-2', 'border-t-ink-900');
+            const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+            if (fromIdx !== idx && fromIdx !== 0 && idx !== 0) {
+              const moved = state.frames.splice(fromIdx, 1)[0];
+              state.frames.splice(idx, 0, moved);
+              state.activeFrameIndex = idx;
+              saveHistorySnapshot('拖拽排序');
+              renderFrameList();
+              redraw();
+            }
+          });
+        }
 
         frameList.appendChild(card);
       });
@@ -1188,6 +1310,7 @@
       targetCtx.restore();
     }
 
+    // 绘制文字并附带选中缩放框与手柄
     function drawTextAnnotations(targetCtx, isWorkspace = true) {
       if (!state.textItems.length) return;
 
@@ -1198,11 +1321,13 @@
       }
 
       state.textItems.forEach(item => {
+        // 如果正在原地打字编辑，隐藏当前渲染中的文本，避免重影
+        if (item.id === state.editingTextId) return;
+
         targetCtx.save();
         targetCtx.font = `600 ${item.size}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
         targetCtx.textBaseline = 'top';
 
-        // subtle outline for contrast
         targetCtx.strokeStyle = (item.color === '#ffffff') ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)';
         targetCtx.lineWidth = Math.max(2, item.size / 8);
         targetCtx.strokeText(item.text, item.x, item.y);
@@ -1210,12 +1335,34 @@
         targetCtx.fillStyle = item.color;
         targetCtx.fillText(item.text, item.x, item.y);
 
+        // 如果被选中，绘制文字边框与四角缩放手柄
         if (isWorkspace && state.selectedTextId === item.id) {
           const metrics = targetCtx.measureText(item.text);
+          const tw = metrics.width;
+          const th = item.size;
+
           targetCtx.strokeStyle = '#0f172a';
           targetCtx.lineWidth = 1;
           targetCtx.setLineDash([3, 3]);
-          targetCtx.strokeRect(item.x - 3, item.y - 2, metrics.width + 6, item.size + 4);
+          targetCtx.strokeRect(item.x - 3, item.y - 2, tw + 6, th + 4);
+
+          // 四角缩放手柄
+          targetCtx.setLineDash([]);
+          targetCtx.fillStyle = '#ffffff';
+          targetCtx.strokeStyle = '#0f172a';
+          targetCtx.lineWidth = 1.2;
+
+          const handles = [
+            [item.x - 3, item.y - 2],
+            [item.x + tw + 3, item.y - 2],
+            [item.x - 3, item.y + th + 2],
+            [item.x + tw + 3, item.y + th + 2]
+          ];
+
+          handles.forEach(([hx, hy]) => {
+            targetCtx.fillRect(hx - TEXT_HANDLE_SIZE / 2, hy - TEXT_HANDLE_SIZE / 2, TEXT_HANDLE_SIZE, TEXT_HANDLE_SIZE);
+            targetCtx.strokeRect(hx - TEXT_HANDLE_SIZE / 2, hy - TEXT_HANDLE_SIZE / 2, TEXT_HANDLE_SIZE, TEXT_HANDLE_SIZE);
+          });
         }
         targetCtx.restore();
       });
@@ -1237,7 +1384,7 @@
 
       ctx.save();
 
-      // 1. Crop box fill preview with chosen backdrop
+      // 1. 裁剪框内部 100% 正常显示
       const cropScreenTL = baseToCanvasCoords(state.cropRect.x, state.cropRect.y);
       const cropScreenW = state.cropRect.w * state.camera.zoom;
       const cropScreenH = state.cropRect.h * state.camera.zoom;
@@ -1259,21 +1406,20 @@
         if (activeFrame && activeFrame.visible !== false) drawFrameWithTransform(ctx, activeFrame, state.onionOpacity, true);
       }
 
-      // Draw text inside crop window
       drawTextAnnotations(ctx, true);
       ctx.restore();
 
-      // 2. Translucent mask for non-crop regions
+      // 2. 裁切框外：淡显 80% (通过 0.8 遮罩与 0.2 底图实现精准 80% 淡显衰减)
       ctx.save();
       ctx.beginPath();
       ctx.rect(0, 0, width, height);
       ctx.rect(cropScreenTL.x + cropScreenW, cropScreenTL.y, -cropScreenW, cropScreenH);
       ctx.clip();
 
-      ctx.fillStyle = 'rgba(241, 245, 249, 0.7)';
+      ctx.fillStyle = 'rgba(241, 245, 249, 0.80)';
       ctx.fillRect(0, 0, width, height);
 
-      ctx.globalAlpha = 0.3;
+      ctx.globalAlpha = 0.20;
       if (isBaseSelected || !state.onionSkinEnabled || state.isBlinking) {
         if (activeFrame && activeFrame.visible !== false) drawFrameWithTransform(ctx, activeFrame, 1.0, true);
       } else {
@@ -1283,7 +1429,7 @@
       drawTextAnnotations(ctx, true);
       ctx.restore();
 
-      // 3. Hairline outline of Base Frame
+      // 3. 基准图边框
       if (baseFrame && baseFrame.visible !== false) {
         const baseTL = baseToCanvasCoords(0, 0);
         ctx.strokeStyle = '#cbd5e1';
@@ -1291,17 +1437,17 @@
         ctx.strokeRect(baseTL.x, baseTL.y, baseFrame.image.naturalWidth * state.camera.zoom, baseFrame.image.naturalHeight * state.camera.zoom);
       }
 
-      // 4. Reticles
-      if (activeFrame && activeFrame.visible !== false) {
+      // 4. 定点准心
+      if (activeFrame && activeFrame.visible !== false && !state.isTextModeActive) {
         drawAnchorSystem(activeFrame);
       }
 
-      // 5. Crop Boundary
+      // 5. 裁剪框与控制手柄
       drawCropFrame(cropScreenTL.x, cropScreenTL.y, cropScreenW, cropScreenH);
 
       ctx.restore();
 
-      if (state.loupeEnabled && state.isMouseOverCanvas) {
+      if (state.loupeEnabled && state.isMouseOverCanvas && !state.isTextModeActive) {
         renderMagnifierLoupe();
       }
     }
@@ -1409,7 +1555,7 @@
       ctx.lineWidth = 1.5;
       ctx.strokeRect(x, y, w, h);
 
-      ctx.strokeStyle = '#e2e8f0';
+      ctx.strokeStyle = '#cbd5e1';
       ctx.lineWidth = 0.75;
       ctx.beginPath();
       ctx.moveTo(x + w / 3, y); ctx.lineTo(x + w / 3, y + h);
@@ -1504,11 +1650,110 @@
 
         const w = metrics.width;
         const h = item.size;
-        if (basePos.x >= item.x && basePos.x <= item.x + w && basePos.y >= item.y && basePos.y <= item.y + h) {
+        if (basePos.x >= item.x - 6 && basePos.x <= item.x + w + 6 && basePos.y >= item.y - 6 && basePos.y <= item.y + h + 6) {
           return item;
         }
       }
       return null;
+    }
+
+    // 检查文字四角手柄命中
+    function getTextHandleAt(basePos, item) {
+      if (!item) return null;
+      ctx.save();
+      ctx.font = `600 ${item.size}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      const metrics = ctx.measureText(item.text);
+      ctx.restore();
+
+      const tw = metrics.width;
+      const th = item.size;
+      const handles = {
+        tl: { x: item.x - 3, y: item.y - 2 },
+        tr: { x: item.x + tw + 3, y: item.y - 2 },
+        bl: { x: item.x - 3, y: item.y + th + 2 },
+        br: { x: item.x + tw + 3, y: item.y + th + 2 }
+      };
+
+      const hitDist = 8 / state.camera.zoom;
+      for (const [key, pt] of Object.entries(handles)) {
+        if (Math.hypot(basePos.x - pt.x, basePos.y - pt.y) <= hitDist) return key;
+      }
+      return null;
+    }
+
+    // 原位直接输入控件
+    function startDirectTextInput(basePos, existingItem = null) {
+      const screenPos = baseToCanvasCoords(basePos.x, basePos.y);
+      const input = document.createElement('div');
+      input.contentEditable = true;
+      input.className = 'inline-editor-box';
+      input.style.left = `${screenPos.x}px`;
+      input.style.top = `${screenPos.y}px`;
+
+      const fontSize = existingItem ? existingItem.size : 24;
+      input.style.fontSize = `${fontSize * state.camera.zoom}px`;
+      input.style.color = existingItem ? existingItem.color : '#0f172a';
+      input.textContent = existingItem ? existingItem.text : '';
+
+      viewportWrap.appendChild(input);
+      input.focus();
+
+      if (existingItem) {
+        state.editingTextId = existingItem.id;
+        const range = document.createRange();
+        range.selectNodeContents(input);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      redraw();
+
+      let isCommitted = false;
+      function commit() {
+        if (isCommitted) return;
+        isCommitted = true;
+        const val = input.textContent.trim();
+        state.editingTextId = null;
+
+        if (val) {
+          if (existingItem) {
+            existingItem.text = val;
+            saveHistorySnapshot('编辑文字');
+          } else {
+            const newItem = {
+              id: 'text_' + Date.now(),
+              text: val,
+              x: Math.round(basePos.x),
+              y: Math.round(basePos.y),
+              size: 24,
+              color: '#0f172a'
+            };
+            state.textItems.push(newItem);
+            state.selectedTextId = newItem.id;
+            saveHistorySnapshot('添加文字');
+          }
+        } else if (existingItem) {
+          // 清空文字则删除
+          state.textItems = state.textItems.filter(t => t.id !== existingItem.id);
+          state.selectedTextId = null;
+          saveHistorySnapshot('删除文字');
+        }
+        input.remove();
+        redraw();
+      }
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commit();
+        } else if (e.key === 'Escape') {
+          isCommitted = true;
+          state.editingTextId = null;
+          input.remove();
+          redraw();
+        }
+      });
+      input.addEventListener('blur', commit);
     }
 
     function initInteractions() {
@@ -1564,7 +1809,38 @@
         }
 
         if (e.button === 0) {
-          // Check if clicking a text item
+          // 1. 若当前处于文字工具状态
+          if (state.isTextModeActive) {
+            // 先检测选中文本的缩放手柄
+            if (state.selectedTextId) {
+              const curItem = state.textItems.find(t => t.id === state.selectedTextId);
+              const textHandle = getTextHandleAt(basePos, curItem);
+              if (textHandle) {
+                state.isResizingText = true;
+                state.activeTextHandle = textHandle;
+                state.dragStart = basePos;
+                state.initialTextState = { x: curItem.x, y: curItem.y, size: curItem.size };
+                return;
+              }
+            }
+
+            // 检测点中文字
+            const hitText = getTextItemAt(basePos);
+            if (hitText) {
+              state.selectedTextId = hitText.id;
+              state.isDraggingText = true;
+              state.textDragOffset = { x: basePos.x - hitText.x, y: basePos.y - hitText.y };
+              redraw();
+              return;
+            } else {
+              // 点击画布空白处：原地直接输入新文字
+              state.selectedTextId = null;
+              startDirectTextInput(basePos);
+              return;
+            }
+          }
+
+          // 2. 非文字模式下检测是否选中文字移动
           const hitText = getTextItemAt(basePos);
           if (hitText) {
             state.selectedTextId = hitText.id;
@@ -1576,7 +1852,7 @@
             state.selectedTextId = null;
           }
 
-          // Check if dragging/resizing crop
+          // 3. 裁切手柄交互
           const hitHandle = getHitHandle(screenX, screenY);
           if (hitHandle) {
             state.isResizingCrop = true;
@@ -1593,8 +1869,20 @@
             return;
           }
 
-          // Point calibration
-          applyPointCalibrationAt(basePos);
+          // 4. 定点标定
+          if (!state.isTextModeActive) {
+            applyPointCalibrationAt(basePos);
+          }
+        }
+      });
+
+      // 双击文字重新编辑打字
+      viewportWrap.addEventListener('dblclick', (e) => {
+        const basePos = clientToBaseCoords(e.clientX, e.clientY);
+        const hitText = getTextItemAt(basePos);
+        if (hitText) {
+          state.selectedTextId = hitText.id;
+          startDirectTextInput({ x: hitText.x, y: hitText.y }, hitText);
         }
       });
 
@@ -1609,7 +1897,7 @@
         state.mousePosBaseImage = basePos;
         state.isMouseOverCanvas = (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
 
-        if (state.loupeEnabled && state.isMouseOverCanvas) {
+        if (state.loupeEnabled && state.isMouseOverCanvas && !state.isTextModeActive) {
           let lx = screenX + 16;
           let ly = screenY - 144 - 16;
           if (lx + 144 > viewportWrap.clientWidth) lx = screenX - 144 - 16;
@@ -1624,6 +1912,19 @@
           state.camera.x = e.clientX - state.panStart.x;
           state.camera.y = e.clientY - state.panStart.y;
           redraw();
+          return;
+        }
+
+        // 拖拽手柄自由缩放文字字号
+        if (state.isResizingText && state.selectedTextId) {
+          const textItem = state.textItems.find(t => t.id === state.selectedTextId);
+          if (textItem && state.initialTextState) {
+            const dy = basePos.y - state.dragStart.y;
+            const factor = (state.activeTextHandle === 'tl' || state.activeTextHandle === 'tr') ? -dy : dy;
+            const newSize = Math.max(10, Math.min(240, Math.round(state.initialTextState.size + factor * 0.8)));
+            textItem.size = newSize;
+            redraw();
+          }
           return;
         }
 
@@ -1693,6 +1994,15 @@
         if (state.isSpacePressed) {
           viewportWrap.style.cursor = 'grab';
         } else {
+          if (state.selectedTextId) {
+            const curItem = state.textItems.find(t => t.id === state.selectedTextId);
+            const textHandle = getTextHandleAt(basePos, curItem);
+            if (textHandle) {
+              viewportWrap.style.cursor = (textHandle === 'tl' || textHandle === 'br') ? 'nwse-resize' : 'nesw-resize';
+              return;
+            }
+          }
+
           const hitText = getTextItemAt(basePos);
           if (hitText) {
             viewportWrap.style.cursor = 'move';
@@ -1710,7 +2020,7 @@
           } else if (e.altKey && isInsideCrop(basePos)) {
             viewportWrap.style.cursor = 'move';
           } else {
-            viewportWrap.style.cursor = 'crosshair';
+            viewportWrap.style.cursor = state.isTextModeActive ? 'text' : 'crosshair';
           }
         }
 
@@ -1718,6 +2028,10 @@
       });
 
       window.addEventListener('mouseup', () => {
+        if (state.isResizingText) {
+          state.isResizingText = false;
+          saveHistorySnapshot('缩放文字大小');
+        }
         if (state.isDraggingText) {
           state.isDraggingText = false;
           saveHistorySnapshot('移动文字');
@@ -1727,11 +2041,11 @@
         state.isResizingCrop = false;
         state.isDraggingCrop = false;
         state.activeHandle = null;
-        viewportWrap.style.cursor = state.isSpacePressed ? 'grab' : 'default';
+        viewportWrap.style.cursor = state.isSpacePressed ? 'grab' : (state.isTextModeActive ? 'text' : 'crosshair');
       });
 
       window.addEventListener('keydown', (e) => {
-        if (document.activeElement.tagName === 'INPUT') return;
+        if (document.activeElement.tagName === 'INPUT' || document.activeElement.classList.contains('inline-editor-box')) return;
 
         if (e.code === 'Space' && !e.repeat) {
           e.preventDefault();
@@ -1742,18 +2056,17 @@
           return;
         }
 
-        // Delete text
         if ((e.key === 'Backspace' || e.key === 'Delete') && state.selectedTextId) {
           state.textItems = state.textItems.filter(t => t.id !== state.selectedTextId);
           state.selectedTextId = null;
           saveHistorySnapshot('删除文字');
           redraw();
-          showToast('已删除文字标注');
+          showToast('已删除选中的文字');
           return;
         }
 
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-          if (!state.frames.length) return;
+          if (!state.frames.length || state.isTextModeActive) return;
           e.preventDefault();
           const activeFrame = state.frames[state.activeFrameIndex];
           if (!activeFrame) return;
@@ -1779,7 +2092,7 @@
         if (e.code === 'Space') {
           state.isSpacePressed = false;
           state.isBlinking = false;
-          viewportWrap.style.cursor = 'default';
+          viewportWrap.style.cursor = state.isTextModeActive ? 'text' : 'crosshair';
           redraw();
         }
       });
@@ -1798,8 +2111,9 @@
         const rawY = Math.round(basePos.y);
         if (isTargetA) {
           activeFrame.anchorA = { x: rawX, y: rawY };
-          showToast('已标定基准 A');
-          if (activeFrame.mode === '2point' && !activeFrame.anchorB) state.currentPickPoint = 'B';
+          activeFrame.mode = '2point';
+          state.currentPickPoint = 'B';
+          showToast('已标定基准 A，已自动切换至两点模式，请标定基准 B');
         } else {
           activeFrame.anchorB = { x: rawX, y: rawY };
           showToast('已标定基准 B');
@@ -1811,8 +2125,9 @@
 
         if (isTargetA) {
           activeFrame.anchorA = { x: rawX, y: rawY };
-          showToast('已标定点 A');
-          if (activeFrame.mode === '2point' && !activeFrame.anchorB) state.currentPickPoint = 'B';
+          activeFrame.mode = '2point';
+          state.currentPickPoint = 'B';
+          showToast('已标定点 A，已自动跳入两点对齐，请落第二点 B');
         } else {
           if (!baseFrame || !baseFrame.anchorB) {
             showToast('请先在图 1 标定基准点 B');
@@ -1867,7 +2182,6 @@
       btnBlink.addEventListener('mouseup', triggerBlinkEnd);
       btnBlink.addEventListener('mouseleave', triggerBlinkEnd);
 
-      // Color picker
       bgColorPicker.addEventListener('input', (e) => {
         setBackdropColor(e.target.value);
       });
@@ -1875,7 +2189,6 @@
         saveHistorySnapshot('设置画幅底色');
       });
 
-      // Quick B/W Switch Button
       btnToggleBW.addEventListener('click', () => {
         const isWhite = (state.bgColor === '#ffffff' || state.bgColor === 'rgb(255, 255, 255)');
         const nextColor = isWhite ? '#000000' : '#ffffff';
@@ -1951,52 +2264,6 @@
         redraw();
         showToast('已自适应画幅边界');
       });
-
-      document.getElementById('btnResetAnchor').addEventListener('click', () => {
-        const activeFrame = state.frames[state.activeFrameIndex];
-        if (!activeFrame) return;
-        activeFrame.anchorA = null;
-        activeFrame.anchorB = null;
-        state.currentPickPoint = 'A';
-        recomputeFrameTransform(activeFrame);
-        saveHistorySnapshot('重置定点');
-        syncSidebarLayerModeUI();
-        renderFrameList();
-        redraw();
-        showToast('点击画面落【点 A】');
-      });
-
-      // Text tool controls
-      btnToggleTextMode.addEventListener('click', () => {
-        textEditBar.classList.toggle('hidden');
-      });
-      btnCloseTextBar.addEventListener('click', () => {
-        textEditBar.classList.add('hidden');
-      });
-      btnAddTextItem.addEventListener('click', () => {
-        const textVal = newTextInput.value.trim();
-        if (!textVal) return;
-
-        const cropCenter = {
-          x: state.cropRect.x + state.cropRect.w * 0.1,
-          y: state.cropRect.y + state.cropRect.h * 0.85
-        };
-
-        const newItem = {
-          id: 'text_' + Date.now(),
-          text: textVal,
-          x: Math.round(cropCenter.x),
-          y: Math.round(cropCenter.y),
-          size: parseInt(textSizeSelect.value, 10),
-          color: textColorSelect.value
-        };
-
-        state.textItems.push(newItem);
-        state.selectedTextId = newItem.id;
-        saveHistorySnapshot('添加文字');
-        redraw();
-        showToast('文字已放置，可鼠标拖动位置');
-      });
     }
 
     function renderCroppedFrameToCanvas(frame) {
@@ -2021,7 +2288,6 @@
       return outputCanvas;
     }
 
-    // Direct Uncompressed PNG Export (Single or Multi downloads with YYYYMMDD-Project-01 naming)
     document.getElementById('btnExportPngDirect').addEventListener('click', () => {
       const visibleFrames = state.frames.filter(f => f.visible !== false);
       if (!visibleFrames.length) {
@@ -2033,8 +2299,6 @@
       visibleFrames.forEach((frame, index) => {
         const canvas = renderCroppedFrameToCanvas(frame);
         const fileName = `${getFormattedFileName(index)}.png`;
-        
-        // Lossless uncompressed PNG blob trigger
         canvas.toBlob((blob) => {
           const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
@@ -2046,7 +2310,6 @@
       });
     });
 
-    // ZIP Export Bundle
     document.getElementById('btnExportZip').addEventListener('click', async () => {
       const visibleFrames = state.frames.filter(f => f.visible !== false);
       if (!visibleFrames.length) {

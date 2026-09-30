@@ -3,10 +3,12 @@ import { readdirSync, readFileSync } from 'node:fs';
 import BaseLayout from '../layouts/BaseLayout.astro';
 
 /**
- * /toolbox — 小工具索引
+ * /toolbox — 小工具索引（网格卡片 + 互动缩略图）
  *
- * 扫描 src/content/tool/ 下的 .html 文件，提取 <title> 作为工具名，
- * 链接到 /tools/<name>（由 tools/[name].ts 原样渲染）。
+ * 扫描 src/content/tool/ 下的 .html 工具；
+ * 若存在同名 .js（如 AlignIMG.html ↔ AlignIMG.js），把该 JS 内联为
+ * 卡片缩略图上的互动动画（点击动画区域产生互动、不跳转），
+ * 卡片下方文字行链接到 /tools/<name> 打开完整工具。
  */
 
 const TOOL_DIR = new URL('../content/tool/', import.meta.url);
@@ -15,20 +17,34 @@ interface ToolItem {
   name: string;
   title: string;
   href: string;
+  hasCover: boolean;
 }
 
-const tools: ToolItem[] = readdirSync(TOOL_DIR)
+const toolFiles = readdirSync(TOOL_DIR);
+
+const tools: ToolItem[] = toolFiles
   .filter((f) => f.endsWith('.html'))
   .map((file) => {
+    const name = file.replace(/\.html$/i, '');
     const html = readFileSync(new URL(file, TOOL_DIR), 'utf-8');
     const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-    const title = (m ? m[1].trim() : file.replace(/\.html$/i, ''));
+    const title = (m ? m[1].trim() : name);
     return {
-      name: file.replace(/\.html$/i, ''),
+      name,
       title,
-      href: `/tools/${encodeURIComponent(file.replace(/\.html$/i, ''))}`,
+      href: `/tools/${encodeURIComponent(name)}`,
+      hasCover: toolFiles.some((f) => f.toLowerCase() === `${name}.js`.toLowerCase()),
     };
   });
+
+// 收集缩略图动画脚本（同名 .js 的内容，内联到页面）。
+// 当前每个脚本用固定 id "align-cover-canvas" 查找宿主容器，
+// 故每页只挂第一个动画实例；多工具需各自动画时再扩展为 class 遍历。
+const coverScripts = tools
+  .filter((t) => t.hasCover)
+  .map((t) => readFileSync(new URL(`${t.name}.js`, TOOL_DIR), 'utf-8'));
+
+const coverToolName = tools.find((t) => t.hasCover)?.name ?? '';
 ---
 
 <BaseLayout title="工具箱" description="小工具与实验 — Tools &amp; Experiments" pageClass="page-list">
@@ -41,20 +57,27 @@ const tools: ToolItem[] = readdirSync(TOOL_DIR)
   {tools.length === 0 ? (
     <p class="empty-state">暂无工具 — 把 HTML 工具文件放入 src/content/tool/ 目录即可自动出现在这里。</p>
   ) : (
-    <ul class="tool-list">
+    <div class="tool-grid">
       {tools.map((tool) => (
-        <li class="tool-item">
-          <a href={tool.href}>
-            <span class="tool-name">{tool.title}</span>
-            <span class="tool-meta">{tool.name}</span>
-          </a>
-        </li>
+        <div class="tool-card">
+          <div class="tool-thumb" id={tool.hasCover ? 'align-cover-canvas' : undefined}>
+            {!tool.hasCover && <span class="thumb-placeholder">—</span>}
+          </div>
+          <div class="tool-meta">
+            <span class="tool-cat">Tool</span>
+            <span class="tool-sep">·</span>
+            <a class="tool-title" href={tool.href}>{tool.title}</a>
+          </div>
+        </div>
       ))}
-    </ul>
+    </div>
   )}
 </BaseLayout>
 
+{coverScripts.length > 0 && <script is:inline set:html={coverScripts[0]} />}
+
 <style>
+  /* ── Page header ─────────────────────────────────── */
   .tools-header {
     padding: 4rem 0 3rem;
     margin-bottom: 3rem;
@@ -82,45 +105,82 @@ const tools: ToolItem[] = readdirSync(TOOL_DIR)
     margin-top: 0.8rem;
     font-size: var(--fs-sm);
   }
-  .tool-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
+
+  /* ── Grid（与 /projects 同款两列网格） ─────────── */
+  .tool-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2.5rem 2.5rem;
+  }
+
+  .tool-card {
+    display: block;
+  }
+
+  /* 缩略图：正方形画布，保持互动动画 1:1 比例不变形 */
+  .tool-thumb {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: #0a0a0c; /* 与动画画布底色一致，避免白闪 */
+    cursor: pointer;
+  }
+  .tool-thumb canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+  }
+  .thumb-placeholder {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: var(--c-mid);
+    font-size: 1.5rem;
   }
-  .tool-item {
-    border-bottom: 1px solid var(--c-rule);
-  }
-  .tool-item a {
+
+  /* 文字行：点击跳转工具页 */
+  .tool-meta {
+    margin-top: 0.6rem;
     display: flex;
     align-items: baseline;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 1rem 0;
-    color: inherit;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    font-family: var(--ff-serif);
+    font-size: var(--fs-xs);
+    letter-spacing: 0.05em;
+    color: var(--c-mid);
+    line-height: var(--lh-tight);
+  }
+  .tool-cat {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 6.5pt;
+  }
+  .tool-sep { color: var(--c-rule); }
+  .tool-title {
+    color: var(--c-ink);
+    font-size: 9pt;
+    font-weight: 500;
+    flex: 1;
+    text-decoration: none;
     transition: color 0.18s ease;
   }
-  .tool-item a:hover {
-    color: var(--c-ink);
-  }
-  .tool-name {
-    font-family: var(--ff-serif);
-    font-size: var(--fs-sm);
-    color: var(--c-ink);
-  }
-  .tool-meta {
-    font-family: var(--ff-caps);
-    font-size: 6.5pt;
-    letter-spacing: 0.12em;
+  .tool-title:hover {
     color: var(--c-mid);
-    text-transform: uppercase;
-    text-align: right;
   }
+
   .empty-state {
     margin-top: 4rem;
     font-size: var(--fs-sm);
     color: var(--c-mid);
     font-style: italic;
+  }
+
+  /* ── Responsive ───────────────────────────────────── */
+  @media (max-width: 640px) {
+    .tool-grid { grid-template-columns: 1fr; }
+    .tools-title { font-size: 20pt; }
   }
 </style>
