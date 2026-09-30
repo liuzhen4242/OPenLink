@@ -1,0 +1,2244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>对齐与画幅工坊 · Minimal Studio</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+          },
+          colors: {
+            ink: {
+              900: '#0f172a',
+              800: '#1e293b',
+              700: '#334155',
+              600: '#475569',
+              500: '#64748b',
+              400: '#94a3b8',
+              300: '#cbd5e1',
+              200: '#e2e8f0',
+              100: '#f1f5f9',
+              50: '#f8fafc'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- JSZip -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- Gifshot -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.3.2/gifshot.min.js"></script>
+
+  <style>
+    html, body {
+      height: 100%;
+      height: 100vh;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+      background-color: #f8fafc;
+      color: #0f172a;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f8fafc;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    .canvas-bg-pattern {
+      background-color: #f1f5f9;
+      background-image: 
+        radial-gradient(#cbd5e1 0.75px, transparent 0.75px);
+      background-size: 16px 16px;
+    }
+
+    #loupeContainer {
+      pointer-events: none;
+      box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.15);
+      image-rendering: pixelated;
+    }
+
+    input[type=range] {
+      accent-color: #0f172a;
+    }
+
+    .btn-minimal {
+      transition: all 0.12s ease-in-out;
+    }
+    .btn-minimal:active {
+      transform: scale(0.98);
+    }
+  </style>
+</head>
+<body class="bg-ink-50 text-ink-900 h-screen w-screen flex flex-col font-sans select-none overflow-hidden">
+
+  <!-- Minimal Header -->
+  <header class="h-11 bg-white border-b border-ink-200 px-3.5 flex items-center justify-between z-30 shrink-0">
+    <div class="flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-ink-900 inline-block shrink-0"></span>
+      
+      <!-- Editable Project Title -->
+      <div class="flex items-center gap-1 group">
+        <input type="text" id="projectTitleInput" value="逻辑生成" placeholder="项目名称" 
+               class="font-semibold text-xs text-ink-900 bg-transparent hover:bg-ink-50 focus:bg-white focus:border-ink-400 px-1.5 py-0.5 rounded border border-transparent outline-none w-28 sm:w-44 transition text-ellipsis"
+               title="点击编辑项目名称，导出文件将以此命名">
+        <i data-lucide="edit-3" class="w-3 h-3 text-ink-300 group-hover:text-ink-500 pointer-events-none"></i>
+      </div>
+
+      <div class="h-3.5 w-px bg-ink-200 mx-1"></div>
+
+      <!-- Undo / Redo -->
+      <div class="flex items-center gap-0.5">
+        <button id="btnUndo" disabled title="撤销 (Ctrl+Z)" class="btn-minimal p-1 rounded hover:bg-ink-100 text-ink-500 hover:text-ink-900 disabled:opacity-25 transition">
+          <i data-lucide="undo-2" class="w-3.5 h-3.5"></i>
+        </button>
+        <button id="btnRedo" disabled title="重做 (Ctrl+Y)" class="btn-minimal p-1 rounded hover:bg-ink-100 text-ink-500 hover:text-ink-900 disabled:opacity-25 transition">
+          <i data-lucide="redo-2" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick Instruction Pill -->
+    <div class="hidden lg:flex items-center gap-2 text-[11px] text-ink-500">
+      <span><kbd class="font-mono text-ink-700 bg-ink-100 px-1 py-0.5 rounded border border-ink-200">Ctrl+V</kbd> 贴图</span>
+      <span class="text-ink-300">·</span>
+      <span><kbd class="font-mono text-ink-700 bg-ink-100 px-1 py-0.5 rounded border border-ink-200">空格+拖拽</kbd> 平移</span>
+      <span class="text-ink-300">·</span>
+      <span><kbd class="font-mono text-ink-700 bg-ink-100 px-1 py-0.5 rounded border border-ink-200">方向键</kbd> 1px 微调</span>
+    </div>
+
+    <!-- Ingestion Actions -->
+    <div class="flex items-center gap-1.5">
+      <input type="file" id="fileInput" multiple accept="image/*" class="hidden">
+      <button id="btnUpload" class="btn-minimal inline-flex items-center gap-1 px-2.5 py-1 rounded bg-white hover:bg-ink-50 border border-ink-200 text-xs font-medium text-ink-700">
+        <i data-lucide="upload" class="w-3 h-3 text-ink-500"></i> 上传
+      </button>
+      <button id="btnClearAll" class="btn-minimal inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-rose-50 text-xs text-ink-400 hover:text-rose-600 transition" title="清空全部">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+  </header>
+
+  <div class="flex-1 min-h-0 flex overflow-hidden relative">
+
+    <!-- Left Minimal Sidebar -->
+    <aside class="w-64 sm:w-72 bg-white border-r border-ink-200 flex flex-col shrink-0 z-20 overflow-hidden">
+      <div class="h-9 px-3 border-b border-ink-100 flex items-center justify-between text-xs text-ink-500">
+        <span class="font-medium text-ink-800">图层栈 (<span id="frameCount">0</span>)</span>
+        <span class="text-[10px] text-ink-400 font-mono">图1为基准</span>
+      </div>
+
+      <!-- Mode & Target Switch -->
+      <div id="layerConfigPanel" class="p-3 border-b border-ink-100 text-xs flex flex-col gap-2.5 bg-ink-50/60">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-ink-900 truncate max-w-[120px]" id="currentEditingLayerName">未选择图层</span>
+          <span id="badgeCurrentRole" class="text-[10px] px-1.5 py-0.5 rounded bg-white border border-ink-200 text-ink-600 font-mono">基准</span>
+        </div>
+
+        <!-- 1-Point / 2-Point Mode Selector -->
+        <div class="grid grid-cols-2 p-0.5 rounded bg-ink-200/70 border border-ink-200 text-[11px]">
+          <button id="btnMode1Point" class="py-1 rounded font-medium text-center transition bg-white text-ink-900 shadow-sm">单点平移</button>
+          <button id="btnMode2Point" class="py-1 rounded font-medium text-center transition text-ink-600 hover:text-ink-900">两点缩放</button>
+        </div>
+
+        <!-- Target Point Selector (A or B) -->
+        <div class="flex items-center justify-between pt-1">
+          <span class="text-[11px] text-ink-500">当前定点:</span>
+          <div class="inline-flex rounded border border-ink-200 p-0.5 bg-white text-[10px]">
+            <button id="btnPickPointA" class="px-2 py-0.5 rounded font-mono font-medium bg-ink-900 text-white">点 A</button>
+            <button id="btnPickPointB" class="px-2 py-0.5 rounded font-mono font-medium text-ink-500 hover:text-ink-900">点 B</button>
+          </div>
+        </div>
+
+        <!-- 2-Point Options Subpanel -->
+        <div id="panel2PointOptions" class="hidden flex flex-col gap-1.5 pt-1 text-[11px] border-t border-ink-200/60">
+          <label class="inline-flex items-center gap-1.5 cursor-pointer text-ink-600">
+            <input type="checkbox" id="checkAllowRotation" class="w-3.5 h-3.5 rounded border-ink-300 text-ink-900 focus:ring-0">
+            <span>允许偏角旋转校正</span>
+          </label>
+          <div class="flex justify-between items-center text-[10px] text-ink-500 font-mono bg-white px-2 py-1 rounded border border-ink-200">
+            <span>几何变换</span>
+            <span id="labelTransformInfo" class="text-ink-900 font-semibold">100.0% / 0.0°</span>
+          </div>
+        </div>
+
+        <div id="baseMissingPointBWarning" class="hidden p-2 rounded bg-amber-50 border border-amber-200 text-[11px] text-amber-800 flex flex-col gap-1">
+          <span>图 1 尚未标定【基准点 B】</span>
+          <button id="btnGoSetBasePointB" class="underline text-left font-medium text-amber-900 hover:text-black">
+            前往图 1 标定点 B &rarr;
+          </button>
+        </div>
+      </div>
+
+      <!-- Frame Cards List with Visibility Toggles -->
+      <div id="frameList" class="flex-1 overflow-y-auto p-2 space-y-1.5 min-h-0"></div>
+
+      <!-- Empty State Notice -->
+      <div id="sidebarEmptyNotice" class="p-6 text-center text-xs text-ink-400 my-auto flex flex-col items-center gap-2">
+        <i data-lucide="image" class="w-6 h-6 stroke-1 text-ink-300"></i>
+        <span>按 Ctrl+V 粘贴截图<br>或拖拽图片入内</span>
+      </div>
+
+      <!-- Alignment Status Footnote -->
+      <div class="p-2.5 bg-white border-t border-ink-100 text-[11px] text-ink-500 flex items-center justify-between shrink-0">
+        <span>对齐完成</span>
+        <span id="alignProgress" class="font-mono text-ink-900 font-semibold">0 / 0</span>
+      </div>
+    </aside>
+
+    <main class="flex-1 min-h-0 flex flex-col bg-ink-50 overflow-hidden relative" id="canvasContainer">
+      
+      <!-- Top Secondary Hairline Toolbar -->
+      <div class="h-9 bg-white border-b border-ink-200 px-3.5 flex items-center justify-between text-xs text-ink-600 z-10 shrink-0">
+        
+        <!-- Left Tools: Onion Skin & Blink & Magnifier & Text Tool -->
+        <div class="flex items-center gap-2.5">
+          <!-- Onion Skin Toggle -->
+          <label class="inline-flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" id="onionSkinToggle" class="w-3.5 h-3.5 rounded border-ink-300 text-ink-900 focus:ring-0" checked>
+            <span class="text-[11px] font-medium text-ink-700">洋葱皮</span>
+          </label>
+
+          <div class="flex items-center gap-1">
+            <input type="range" id="onionOpacity" min="0.05" max="0.95" step="0.05" value="0.5" class="w-14 h-1 bg-ink-200 rounded cursor-pointer">
+            <span id="opacityVal" class="text-[10px] font-mono text-ink-500 w-6">50%</span>
+          </div>
+
+          <div class="h-3 w-px bg-ink-200"></div>
+
+          <!-- Blink -->
+          <button id="btnBlink" class="btn-minimal px-2 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-[11px] text-ink-700 active:bg-ink-900 active:text-white transition">
+            空格对比
+          </button>
+
+          <div class="h-3 w-px bg-ink-200"></div>
+
+          <!-- Magnifier -->
+          <label class="inline-flex items-center gap-1 cursor-pointer">
+            <input type="checkbox" id="loupeToggle" class="w-3.5 h-3.5 rounded border-ink-300 text-ink-900 focus:ring-0" checked>
+            <span class="text-[11px] text-ink-700">放大镜</span>
+          </label>
+          <select id="loupeScaleSelect" class="bg-white border border-ink-200 text-ink-700 rounded px-1 py-0.5 text-[10px] outline-none">
+            <option value="4">4x</option>
+            <option value="6" selected>6x</option>
+            <option value="8">8x 像素网格</option>
+          </select>
+
+          <div class="h-3 w-px bg-ink-200"></div>
+
+          <!-- Text Tool Trigger -->
+          <button id="btnToggleTextMode" class="btn-minimal inline-flex items-center gap-1 px-2 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-[11px] text-ink-700" title="在画面中添加或编辑文字标注">
+            <i data-lucide="type" class="w-3 h-3 text-ink-500"></i> 文字
+          </button>
+        </div>
+
+        <!-- Right Tools: Streamlined Color Pickers & Ratios -->
+        <div class="flex items-center gap-2">
+          
+          <!-- Minimal Backdrop Swatch (Text removed as requested) -->
+          <div class="flex items-center gap-1 border border-ink-200 rounded p-0.5 bg-white">
+            <!-- Quick B/W Toggle -->
+            <button id="btnToggleBW" class="btn-minimal px-1.5 py-0.5 rounded text-[10px] font-mono hover:bg-ink-100 text-ink-800" title="在纯白与纯黑之间快速切换">
+              白/黑
+            </button>
+            <!-- Native Color Swatch -->
+            <div class="relative w-4 h-4 rounded overflow-hidden border border-ink-300 flex items-center justify-center cursor-pointer" title="自选调色板底色">
+              <input type="color" id="bgColorPicker" value="#ffffff" class="absolute -inset-2 w-8 h-8 opacity-0 cursor-pointer">
+              <div id="bgColorSwatchPreview" class="w-full h-full bg-white"></div>
+            </div>
+          </div>
+
+          <div class="h-3 w-px bg-ink-200 hidden sm:block"></div>
+
+          <!-- Ratio Presets -->
+          <div class="hidden sm:flex items-center gap-1 text-[11px]">
+            <button class="crop-ratio-btn px-1.5 py-0.5 rounded text-[10px] bg-ink-900 text-white font-mono" data-ratio="free">自由</button>
+            <button class="crop-ratio-btn px-1.5 py-0.5 rounded text-[10px] bg-white border border-ink-200 text-ink-600 hover:bg-ink-50 font-mono" data-ratio="16:9">16:9</button>
+            <button class="crop-ratio-btn px-1.5 py-0.5 rounded text-[10px] bg-white border border-ink-200 text-ink-600 hover:bg-ink-50 font-mono" data-ratio="4:3">4:3</button>
+            <button class="crop-ratio-btn px-1.5 py-0.5 rounded text-[10px] bg-white border border-ink-200 text-ink-600 hover:bg-ink-50 font-mono" data-ratio="1:1">1:1</button>
+            <button class="crop-ratio-btn px-1.5 py-0.5 rounded text-[10px] bg-white border border-ink-200 text-ink-600 hover:bg-ink-50 font-mono" data-ratio="match1">原大</button>
+          </div>
+
+          <div class="h-3 w-px bg-ink-200"></div>
+
+          <!-- Reset View -->
+          <button id="btnResetView" title="缩放居中" class="px-1.5 py-0.5 rounded bg-white hover:bg-ink-50 text-[10px] font-mono text-ink-700 border border-ink-200">
+            <span id="zoomPercent">100%</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Canvas Viewport -->
+      <div id="viewportWrap" class="flex-1 min-h-0 relative overflow-hidden canvas-bg-pattern flex items-center justify-center cursor-default">
+        <canvas id="mainCanvas" class="block w-full h-full"></canvas>
+
+        <!-- Text Annotations Overlay Layer -->
+        <div id="textOverlayContainer" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+
+        <!-- Empty Canvas Hint -->
+        <div id="canvasEmptyState" class="absolute inset-0 flex flex-col items-center justify-center text-center p-4 pointer-events-none">
+          <div class="w-10 h-10 rounded-full border border-ink-200 bg-white flex items-center justify-center text-ink-400 mb-2.5">
+            <i data-lucide="crosshair" class="w-4 h-4"></i>
+          </div>
+          <h3 class="text-xs font-semibold text-ink-800">就绪 · 等待图片</h3>
+          <p class="text-[11px] text-ink-400 max-w-xs mt-1">按 Ctrl+V 粘贴截图，在画面上标注特征角点进行自动层叠。</p>
+        </div>
+
+        <!-- Float Precision Loupe -->
+        <div id="loupeContainer" class="absolute hidden w-36 h-36 rounded-full border border-ink-900 bg-white overflow-hidden z-40">
+          <canvas id="loupeCanvas" class="w-full h-full block"></canvas>
+          <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div class="w-full h-[0.5px] bg-red-500/80"></div>
+            <div class="h-full w-[0.5px] bg-red-500/80 absolute"></div>
+            <div class="w-2 h-2 rounded-full border border-ink-900 absolute"></div>
+          </div>
+          <div id="loupeCoordBadge" class="absolute bottom-1.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded bg-white/90 text-[9px] text-ink-900 font-mono border border-ink-200">
+            0, 0
+          </div>
+        </div>
+
+        <!-- HUD Minimal Status -->
+        <div id="nudgeOverlay" class="absolute bottom-3 left-3 bg-white/90 backdrop-blur border border-ink-200 rounded px-2.5 py-1.5 text-[10px] flex items-center gap-3 z-20">
+          <div class="text-ink-500 font-mono space-y-0.5">
+            <div>A: <span id="currentAnchorCoords" class="text-ink-900 font-semibold">未设</span>  B: <span id="currentAnchorBCoords" class="text-ink-900 font-semibold">未设</span></div>
+            <div>偏移: <span id="currentOffsetCoords" class="text-ink-600">Δ(0, 0)</span></div>
+          </div>
+          <div class="h-4 w-px bg-ink-200"></div>
+          <div class="flex items-center gap-1">
+            <button id="btnResetAnchor" class="px-1.5 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-ink-700 text-[10px]">
+              重新标定
+            </button>
+            <button id="btnFitCrop" class="px-1.5 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-ink-700 text-[10px]">
+              适应边界
+            </button>
+          </div>
+        </div>
+
+        <!-- Floating Text Bar (When Text Tool is active) -->
+        <div id="textEditBar" class="hidden absolute top-3 left-1/2 -translate-x-1/2 bg-white border border-ink-200 rounded-md shadow-md p-1.5 flex items-center gap-2 z-30 text-xs">
+          <span class="text-[11px] font-medium text-ink-700 pl-1">添加文字:</span>
+          <input type="text" id="newTextInput" placeholder="输入标注文字..." value="分析图层 01" class="border border-ink-200 px-2 py-0.5 rounded text-xs outline-none focus:border-ink-900 w-36">
+          <select id="textColorSelect" class="border border-ink-200 rounded px-1 py-0.5 text-xs outline-none bg-white">
+            <option value="#0f172a">黑色</option>
+            <option value="#ffffff">白色</option>
+            <option value="#ef4444">红色</option>
+            <option value="#3b82f6">蓝色</option>
+            <option value="#eab308">黄色</option>
+          </select>
+          <select id="textSizeSelect" class="border border-ink-200 rounded px-1 py-0.5 text-xs outline-none bg-white font-mono">
+            <option value="16">16px</option>
+            <option value="20" selected>20px</option>
+            <option value="28">28px</option>
+            <option value="36">36px</option>
+            <option value="48">48px</option>
+          </select>
+          <button id="btnAddTextItem" class="btn-minimal px-2 py-0.5 rounded bg-ink-900 text-white font-medium text-xs">放置</button>
+          <button id="btnCloseTextBar" class="p-0.5 text-ink-400 hover:text-ink-800"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Pinned Bottom Toolbar with Formatted PNG Export & ZIP & GIF -->
+  <footer class="h-11 bg-white border-t border-ink-200 px-4 flex items-center justify-between shrink-0 z-30">
+    <div class="flex items-center gap-3">
+      <div class="text-[11px] flex items-center gap-1.5">
+        <span class="text-ink-400">输出画幅:</span>
+        <span id="cropDimLabel" class="font-mono text-ink-800 bg-ink-50 px-1.5 py-0.5 rounded border border-ink-200 text-[10px]">0 × 0 px</span>
+      </div>
+      <span class="hidden sm:inline text-ink-300">·</span>
+      <span class="hidden sm:inline text-[10px] text-ink-400 font-mono" id="namingPreviewBadge">命名: 20260930-逻辑生成-01.png</span>
+    </div>
+
+    <!-- Export Buttons -->
+    <div class="flex items-center gap-2">
+      <!-- Uncompressed PNG Export Button -->
+      <button id="btnExportPngDirect" class="btn-minimal inline-flex items-center gap-1 px-3 py-1 rounded border border-ink-200 bg-white hover:bg-ink-50 text-xs font-medium text-ink-800" title="逐张下载无损未压缩的原尺寸PNG序列文件">
+        <i data-lucide="image" class="w-3 h-3 text-ink-500"></i> 导出 PNG
+      </button>
+
+      <!-- PNG Zip Bundle -->
+      <button id="btnExportZip" class="btn-minimal inline-flex items-center gap-1 px-3 py-1 rounded border border-ink-200 bg-white hover:bg-ink-50 text-xs font-medium text-ink-800">
+        <i data-lucide="archive" class="w-3 h-3 text-ink-500"></i> 打包 ZIP
+      </button>
+
+      <!-- GIF Studio -->
+      <button id="btnOpenGifStudio" class="btn-minimal inline-flex items-center gap-1 px-3.5 py-1 rounded bg-ink-900 hover:bg-ink-800 text-white text-xs font-medium">
+        <i data-lucide="film" class="w-3 h-3 text-ink-300"></i> 导出 GIF
+      </button>
+    </div>
+  </footer>
+
+  <!-- Live GIF Preview & Modal (Calibrated in Seconds) -->
+  <div id="gifModal" class="fixed inset-0 bg-ink-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white border border-ink-200 rounded-lg max-w-xl w-full flex flex-col overflow-hidden shadow-lg max-h-[88vh]">
+      
+      <!-- Modal Header -->
+      <div class="h-10 px-4 border-b border-ink-100 flex items-center justify-between shrink-0">
+        <span class="text-xs font-semibold text-ink-900 flex items-center gap-1.5">
+          <i data-lucide="play" class="w-3.5 h-3.5 text-ink-700"></i> 动效与导出
+        </span>
+        <button id="btnCloseGifModal" class="p-1 rounded text-ink-400 hover:text-ink-800 transition">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+
+      <!-- Live Player Viewport -->
+      <div class="p-4 flex-1 min-h-0 flex flex-col items-center justify-center bg-ink-50 canvas-bg-pattern relative overflow-hidden">
+        <canvas id="gifPreviewCanvas" class="max-h-[40vh] max-w-full rounded border border-ink-200 object-contain bg-white shadow-sm"></canvas>
+        <img id="gifRenderedResult" class="max-h-[40vh] max-w-full rounded border border-ink-200 hidden object-contain bg-white" alt="Rendered GIF">
+        
+        <div id="gifEncodingSpinner" class="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-ink-800 hidden z-10">
+          <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
+          <span class="text-xs font-mono">正在渲染编码 GIF...</span>
+        </div>
+      </div>
+
+      <!-- Controls Panel (Calibrated in SECONDS) -->
+      <div class="p-4 bg-white border-t border-ink-100 flex flex-col gap-3 shrink-0">
+        
+        <!-- Speed in Seconds -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-ink-600 font-medium">每帧时长:</span>
+            
+            <!-- Exact Number in Seconds Input -->
+            <div class="flex items-center rounded border border-ink-200 bg-ink-50 px-1.5 py-0.5 focus-within:border-ink-800">
+              <input type="number" id="modalSpeedSecInput" min="0.05" max="5.0" step="0.05" value="0.5" class="w-14 bg-transparent text-xs font-mono text-ink-900 outline-none text-right">
+              <span class="text-[10px] text-ink-400 font-mono ml-0.5 select-none">秒 (s)</span>
+            </div>
+
+            <!-- Slider mapped to seconds -->
+            <input type="range" id="modalSpeedSlider" min="0.05" max="2.0" step="0.05" value="0.5" class="w-24 sm:w-32 h-1 bg-ink-200 rounded cursor-pointer">
+            <span id="modalSpeedFpsLabel" class="text-[10px] font-mono text-ink-400">2.0 FPS</span>
+          </div>
+
+          <!-- Quick Presets in Seconds -->
+          <div class="flex items-center gap-1 text-[10px]">
+            <button class="speed-preset-btn px-1.5 py-0.5 rounded border border-ink-200 bg-ink-50 hover:bg-ink-100 text-ink-700 font-mono" data-sec="0.2">0.2s</button>
+            <button class="speed-preset-btn px-1.5 py-0.5 rounded bg-ink-900 text-white font-mono" data-sec="0.5">0.5s</button>
+            <button class="speed-preset-btn px-1.5 py-0.5 rounded border border-ink-200 bg-ink-50 hover:bg-ink-100 text-ink-700 font-mono" data-sec="0.8">0.8s</button>
+            <button class="speed-preset-btn px-1.5 py-0.5 rounded border border-ink-200 bg-ink-50 hover:bg-ink-100 text-ink-700 font-mono" data-sec="1.2">1.2s</button>
+          </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="flex items-center justify-between pt-2 border-t border-ink-100 text-xs">
+          <div class="text-[11px] text-ink-400 font-mono">
+            <span id="modalCurFrameIndicator">帧: 1 / 1</span> · 顺向循环
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button id="btnCancelGif" class="btn-minimal px-3 py-1 rounded border border-ink-200 hover:bg-ink-50 text-ink-700">
+              取消
+            </button>
+            <button id="btnGenerateAndDownloadGif" class="btn-minimal inline-flex items-center gap-1 px-3 py-1 rounded bg-ink-900 hover:bg-ink-800 text-white font-medium">
+              <i data-lucide="download" class="w-3 h-3 text-ink-300"></i> 下载 GIF
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Minimal Toast -->
+  <div id="toast" class="fixed bottom-14 left-1/2 -translate-x-1/2 z-50 bg-ink-900 text-white text-[11px] px-3 py-1 rounded shadow-md pointer-events-none transition-all duration-200 opacity-0 translate-y-1 font-mono">
+    通知
+  </div>
+
+  <script>
+    const state = {
+      projectName: '逻辑生成',
+      frames: [],
+      activeFrameIndex: 0,
+      currentPickPoint: 'A',
+      onionSkinEnabled: true,
+      onionOpacity: 0.5,
+      isBlinking: false,
+      bgColor: '#ffffff',
+      cropRatio: 'free',
+      
+      camera: { x: 0, y: 0, zoom: 1.0 },
+      cropRect: { x: 0, y: 0, w: 0, h: 0 },
+
+      // Text Annotations
+      textItems: [], // { id, text, x, y, size, color }
+      selectedTextId: null,
+      isDraggingText: false,
+      textDragOffset: { x: 0, y: 0 },
+
+      isPanning: false,
+      panStart: { x: 0, y: 0 },
+      isSpacePressed: false,
+      isResizingCrop: false,
+      isDraggingCrop: false,
+      activeHandle: null,
+      dragStart: { x: 0, y: 0 },
+      initialCropRect: null,
+
+      loupeEnabled: true,
+      loupeScale: 6,
+      mousePosBaseImage: { x: 0, y: 0 },
+      isMouseOverCanvas: false,
+
+      gifIntervalSec: 0.5,
+      gifPreviewTimer: null,
+      gifPreviewCurrentFrameIndex: 0,
+
+      historyStack: [],
+      redoStack: [],
+      maxHistory: 30
+    };
+
+    const mainCanvas = document.getElementById('mainCanvas');
+    const ctx = mainCanvas.getContext('2d');
+    const viewportWrap = document.getElementById('viewportWrap');
+    const frameList = document.getElementById('frameList');
+    const frameCountSpan = document.getElementById('frameCount');
+    const alignProgressSpan = document.getElementById('alignProgress');
+    const canvasEmptyState = document.getElementById('canvasEmptyState');
+    const nudgeOverlay = document.getElementById('nudgeOverlay');
+    const currentAnchorCoords = document.getElementById('currentAnchorCoords');
+    const currentAnchorBCoords = document.getElementById('currentAnchorBCoords');
+    const currentOffsetCoords = document.getElementById('currentOffsetCoords');
+    const onionSkinToggle = document.getElementById('onionSkinToggle');
+    const onionOpacitySlider = document.getElementById('onionOpacity');
+    const opacityValLabel = document.getElementById('opacityVal');
+    const btnBlink = document.getElementById('btnBlink');
+    const bgColorPicker = document.getElementById('bgColorPicker');
+    const btnToggleBW = document.getElementById('btnToggleBW');
+    const bgColorSwatchPreview = document.getElementById('bgColorSwatchPreview');
+    const cropDimLabel = document.getElementById('cropDimLabel');
+    const zoomPercentLabel = document.getElementById('zoomPercent');
+    const btnUndo = document.getElementById('btnUndo');
+    const btnRedo = document.getElementById('btnRedo');
+    const loupeContainer = document.getElementById('loupeContainer');
+    const loupeCanvas = document.getElementById('loupeCanvas');
+    const loupeCtx = loupeCanvas.getContext('2d');
+    const loupeCoordBadge = document.getElementById('loupeCoordBadge');
+    const loupeToggle = document.getElementById('loupeToggle');
+    const loupeScaleSelect = document.getElementById('loupeScaleSelect');
+    const toast = document.getElementById('toast');
+
+    const projectTitleInput = document.getElementById('projectTitleInput');
+    const namingPreviewBadge = document.getElementById('namingPreviewBadge');
+
+    const currentEditingLayerName = document.getElementById('currentEditingLayerName');
+    const badgeCurrentRole = document.getElementById('badgeCurrentRole');
+    const btnMode1Point = document.getElementById('btnMode1Point');
+    const btnMode2Point = document.getElementById('btnMode2Point');
+    const panel2PointOptions = document.getElementById('panel2PointOptions');
+    const baseMissingPointBWarning = document.getElementById('baseMissingPointBWarning');
+    const btnGoSetBasePointB = document.getElementById('btnGoSetBasePointB');
+    const btnPickPointA = document.getElementById('btnPickPointA');
+    const btnPickPointB = document.getElementById('btnPickPointB');
+    const checkAllowRotation = document.getElementById('checkAllowRotation');
+    const labelTransformInfo = document.getElementById('labelTransformInfo');
+
+    const btnToggleTextMode = document.getElementById('btnToggleTextMode');
+    const textEditBar = document.getElementById('textEditBar');
+    const newTextInput = document.getElementById('newTextInput');
+    const textColorSelect = document.getElementById('textColorSelect');
+    const textSizeSelect = document.getElementById('textSizeSelect');
+    const btnAddTextItem = document.getElementById('btnAddTextItem');
+    const btnCloseTextBar = document.getElementById('btnCloseTextBar');
+
+    const HANDLE_SIZE = 7;
+
+    function showToast(msg, duration = 1800) {
+      toast.textContent = msg;
+      toast.classList.remove('opacity-0', 'translate-y-1');
+      toast.classList.add('opacity-100', 'translate-y-0');
+      clearTimeout(toast._timeout);
+      toast._timeout = setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', 'translate-y-1');
+      }, duration);
+    }
+
+    // Formatting date string as YYYYMMDD
+    function getTodayString() {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}${mm}${dd}`;
+    }
+
+    function getFormattedFileName(index) {
+      const dateStr = getTodayString();
+      const safeProject = (state.projectName.trim() || '未命名').replace(/[\\/:*?"<>|]/g, '_');
+      const seq = String(index + 1).padStart(2, '0');
+      return `${dateStr}-${safeProject}-${seq}`;
+    }
+
+    function updateNamingPreview() {
+      namingPreviewBadge.textContent = `命名: ${getFormattedFileName(0)}.png`;
+    }
+
+    projectTitleInput.addEventListener('input', (e) => {
+      state.projectName = e.target.value.trim() || '未命名';
+      updateNamingPreview();
+    });
+
+    function saveHistorySnapshot(actionName = 'Edit') {
+      const snapshot = {
+        name: actionName,
+        projectName: state.projectName,
+        frames: state.frames.map(f => ({
+          id: f.id,
+          name: f.name,
+          mode: f.mode,
+          visible: f.visible !== false,
+          anchorA: f.anchorA ? { ...f.anchorA } : null,
+          anchorB: f.anchorB ? { ...f.anchorB } : null,
+          allowRotation: !!f.allowRotation,
+          offset: { ...f.offset },
+          scale: f.scale || 1.0,
+          angle: f.angle || 0.0
+        })),
+        textItems: state.textItems.map(t => ({ ...t })),
+        cropRect: { ...state.cropRect },
+        bgColor: state.bgColor,
+        activeFrameIndex: state.activeFrameIndex,
+        currentPickPoint: state.currentPickPoint
+      };
+
+      state.historyStack.push(JSON.stringify(snapshot));
+      if (state.historyStack.length > state.maxHistory) state.historyStack.shift();
+      state.redoStack = [];
+      updateUndoRedoUI();
+    }
+
+    function undo() {
+      if (state.historyStack.length <= 1) return;
+      const current = state.historyStack.pop();
+      state.redoStack.push(current);
+      restoreSnapshot(JSON.parse(state.historyStack[state.historyStack.length - 1]));
+      updateUndoRedoUI();
+      showToast('已撤销');
+    }
+
+    function redo() {
+      if (!state.redoStack.length) return;
+      const next = state.redoStack.pop();
+      state.historyStack.push(next);
+      restoreSnapshot(JSON.parse(next));
+      updateUndoRedoUI();
+      showToast('已重做');
+    }
+
+    function restoreSnapshot(snapshot) {
+      if (snapshot.projectName) {
+        state.projectName = snapshot.projectName;
+        projectTitleInput.value = state.projectName;
+        updateNamingPreview();
+      }
+
+      state.frames.forEach((frame, idx) => {
+        const saved = snapshot.frames[idx];
+        if (saved) {
+          frame.mode = saved.mode || '1point';
+          frame.visible = saved.visible !== false;
+          frame.anchorA = saved.anchorA ? { ...saved.anchorA } : null;
+          frame.anchorB = saved.anchorB ? { ...saved.anchorB } : null;
+          frame.allowRotation = !!saved.allowRotation;
+          frame.offset = { ...saved.offset };
+          frame.scale = saved.scale || 1.0;
+          frame.angle = saved.angle || 0.0;
+        }
+      });
+
+      state.textItems = snapshot.textItems ? snapshot.textItems.map(t => ({ ...t })) : [];
+      state.cropRect = { ...snapshot.cropRect };
+      setBackdropColor(snapshot.bgColor);
+      state.activeFrameIndex = Math.min(snapshot.activeFrameIndex, Math.max(0, state.frames.length - 1));
+      state.currentPickPoint = snapshot.currentPickPoint || 'A';
+
+      syncSidebarLayerModeUI();
+      renderFrameList();
+      redraw();
+    }
+
+    function updateUndoRedoUI() {
+      btnUndo.disabled = (state.historyStack.length <= 1);
+      btnRedo.disabled = (state.redoStack.length === 0);
+    }
+
+    btnUndo.addEventListener('click', undo);
+    btnRedo.addEventListener('click', redo);
+
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (document.activeElement.tagName === 'INPUT') return;
+        e.preventDefault();
+        if (e.shiftKey) redo(); else undo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        if (document.activeElement.tagName === 'INPUT') return;
+        e.preventDefault();
+        redo();
+      }
+    });
+
+    function initIngestion() {
+      window.addEventListener('paste', async (e) => {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        let found = false;
+        for (const item of items) {
+          if (item.type.indexOf('image') !== -1) {
+            const blob = item.getAsFile();
+            if (blob) {
+              found = true;
+              await loadBlobIntoFrame(blob, `图层 ${state.frames.length + 1}`);
+            }
+          }
+        }
+        if (found) {
+          saveHistorySnapshot('粘贴截图');
+          showToast('已载入截图');
+        }
+      });
+
+      document.getElementById('btnUpload').addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', async (e) => {
+        if (!e.target.files.length) return;
+        for (const file of e.target.files) {
+          await loadBlobIntoFrame(file, file.name);
+        }
+        fileInput.value = '';
+        saveHistorySnapshot('载入图片');
+      });
+
+      viewportWrap.addEventListener('dragover', (e) => e.preventDefault());
+      viewportWrap.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          for (const file of e.dataTransfer.files) {
+            if (file.type.startsWith('image/')) {
+              await loadBlobIntoFrame(file, file.name);
+            }
+          }
+          saveHistorySnapshot('拖拽导入');
+        }
+      });
+
+      document.getElementById('btnClearAll').addEventListener('click', () => {
+        if (!state.frames.length) return;
+        state.frames = [];
+        state.textItems = [];
+        state.activeFrameIndex = 0;
+        state.cropRect = { x: 0, y: 0, w: 0, h: 0 };
+        state.historyStack = [];
+        state.redoStack = [];
+        updateUndoRedoUI();
+        syncSidebarLayerModeUI();
+        renderFrameList();
+        redraw();
+        showToast('已清空画板');
+      });
+    }
+
+    function loadBlobIntoFrame(blob, name) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const newIndex = state.frames.length;
+            const newFrame = {
+              id: 'frame_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+              image: img,
+              name: name || `图层 ${newIndex + 1}`,
+              mode: (newIndex === 0) ? '2point' : (state.frames[0]?.mode || '1point'),
+              visible: true,
+              anchorA: null,
+              anchorB: null,
+              allowRotation: false,
+              offset: { x: 0, y: 0 },
+              scale: 1.0,
+              angle: 0.0
+            };
+
+            if (newIndex === 0) {
+              state.cropRect = {
+                x: 0,
+                y: 0,
+                w: img.naturalWidth,
+                h: img.naturalHeight
+              };
+              resetViewCamera();
+            }
+
+            recomputeFrameTransform(newFrame);
+            state.frames.push(newFrame);
+            state.activeFrameIndex = newIndex;
+            state.currentPickPoint = (newFrame.anchorA === null) ? 'A' : (newFrame.anchorB === null ? 'B' : 'A');
+
+            syncSidebarLayerModeUI();
+            renderFrameList();
+            redraw();
+            resolve();
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    function recomputeFrameTransform(frame) {
+      if (!frame) return;
+      const baseFrame = state.frames[0];
+      if (!baseFrame || frame === baseFrame) {
+        frame.offset = { x: 0, y: 0 };
+        frame.scale = 1.0;
+        frame.angle = 0.0;
+        return;
+      }
+
+      const baseA = baseFrame.anchorA;
+      const curA = frame.anchorA;
+
+      if (!baseA || !curA) {
+        frame.offset = { x: 0, y: 0 };
+        frame.scale = 1.0;
+        frame.angle = 0.0;
+        return;
+      }
+
+      if (frame.mode === '1point' || !frame.anchorB || !baseFrame.anchorB) {
+        frame.offset = { x: curA.x - baseA.x, y: curA.y - baseA.y };
+        frame.scale = 1.0;
+        frame.angle = 0.0;
+      } else {
+        const baseB = baseFrame.anchorB;
+        const curB = frame.anchorB;
+
+        const baseDx = baseB.x - baseA.x;
+        const baseDy = baseB.y - baseA.y;
+        const curDx = curB.x - curA.x;
+        const curDy = curB.y - curA.y;
+
+        const distBase = Math.hypot(baseDx, baseDy);
+        const distCur = Math.hypot(curDx, curDy);
+        const scale = (distCur > 0.0001) ? (distBase / distCur) : 1.0;
+
+        let angle = 0;
+        if (frame.allowRotation) {
+          const angleBase = Math.atan2(baseDy, baseDx);
+          const angleCur = Math.atan2(curDy, curDx);
+          angle = angleBase - angleCur;
+        }
+
+        frame.scale = scale;
+        frame.angle = angle;
+        frame.offset = { x: curA.x - baseA.x, y: curA.y - baseA.y };
+      }
+    }
+
+    function baseToRawImageCoords(baseCoord, frame) {
+      const baseFrame = state.frames[0];
+      if (!frame || frame === baseFrame) return { x: baseCoord.x, y: baseCoord.y };
+
+      const baseA = baseFrame?.anchorA;
+      const curA = frame.anchorA;
+
+      if (!baseA || !curA || state.currentPickPoint === 'A') {
+        return { x: baseCoord.x, y: baseCoord.y };
+      }
+
+      if (frame.mode === '2point') {
+        const scale = frame.scale || 1.0;
+        const angle = (frame.allowRotation && frame.angle) ? frame.angle : 0;
+        const vx = baseCoord.x - baseA.x;
+        const vy = baseCoord.y - baseA.y;
+
+        const cos = Math.cos(-angle);
+        const sin = Math.sin(-angle);
+        const rx = vx * cos - vy * sin;
+        const ry = vx * sin + vy * cos;
+
+        return {
+          x: curA.x + (rx / scale),
+          y: curA.y + (ry / scale)
+        };
+      } else {
+        const dx = baseA.x - curA.x;
+        const dy = baseA.y - curA.y;
+        return { x: baseCoord.x - dx, y: baseCoord.y - dy };
+      }
+    }
+
+    function syncSidebarLayerModeUI() {
+      const activeFrame = state.frames[state.activeFrameIndex];
+      const baseFrame = state.frames[0];
+      if (!activeFrame) return;
+
+      const isBase = (state.activeFrameIndex === 0);
+      currentEditingLayerName.textContent = activeFrame.name;
+
+      if (isBase) {
+        badgeCurrentRole.textContent = '基准图';
+        badgeCurrentRole.className = 'text-[10px] px-1.5 py-0.5 rounded bg-ink-100 text-ink-700 font-mono';
+        btnMode1Point.className = (activeFrame.mode === '1point') ? 'py-1 rounded font-medium text-center transition bg-white text-ink-900 shadow-sm' : 'py-1 rounded font-medium text-center transition text-ink-500 hover:text-ink-900';
+        btnMode2Point.className = (activeFrame.mode === '2point') ? 'py-1 rounded font-medium text-center transition bg-white text-ink-900 shadow-sm' : 'py-1 rounded font-medium text-center transition text-ink-500 hover:text-ink-900';
+        baseMissingPointBWarning.classList.add('hidden');
+      } else {
+        badgeCurrentRole.textContent = `图 ${state.activeFrameIndex + 1}`;
+        badgeCurrentRole.className = 'text-[10px] px-1.5 py-0.5 rounded bg-ink-100 text-ink-600 font-mono';
+        btnMode1Point.className = (activeFrame.mode === '1point') ? 'py-1 rounded font-medium text-center transition bg-white text-ink-900 shadow-sm' : 'py-1 rounded font-medium text-center transition text-ink-500 hover:text-ink-900';
+        btnMode2Point.className = (activeFrame.mode === '2point') ? 'py-1 rounded font-medium text-center transition bg-white text-ink-900 shadow-sm' : 'py-1 rounded font-medium text-center transition text-ink-500 hover:text-ink-900';
+
+        if (activeFrame.mode === '2point' && (!baseFrame || !baseFrame.anchorB)) {
+          baseMissingPointBWarning.classList.remove('hidden');
+        } else {
+          baseMissingPointBWarning.classList.add('hidden');
+        }
+      }
+
+      if (activeFrame.mode === '2point') {
+        panel2PointOptions.classList.remove('hidden');
+        btnPickPointB.classList.remove('hidden');
+      } else {
+        panel2PointOptions.classList.add('hidden');
+        btnPickPointB.classList.add('hidden');
+        if (state.currentPickPoint === 'B') state.currentPickPoint = 'A';
+      }
+
+      checkAllowRotation.checked = !!activeFrame.allowRotation;
+
+      if (state.currentPickPoint === 'A') {
+        btnPickPointA.className = 'px-2 py-0.5 rounded font-mono font-medium bg-ink-900 text-white';
+        btnPickPointB.className = 'px-2 py-0.5 rounded font-mono font-medium text-ink-500 hover:text-ink-900';
+      } else {
+        btnPickPointA.className = 'px-2 py-0.5 rounded font-mono font-medium text-ink-500 hover:text-ink-900';
+        btnPickPointB.className = 'px-2 py-0.5 rounded font-mono font-medium bg-ink-900 text-white';
+      }
+
+      const scalePct = ((activeFrame.scale || 1.0) * 100).toFixed(1);
+      const deg = (((activeFrame.angle || 0) * 180) / Math.PI).toFixed(1);
+      labelTransformInfo.textContent = `${scalePct}% / ${deg}°`;
+    }
+
+    btnGoSetBasePointB.addEventListener('click', () => {
+      state.activeFrameIndex = 0;
+      const baseFrame = state.frames[0];
+      if (baseFrame) {
+        baseFrame.mode = '2point';
+        state.currentPickPoint = 'B';
+      }
+      syncSidebarLayerModeUI();
+      renderFrameList();
+      redraw();
+      showToast('请在图 1 点击落【基准点 B】');
+    });
+
+    btnMode1Point.addEventListener('click', () => {
+      const activeFrame = state.frames[state.activeFrameIndex];
+      if (!activeFrame) return;
+      activeFrame.mode = '1point';
+      state.currentPickPoint = 'A';
+      recomputeFrameTransform(activeFrame);
+      saveHistorySnapshot('单点对齐');
+      syncSidebarLayerModeUI();
+      renderFrameList();
+      redraw();
+    });
+
+    btnMode2Point.addEventListener('click', () => {
+      const activeFrame = state.frames[state.activeFrameIndex];
+      if (!activeFrame) return;
+      activeFrame.mode = '2point';
+      state.currentPickPoint = (activeFrame.anchorA === null) ? 'A' : 'B';
+      recomputeFrameTransform(activeFrame);
+      saveHistorySnapshot('两点对齐');
+      syncSidebarLayerModeUI();
+      renderFrameList();
+      redraw();
+    });
+
+    btnPickPointA.addEventListener('click', () => {
+      state.currentPickPoint = 'A';
+      syncSidebarLayerModeUI();
+    });
+    btnPickPointB.addEventListener('click', () => {
+      state.currentPickPoint = 'B';
+      syncSidebarLayerModeUI();
+    });
+
+    checkAllowRotation.addEventListener('change', (e) => {
+      const activeFrame = state.frames[state.activeFrameIndex];
+      if (!activeFrame) return;
+      activeFrame.allowRotation = e.target.checked;
+      recomputeFrameTransform(activeFrame);
+      saveHistorySnapshot('切换旋转');
+      syncSidebarLayerModeUI();
+      redraw();
+    });
+
+    function renderFrameList() {
+      frameCountSpan.textContent = state.frames.length;
+      document.getElementById('sidebarEmptyNotice').style.display = state.frames.length ? 'none' : 'flex';
+      canvasEmptyState.style.display = state.frames.length ? 'none' : 'flex';
+      nudgeOverlay.style.display = state.frames.length ? 'flex' : 'none';
+
+      const alignedCount = state.frames.filter(f => {
+        if (!f.anchorA) return false;
+        if (f.mode === '2point' && !f.anchorB) return false;
+        return true;
+      }).length;
+      alignProgressSpan.textContent = `${alignedCount} / ${state.frames.length}`;
+
+      frameList.innerHTML = '';
+      state.frames.forEach((frame, idx) => {
+        const isBase = (idx === 0);
+        const isActive = (idx === state.activeFrameIndex);
+        const isVisible = (frame.visible !== false);
+
+        const card = document.createElement('div');
+        card.className = `p-2 rounded border text-xs cursor-pointer transition flex items-center gap-2 ${
+          isActive 
+            ? 'bg-ink-100/90 border-ink-900 shadow-sm' 
+            : 'bg-white hover:bg-ink-50 border-ink-200 text-ink-700'
+        } ${!isVisible ? 'opacity-40' : ''}`;
+
+        card.innerHTML = `
+          <!-- Visibility Eye Toggle -->
+          <button class="btn-toggle-vis p-1 rounded hover:bg-ink-200 text-ink-500 hover:text-ink-900 shrink-0" title="${isVisible ? '隐藏此图层' : '显示此图层'}">
+            <i data-lucide="${isVisible ? 'eye' : 'eye-off'}" class="w-3.5 h-3.5 pointer-events-none"></i>
+          </button>
+
+          <div class="w-8 h-8 rounded bg-ink-100 overflow-hidden shrink-0 border border-ink-200 flex items-center justify-center">
+            <img src="${frame.image.src}" class="w-full h-full object-cover">
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="font-medium truncate text-ink-900 text-[11px]">${frame.name}</span>
+              <span class="text-[9px] font-mono text-ink-400">${isBase ? '基准' : (frame.mode === '2point' ? '2点' : '1点')}</span>
+            </div>
+            <div class="text-[9px] text-ink-400 mt-0.5 flex items-center gap-2 font-mono">
+              <span class="${frame.anchorA ? 'text-ink-800' : 'text-ink-300'}">A:${frame.anchorA ? `${frame.anchorA.x},${frame.anchorA.y}` : '-'}</span>
+              ${frame.mode === '2point' ? `<span class="${frame.anchorB ? 'text-ink-800' : 'text-ink-300'}">B:${frame.anchorB ? `${frame.anchorB.x},${frame.anchorB.y}` : '-'}</span>` : ''}
+            </div>
+          </div>
+          <button class="btn-delete p-1 rounded hover:bg-rose-50 hover:text-rose-600 text-ink-300" title="删除">
+            <i data-lucide="trash" class="w-3 h-3 pointer-events-none"></i>
+          </button>
+        `;
+
+        // Card select
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('.btn-delete') || e.target.closest('.btn-toggle-vis')) return;
+          state.activeFrameIndex = idx;
+          state.currentPickPoint = (frame.anchorA === null) ? 'A' : (frame.mode === '2point' && frame.anchorB === null ? 'B' : 'A');
+          syncSidebarLayerModeUI();
+          renderFrameList();
+          redraw();
+        });
+
+        // Visibility toggle
+        card.querySelector('.btn-toggle-vis').addEventListener('click', (e) => {
+          e.stopPropagation();
+          frame.visible = !isVisible;
+          saveHistorySnapshot(frame.visible ? '显示图层' : '隐藏图层');
+          renderFrameList();
+          redraw();
+        });
+
+        // Delete frame
+        card.querySelector('.btn-delete').addEventListener('click', (e) => {
+          e.stopPropagation();
+          saveHistorySnapshot('删除帧');
+          state.frames.splice(idx, 1);
+          if (state.activeFrameIndex >= state.frames.length) {
+            state.activeFrameIndex = Math.max(0, state.frames.length - 1);
+          }
+          syncSidebarLayerModeUI();
+          renderFrameList();
+          redraw();
+        });
+
+        frameList.appendChild(card);
+      });
+
+      lucide.createIcons();
+      updateCoordLabels();
+    }
+
+    function updateCoordLabels() {
+      const activeFrame = state.frames[state.activeFrameIndex];
+      if (activeFrame && activeFrame.anchorA) {
+        currentAnchorCoords.textContent = `${activeFrame.anchorA.x}, ${activeFrame.anchorA.y}`;
+        currentAnchorBCoords.textContent = activeFrame.anchorB ? `${activeFrame.anchorB.x}, ${activeFrame.anchorB.y}` : '未设';
+        const scalePct = ((activeFrame.scale || 1.0) * 100).toFixed(0);
+        currentOffsetCoords.textContent = `Δ(${activeFrame.offset.x}, ${activeFrame.offset.y}) · ${scalePct}%`;
+      } else {
+        currentAnchorCoords.textContent = '未设';
+        currentAnchorBCoords.textContent = '未设';
+        currentOffsetCoords.textContent = 'Δ(0, 0)';
+      }
+      cropDimLabel.textContent = `${Math.round(state.cropRect.w)} × ${Math.round(state.cropRect.h)} px`;
+    }
+
+    function resetViewCamera() {
+      if (!state.frames.length) return;
+      const base = state.frames[0];
+      const wrapW = viewportWrap.clientWidth || 800;
+      const wrapH = viewportWrap.clientHeight || 600;
+      const margin = 50;
+
+      const scaleX = (wrapW - margin) / base.image.naturalWidth;
+      const scaleY = (wrapH - margin) / base.image.naturalHeight;
+      const bestZoom = Math.min(1.0, scaleX, scaleY);
+
+      state.camera.zoom = Math.max(0.1, bestZoom);
+      state.camera.x = Math.round((wrapW - base.image.naturalWidth * state.camera.zoom) / 2);
+      state.camera.y = Math.round((wrapH - base.image.naturalHeight * state.camera.zoom) / 2);
+
+      zoomPercentLabel.textContent = `${Math.round(state.camera.zoom * 100)}%`;
+    }
+
+    function clientToBaseCoords(clientX, clientY) {
+      const rect = mainCanvas.getBoundingClientRect();
+      const xOnCanvas = clientX - rect.left;
+      const yOnCanvas = clientY - rect.top;
+      return {
+        x: (xOnCanvas - state.camera.x) / state.camera.zoom,
+        y: (yOnCanvas - state.camera.y) / state.camera.zoom
+      };
+    }
+
+    function baseToCanvasCoords(imgX, imgY) {
+      return {
+        x: imgX * state.camera.zoom + state.camera.x,
+        y: imgY * state.camera.zoom + state.camera.y
+      };
+    }
+
+    function resizeCanvasToDisplay() {
+      const dpr = window.devicePixelRatio || 1;
+      const width = viewportWrap.clientWidth;
+      const height = viewportWrap.clientHeight;
+      if (!width || !height) return;
+
+      if (mainCanvas.width !== Math.floor(width * dpr) || mainCanvas.height !== Math.floor(height * dpr)) {
+        mainCanvas.width = Math.floor(width * dpr);
+        mainCanvas.height = Math.floor(height * dpr);
+        mainCanvas.style.width = width + 'px';
+        mainCanvas.style.height = height + 'px';
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function drawFrameWithTransform(targetCtx, frame, opacity = 1.0, isWorkspace = true) {
+      if (!frame || !frame.image || frame.visible === false) return;
+      const baseFrame = state.frames[0];
+      if (!baseFrame) return;
+
+      targetCtx.save();
+      targetCtx.globalAlpha = opacity;
+
+      if (isWorkspace) {
+        targetCtx.translate(state.camera.x, state.camera.y);
+        targetCtx.scale(state.camera.zoom, state.camera.zoom);
+      }
+
+      if (frame === baseFrame) {
+        targetCtx.drawImage(frame.image, 0, 0);
+        targetCtx.restore();
+        return;
+      }
+
+      const baseA = baseFrame.anchorA || { x: 0, y: 0 };
+      const curA = frame.anchorA || baseA;
+
+      if (frame.mode === '2point' && frame.anchorB && baseFrame.anchorB) {
+        targetCtx.translate(baseA.x, baseA.y);
+        if (frame.allowRotation && frame.angle) targetCtx.rotate(frame.angle);
+        if (frame.scale) targetCtx.scale(frame.scale, frame.scale);
+        targetCtx.translate(-curA.x, -curA.y);
+        targetCtx.drawImage(frame.image, 0, 0);
+      } else {
+        const dx = baseA.x - curA.x;
+        const dy = baseA.y - curA.y;
+        targetCtx.drawImage(frame.image, dx, dy);
+      }
+
+      targetCtx.restore();
+    }
+
+    function drawTextAnnotations(targetCtx, isWorkspace = true) {
+      if (!state.textItems.length) return;
+
+      targetCtx.save();
+      if (isWorkspace) {
+        targetCtx.translate(state.camera.x, state.camera.y);
+        targetCtx.scale(state.camera.zoom, state.camera.zoom);
+      }
+
+      state.textItems.forEach(item => {
+        targetCtx.save();
+        targetCtx.font = `600 ${item.size}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        targetCtx.textBaseline = 'top';
+
+        // subtle outline for contrast
+        targetCtx.strokeStyle = (item.color === '#ffffff') ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)';
+        targetCtx.lineWidth = Math.max(2, item.size / 8);
+        targetCtx.strokeText(item.text, item.x, item.y);
+
+        targetCtx.fillStyle = item.color;
+        targetCtx.fillText(item.text, item.x, item.y);
+
+        if (isWorkspace && state.selectedTextId === item.id) {
+          const metrics = targetCtx.measureText(item.text);
+          targetCtx.strokeStyle = '#0f172a';
+          targetCtx.lineWidth = 1;
+          targetCtx.setLineDash([3, 3]);
+          targetCtx.strokeRect(item.x - 3, item.y - 2, metrics.width + 6, item.size + 4);
+        }
+        targetCtx.restore();
+      });
+
+      targetCtx.restore();
+    }
+
+    function redraw() {
+      resizeCanvasToDisplay();
+      const width = viewportWrap.clientWidth;
+      const height = viewportWrap.clientHeight;
+      ctx.clearRect(0, 0, width, height);
+
+      if (!state.frames.length) return;
+
+      const baseFrame = state.frames[0];
+      const activeFrame = state.frames[state.activeFrameIndex];
+      const isBaseSelected = (state.activeFrameIndex === 0);
+
+      ctx.save();
+
+      // 1. Crop box fill preview with chosen backdrop
+      const cropScreenTL = baseToCanvasCoords(state.cropRect.x, state.cropRect.y);
+      const cropScreenW = state.cropRect.w * state.camera.zoom;
+      const cropScreenH = state.cropRect.h * state.camera.zoom;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(cropScreenTL.x, cropScreenTL.y, cropScreenW, cropScreenH);
+      ctx.clip();
+
+      ctx.fillStyle = state.bgColor;
+      ctx.fillRect(cropScreenTL.x, cropScreenTL.y, cropScreenW, cropScreenH);
+
+      if (state.isBlinking) {
+        if (activeFrame && activeFrame.visible !== false) drawFrameWithTransform(ctx, activeFrame, 1.0, true);
+      } else if (isBaseSelected || !state.onionSkinEnabled) {
+        if (activeFrame && activeFrame.visible !== false) drawFrameWithTransform(ctx, activeFrame, 1.0, true);
+      } else {
+        if (baseFrame && baseFrame.visible !== false) drawFrameWithTransform(ctx, baseFrame, 1.0, true);
+        if (activeFrame && activeFrame.visible !== false) drawFrameWithTransform(ctx, activeFrame, state.onionOpacity, true);
+      }
+
+      // Draw text inside crop window
+      drawTextAnnotations(ctx, true);
+      ctx.restore();
+
+      // 2. Translucent mask for non-crop regions
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, width, height);
+      ctx.rect(cropScreenTL.x + cropScreenW, cropScreenTL.y, -cropScreenW, cropScreenH);
+      ctx.clip();
+
+      ctx.fillStyle = 'rgba(241, 245, 249, 0.7)';
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.globalAlpha = 0.3;
+      if (isBaseSelected || !state.onionSkinEnabled || state.isBlinking) {
+        if (activeFrame && activeFrame.visible !== false) drawFrameWithTransform(ctx, activeFrame, 1.0, true);
+      } else {
+        if (baseFrame && baseFrame.visible !== false) drawFrameWithTransform(ctx, baseFrame, 1.0, true);
+        if (activeFrame && activeFrame.visible !== false) drawFrameWithTransform(ctx, activeFrame, state.onionOpacity, true);
+      }
+      drawTextAnnotations(ctx, true);
+      ctx.restore();
+
+      // 3. Hairline outline of Base Frame
+      if (baseFrame && baseFrame.visible !== false) {
+        const baseTL = baseToCanvasCoords(0, 0);
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(baseTL.x, baseTL.y, baseFrame.image.naturalWidth * state.camera.zoom, baseFrame.image.naturalHeight * state.camera.zoom);
+      }
+
+      // 4. Reticles
+      if (activeFrame && activeFrame.visible !== false) {
+        drawAnchorSystem(activeFrame);
+      }
+
+      // 5. Crop Boundary
+      drawCropFrame(cropScreenTL.x, cropScreenTL.y, cropScreenW, cropScreenH);
+
+      ctx.restore();
+
+      if (state.loupeEnabled && state.isMouseOverCanvas) {
+        renderMagnifierLoupe();
+      }
+    }
+
+    function drawAnchorSystem(frame) {
+      const isBase = (frame === state.frames[0]);
+      const baseFrame = state.frames[0];
+
+      if (isBase) {
+        if (frame.anchorA) {
+          const sA = baseToCanvasCoords(frame.anchorA.x, frame.anchorA.y);
+          drawMinimalReticle(sA.x, sA.y, '#0f172a', `基准 A`, state.currentPickPoint === 'A');
+        }
+        if (frame.anchorB && frame.mode === '2point') {
+          const sB = baseToCanvasCoords(frame.anchorB.x, frame.anchorB.y);
+          drawMinimalReticle(sB.x, sB.y, '#475569', `基准 B`, state.currentPickPoint === 'B');
+          if (frame.anchorA) {
+            const sA = baseToCanvasCoords(frame.anchorA.x, frame.anchorA.y);
+            drawFineLink(sA, sB);
+          }
+        }
+      } else {
+        const baseA = baseFrame?.anchorA;
+        const baseB = baseFrame?.anchorB;
+
+        if (baseA) {
+          const sBaseA = baseToCanvasCoords(baseA.x, baseA.y);
+          drawTargetHole(sBaseA.x, sBaseA.y, '#94a3b8');
+        }
+
+        if (frame.anchorA && baseA) {
+          const sA = baseToCanvasCoords(baseA.x, baseA.y);
+          drawMinimalReticle(sA.x, sA.y, '#0f172a', `点 A`, state.currentPickPoint === 'A');
+        }
+
+        if (frame.mode === '2point') {
+          if (baseB) {
+            const sBaseB = baseToCanvasCoords(baseB.x, baseB.y);
+            drawTargetHole(sBaseB.x, sBaseB.y, '#94a3b8');
+            if (frame.anchorB) {
+              drawMinimalReticle(sBaseB.x, sBaseB.y, '#475569', `点 B`, state.currentPickPoint === 'B');
+            }
+          }
+          if (baseA && baseB && frame.anchorA && frame.anchorB) {
+            const sA = baseToCanvasCoords(baseA.x, baseA.y);
+            const sB = baseToCanvasCoords(baseB.x, baseB.y);
+            drawFineLink(sA, sB);
+          }
+        }
+      }
+    }
+
+    function drawTargetHole(x, y, color) {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.setLineDash([2, 2]);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(x, y, 10, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawFineLink(pt1, pt2) {
+      ctx.save();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(pt1.x, pt1.y);
+      ctx.lineTo(pt2.x, pt2.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawMinimalReticle(x, y, color, label, isSelected = false) {
+      ctx.save();
+      ctx.lineWidth = isSelected ? 1.5 : 1;
+      ctx.strokeStyle = color;
+
+      ctx.beginPath();
+      ctx.arc(x, y, isSelected ? 8 : 6, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(x - 12, y); ctx.lineTo(x + 12, y);
+      ctx.moveTo(x, y - 12); ctx.lineTo(x, y + 12);
+      ctx.stroke();
+
+      ctx.font = '9px monospace';
+      ctx.fillStyle = '#0f172a';
+      ctx.textAlign = 'left';
+      ctx.fillText(label, x + 10, y - 5);
+      ctx.restore();
+    }
+
+    function drawCropFrame(x, y, w, h) {
+      ctx.save();
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x, y, w, h);
+
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 0.75;
+      ctx.beginPath();
+      ctx.moveTo(x + w / 3, y); ctx.lineTo(x + w / 3, y + h);
+      ctx.moveTo(x + (2 * w) / 3, y); ctx.lineTo(x + (2 * w) / 3, y + h);
+      ctx.moveTo(x, y + h / 3); ctx.lineTo(x + w, y + h / 3);
+      ctx.moveTo(x, y + (2 * h) / 3); ctx.lineTo(x + w, y + (2 * h) / 3);
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.5;
+
+      const handles = getScreenCropHandles(x, y, w, h);
+      for (const key in handles) {
+        const pt = handles[key];
+        ctx.beginPath();
+        ctx.rect(pt.x - HANDLE_SIZE / 2, pt.y - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function getScreenCropHandles(x, y, w, h) {
+      return {
+        tl: { x, y }, tr: { x: x + w, y },
+        bl: { x, y: y + h }, br: { x: x + w, y: y + h },
+        tc: { x: x + w / 2, y }, bc: { x: x + w / 2, y: y + h },
+        ml: { x, y: y + h / 2 }, mr: { x: x + w, y: y + h / 2 }
+      };
+    }
+
+    function renderMagnifierLoupe() {
+      if (!state.frames.length || !state.loupeEnabled) {
+        loupeContainer.classList.add('hidden');
+        return;
+      }
+      const activeFrame = state.frames[state.activeFrameIndex];
+      if (!activeFrame) return;
+
+      loupeContainer.classList.remove('hidden');
+      const size = 144;
+      loupeCanvas.width = size;
+      loupeCanvas.height = size;
+
+      const basePos = state.mousePosBaseImage;
+      loupeCoordBadge.textContent = `${Math.round(basePos.x)}, ${Math.round(basePos.y)}`;
+
+      loupeCtx.imageSmoothingEnabled = false;
+      loupeCtx.fillStyle = state.bgColor;
+      loupeCtx.fillRect(0, 0, size, size);
+
+      const zoom = state.loupeScale;
+      loupeCtx.save();
+      loupeCtx.translate(size / 2, size / 2);
+      loupeCtx.scale(zoom, zoom);
+      loupeCtx.translate(-basePos.x, -basePos.y);
+
+      const baseFrame = state.frames[0];
+      if (state.onionSkinEnabled && activeFrame !== baseFrame) {
+        drawFrameWithTransform(loupeCtx, baseFrame, 1.0, false);
+        drawFrameWithTransform(loupeCtx, activeFrame, state.onionOpacity, false);
+      } else {
+        drawFrameWithTransform(loupeCtx, activeFrame, 1.0, false);
+      }
+      drawTextAnnotations(loupeCtx, false);
+      loupeCtx.restore();
+
+      if (zoom >= 8) {
+        loupeCtx.save();
+        loupeCtx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+        loupeCtx.lineWidth = 0.5;
+        const offsetX = (size / 2 - (basePos.x % 1) * zoom) % zoom;
+        const offsetY = (size / 2 - (basePos.y % 1) * zoom) % zoom;
+        for (let gx = offsetX; gx < size; gx += zoom) {
+          loupeCtx.beginPath(); loupeCtx.moveTo(gx, 0); loupeCtx.lineTo(gx, size); loupeCtx.stroke();
+        }
+        for (let gy = offsetY; gy < size; gy += zoom) {
+          loupeCtx.beginPath(); loupeCtx.moveTo(0, gy); loupeCtx.lineTo(size, gy); loupeCtx.stroke();
+        }
+        loupeCtx.restore();
+      }
+    }
+
+    function getTextItemAt(basePos) {
+      for (let i = state.textItems.length - 1; i >= 0; i--) {
+        const item = state.textItems[i];
+        ctx.save();
+        ctx.font = `600 ${item.size}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        const metrics = ctx.measureText(item.text);
+        ctx.restore();
+
+        const w = metrics.width;
+        const h = item.size;
+        if (basePos.x >= item.x && basePos.x <= item.x + w && basePos.y >= item.y && basePos.y <= item.y + h) {
+          return item;
+        }
+      }
+      return null;
+    }
+
+    function initInteractions() {
+      function getHitHandle(screenX, screenY) {
+        const cropScreenTL = baseToCanvasCoords(state.cropRect.x, state.cropRect.y);
+        const cropScreenW = state.cropRect.w * state.camera.zoom;
+        const cropScreenH = state.cropRect.h * state.camera.zoom;
+        const handles = getScreenCropHandles(cropScreenTL.x, cropScreenTL.y, cropScreenW, cropScreenH);
+        const threshold = HANDLE_SIZE * 2;
+        for (const [key, pt] of Object.entries(handles)) {
+          if (Math.hypot(screenX - pt.x, screenY - pt.y) <= threshold) return key;
+        }
+        return null;
+      }
+
+      function isInsideCrop(basePos) {
+        const { x, y, w, h } = state.cropRect;
+        return basePos.x >= x && basePos.x <= x + w && basePos.y >= y && basePos.y <= y + h;
+      }
+
+      viewportWrap.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        if (!state.frames.length) return;
+
+        const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
+        const newZoom = Math.min(10.0, Math.max(0.1, state.camera.zoom * zoomFactor));
+
+        const rect = mainCanvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        state.camera.x = mouseX - (mouseX - state.camera.x) * (newZoom / state.camera.zoom);
+        state.camera.y = mouseY - (mouseY - state.camera.y) * (newZoom / state.camera.zoom);
+        state.camera.zoom = newZoom;
+
+        zoomPercentLabel.textContent = `${Math.round(state.camera.zoom * 100)}%`;
+        redraw();
+      }, { passive: false });
+
+      viewportWrap.addEventListener('mousedown', (e) => {
+        if (!state.frames.length) return;
+
+        const rect = mainCanvas.getBoundingClientRect();
+        const screenX = e.clientX - rect.left;
+        const screenY = e.clientY - rect.top;
+        const basePos = clientToBaseCoords(e.clientX, e.clientY);
+
+        if (state.isSpacePressed || e.button === 1) {
+          state.isPanning = true;
+          state.panStart = { x: e.clientX - state.camera.x, y: e.clientY - state.camera.y };
+          viewportWrap.style.cursor = 'grabbing';
+          return;
+        }
+
+        if (e.button === 0) {
+          // Check if clicking a text item
+          const hitText = getTextItemAt(basePos);
+          if (hitText) {
+            state.selectedTextId = hitText.id;
+            state.isDraggingText = true;
+            state.textDragOffset = { x: basePos.x - hitText.x, y: basePos.y - hitText.y };
+            redraw();
+            return;
+          } else {
+            state.selectedTextId = null;
+          }
+
+          // Check if dragging/resizing crop
+          const hitHandle = getHitHandle(screenX, screenY);
+          if (hitHandle) {
+            state.isResizingCrop = true;
+            state.activeHandle = hitHandle;
+            state.dragStart = basePos;
+            state.initialCropRect = { ...state.cropRect };
+            return;
+          }
+
+          if (e.altKey && isInsideCrop(basePos)) {
+            state.isDraggingCrop = true;
+            state.dragStart = basePos;
+            state.initialCropRect = { ...state.cropRect };
+            return;
+          }
+
+          // Point calibration
+          applyPointCalibrationAt(basePos);
+        }
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!state.frames.length) return;
+
+        const rect = mainCanvas.getBoundingClientRect();
+        const screenX = e.clientX - rect.left;
+        const screenY = e.clientY - rect.top;
+        const basePos = clientToBaseCoords(e.clientX, e.clientY);
+
+        state.mousePosBaseImage = basePos;
+        state.isMouseOverCanvas = (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
+
+        if (state.loupeEnabled && state.isMouseOverCanvas) {
+          let lx = screenX + 16;
+          let ly = screenY - 144 - 16;
+          if (lx + 144 > viewportWrap.clientWidth) lx = screenX - 144 - 16;
+          if (ly < 10) ly = screenY + 16;
+          loupeContainer.style.left = `${lx}px`;
+          loupeContainer.style.top = `${ly}px`;
+        } else {
+          loupeContainer.classList.add('hidden');
+        }
+
+        if (state.isPanning) {
+          state.camera.x = e.clientX - state.panStart.x;
+          state.camera.y = e.clientY - state.panStart.y;
+          redraw();
+          return;
+        }
+
+        if (state.isDraggingText && state.selectedTextId) {
+          const textItem = state.textItems.find(t => t.id === state.selectedTextId);
+          if (textItem) {
+            textItem.x = Math.round(basePos.x - state.textDragOffset.x);
+            textItem.y = Math.round(basePos.y - state.textDragOffset.y);
+            redraw();
+          }
+          return;
+        }
+
+        if (state.isResizingCrop) {
+          const dx = basePos.x - state.dragStart.x;
+          const dy = basePos.y - state.dragStart.y;
+          const init = state.initialCropRect;
+          let newRect = { ...init };
+
+          switch (state.activeHandle) {
+            case 'br': newRect.w = Math.max(20, init.w + dx); newRect.h = Math.max(20, init.h + dy); break;
+            case 'tl':
+              newRect.x = Math.min(init.x + init.w - 20, init.x + dx);
+              newRect.y = Math.min(init.y + init.h - 20, init.y + dy);
+              newRect.w = init.w - (newRect.x - init.x);
+              newRect.h = init.h - (newRect.y - init.y);
+              break;
+            case 'tr':
+              newRect.y = Math.min(init.y + init.h - 20, init.y + dy);
+              newRect.w = Math.max(20, init.w + dx);
+              newRect.h = init.h - (newRect.y - init.y);
+              break;
+            case 'bl':
+              newRect.x = Math.min(init.x + init.w - 20, init.x + dx);
+              newRect.w = init.w - (newRect.x - init.x);
+              newRect.h = Math.max(20, init.h + dy);
+              break;
+            case 'mr': newRect.w = Math.max(20, init.w + dx); break;
+            case 'ml':
+              newRect.x = Math.min(init.x + init.w - 20, init.x + dx);
+              newRect.w = init.w - (newRect.x - init.x);
+              break;
+            case 'bc': newRect.h = Math.max(20, init.h + dy); break;
+            case 'tc':
+              newRect.y = Math.min(init.y + init.h - 20, init.y + dy);
+              newRect.h = init.h - (newRect.y - init.y);
+              break;
+          }
+
+          applyAspectRatioConstraint(newRect);
+          state.cropRect = newRect;
+          updateCoordLabels();
+          redraw();
+          return;
+        }
+
+        if (state.isDraggingCrop) {
+          const dx = basePos.x - state.dragStart.x;
+          const dy = basePos.y - state.dragStart.y;
+          state.cropRect.x = Math.round(state.initialCropRect.x + dx);
+          state.cropRect.y = Math.round(state.initialCropRect.y + dy);
+          updateCoordLabels();
+          redraw();
+          return;
+        }
+
+        if (state.isSpacePressed) {
+          viewportWrap.style.cursor = 'grab';
+        } else {
+          const hitText = getTextItemAt(basePos);
+          if (hitText) {
+            viewportWrap.style.cursor = 'move';
+            return;
+          }
+          const hitHandle = getHitHandle(screenX, screenY);
+          if (hitHandle) {
+            const cursors = {
+              tl: 'nwse-resize', br: 'nwse-resize',
+              tr: 'nesw-resize', bl: 'nesw-resize',
+              tc: 'ns-resize', bc: 'ns-resize',
+              ml: 'ew-resize', mr: 'ew-resize'
+            };
+            viewportWrap.style.cursor = cursors[hitHandle];
+          } else if (e.altKey && isInsideCrop(basePos)) {
+            viewportWrap.style.cursor = 'move';
+          } else {
+            viewportWrap.style.cursor = 'crosshair';
+          }
+        }
+
+        redraw();
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (state.isDraggingText) {
+          state.isDraggingText = false;
+          saveHistorySnapshot('移动文字');
+        }
+        if (state.isResizingCrop || state.isDraggingCrop) saveHistorySnapshot('调整裁剪框');
+        state.isPanning = false;
+        state.isResizingCrop = false;
+        state.isDraggingCrop = false;
+        state.activeHandle = null;
+        viewportWrap.style.cursor = state.isSpacePressed ? 'grab' : 'default';
+      });
+
+      window.addEventListener('keydown', (e) => {
+        if (document.activeElement.tagName === 'INPUT') return;
+
+        if (e.code === 'Space' && !e.repeat) {
+          e.preventDefault();
+          state.isSpacePressed = true;
+          viewportWrap.style.cursor = 'grab';
+          state.isBlinking = true;
+          redraw();
+          return;
+        }
+
+        // Delete text
+        if ((e.key === 'Backspace' || e.key === 'Delete') && state.selectedTextId) {
+          state.textItems = state.textItems.filter(t => t.id !== state.selectedTextId);
+          state.selectedTextId = null;
+          saveHistorySnapshot('删除文字');
+          redraw();
+          showToast('已删除文字标注');
+          return;
+        }
+
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          if (!state.frames.length) return;
+          e.preventDefault();
+          const activeFrame = state.frames[state.activeFrameIndex];
+          if (!activeFrame) return;
+
+          const targetPoint = (activeFrame.mode === '2point' && state.currentPickPoint === 'B') ? activeFrame.anchorB : activeFrame.anchorA;
+          if (!targetPoint) return;
+
+          const step = e.shiftKey ? 10 : 1;
+          if (e.key === 'ArrowLeft') targetPoint.x -= step;
+          if (e.key === 'ArrowRight') targetPoint.x += step;
+          if (e.key === 'ArrowUp') targetPoint.y -= step;
+          if (e.key === 'ArrowDown') targetPoint.y += step;
+
+          recomputeFrameTransform(activeFrame);
+          saveHistorySnapshot('微调定点');
+          syncSidebarLayerModeUI();
+          renderFrameList();
+          redraw();
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space') {
+          state.isSpacePressed = false;
+          state.isBlinking = false;
+          viewportWrap.style.cursor = 'default';
+          redraw();
+        }
+      });
+    }
+
+    function applyPointCalibrationAt(basePos) {
+      const activeFrame = state.frames[state.activeFrameIndex];
+      const baseFrame = state.frames[0];
+      if (!activeFrame) return;
+
+      const isBase = (state.activeFrameIndex === 0);
+      const isTargetA = (state.currentPickPoint === 'A' || activeFrame.mode === '1point');
+
+      if (isBase) {
+        const rawX = Math.round(basePos.x);
+        const rawY = Math.round(basePos.y);
+        if (isTargetA) {
+          activeFrame.anchorA = { x: rawX, y: rawY };
+          showToast('已标定基准 A');
+          if (activeFrame.mode === '2point' && !activeFrame.anchorB) state.currentPickPoint = 'B';
+        } else {
+          activeFrame.anchorB = { x: rawX, y: rawY };
+          showToast('已标定基准 B');
+        }
+      } else {
+        const rawPos = baseToRawImageCoords(basePos, activeFrame);
+        const rawX = Math.round(rawPos.x);
+        const rawY = Math.round(rawPos.y);
+
+        if (isTargetA) {
+          activeFrame.anchorA = { x: rawX, y: rawY };
+          showToast('已标定点 A');
+          if (activeFrame.mode === '2point' && !activeFrame.anchorB) state.currentPickPoint = 'B';
+        } else {
+          if (!baseFrame || !baseFrame.anchorB) {
+            showToast('请先在图 1 标定基准点 B');
+            return;
+          }
+          activeFrame.anchorB = { x: rawX, y: rawY };
+          showToast('已标定点 B · 两点对齐完成');
+        }
+      }
+
+      state.frames.forEach(f => recomputeFrameTransform(f));
+      saveHistorySnapshot('标定锚点');
+      syncSidebarLayerModeUI();
+      renderFrameList();
+      redraw();
+    }
+
+    function applyAspectRatioConstraint(rect) {
+      if (state.cropRatio === 'free') return;
+      let ratio = 1;
+      if (state.cropRatio === '16:9') ratio = 16 / 9;
+      else if (state.cropRatio === '4:3') ratio = 4 / 3;
+      else if (state.cropRatio === '1:1') ratio = 1;
+      else if (state.cropRatio === 'match1' && state.frames[0]) {
+        ratio = state.frames[0].image.naturalWidth / state.frames[0].image.naturalHeight;
+      }
+      rect.h = Math.round(rect.w / ratio);
+    }
+
+    function setBackdropColor(colorHex) {
+      state.bgColor = colorHex.toLowerCase();
+      bgColorPicker.value = state.bgColor;
+      bgColorSwatchPreview.style.backgroundColor = state.bgColor;
+      redraw();
+    }
+
+    function initToolbar() {
+      onionSkinToggle.addEventListener('change', (e) => {
+        state.onionSkinEnabled = e.target.checked;
+        redraw();
+      });
+
+      onionOpacitySlider.addEventListener('input', (e) => {
+        state.onionOpacity = parseFloat(e.target.value);
+        opacityValLabel.textContent = `${Math.round(state.onionOpacity * 100)}%`;
+        redraw();
+      });
+
+      const triggerBlinkStart = () => { state.isBlinking = true; redraw(); };
+      const triggerBlinkEnd = () => { state.isBlinking = false; redraw(); };
+      btnBlink.addEventListener('mousedown', triggerBlinkStart);
+      btnBlink.addEventListener('mouseup', triggerBlinkEnd);
+      btnBlink.addEventListener('mouseleave', triggerBlinkEnd);
+
+      // Color picker
+      bgColorPicker.addEventListener('input', (e) => {
+        setBackdropColor(e.target.value);
+      });
+      bgColorPicker.addEventListener('change', () => {
+        saveHistorySnapshot('设置画幅底色');
+      });
+
+      // Quick B/W Switch Button
+      btnToggleBW.addEventListener('click', () => {
+        const isWhite = (state.bgColor === '#ffffff' || state.bgColor === 'rgb(255, 255, 255)');
+        const nextColor = isWhite ? '#000000' : '#ffffff';
+        setBackdropColor(nextColor);
+        saveHistorySnapshot('切换黑白底色');
+        showToast(isWhite ? '切换至黑底' : '切换至白底');
+      });
+
+      document.querySelectorAll('.crop-ratio-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('.crop-ratio-btn').forEach(b => {
+            b.className = 'crop-ratio-btn px-1.5 py-0.5 rounded text-[10px] bg-white border border-ink-200 text-ink-600 hover:bg-ink-50 font-mono';
+          });
+          e.target.className = 'crop-ratio-btn px-1.5 py-0.5 rounded text-[10px] bg-ink-900 text-white font-mono';
+          state.cropRatio = e.target.dataset.ratio;
+
+          if (state.cropRatio === 'match1' && state.frames[0]) {
+            state.cropRect = {
+              x: 0,
+              y: 0,
+              w: state.frames[0].image.naturalWidth,
+              h: state.frames[0].image.naturalHeight
+            };
+          } else {
+            applyAspectRatioConstraint(state.cropRect);
+          }
+          saveHistorySnapshot('切换裁剪比例');
+          updateCoordLabels();
+          redraw();
+        });
+      });
+
+      loupeToggle.addEventListener('change', (e) => {
+        state.loupeEnabled = e.target.checked;
+        if (!state.loupeEnabled) loupeContainer.classList.add('hidden');
+      });
+      loupeScaleSelect.addEventListener('change', (e) => {
+        state.loupeScale = parseInt(e.target.value, 10);
+      });
+
+      document.getElementById('btnResetView').addEventListener('click', () => {
+        resetViewCamera();
+        redraw();
+      });
+
+      document.getElementById('btnFitCrop').addEventListener('click', () => {
+        if (!state.frames.length) return;
+        const baseFrame = state.frames[0];
+        let minX = 0, minY = 0;
+        let maxX = baseFrame.image.naturalWidth;
+        let maxY = baseFrame.image.naturalHeight;
+
+        state.frames.forEach(frame => {
+          if (frame.visible === false) return;
+          const dx = frame.offset ? -frame.offset.x : 0;
+          const dy = frame.offset ? -frame.offset.y : 0;
+          const s = frame.scale || 1.0;
+          minX = Math.min(minX, dx);
+          minY = Math.min(minY, dy);
+          maxX = Math.max(maxX, dx + frame.image.naturalWidth * s);
+          maxY = Math.max(maxY, dy + frame.image.naturalHeight * s);
+        });
+
+        state.cropRect = {
+          x: Math.round(minX),
+          y: Math.round(minY),
+          w: Math.round(maxX - minX),
+          h: Math.round(maxY - minY)
+        };
+        applyAspectRatioConstraint(state.cropRect);
+        saveHistorySnapshot('适应全图');
+        updateCoordLabels();
+        redraw();
+        showToast('已自适应画幅边界');
+      });
+
+      document.getElementById('btnResetAnchor').addEventListener('click', () => {
+        const activeFrame = state.frames[state.activeFrameIndex];
+        if (!activeFrame) return;
+        activeFrame.anchorA = null;
+        activeFrame.anchorB = null;
+        state.currentPickPoint = 'A';
+        recomputeFrameTransform(activeFrame);
+        saveHistorySnapshot('重置定点');
+        syncSidebarLayerModeUI();
+        renderFrameList();
+        redraw();
+        showToast('点击画面落【点 A】');
+      });
+
+      // Text tool controls
+      btnToggleTextMode.addEventListener('click', () => {
+        textEditBar.classList.toggle('hidden');
+      });
+      btnCloseTextBar.addEventListener('click', () => {
+        textEditBar.classList.add('hidden');
+      });
+      btnAddTextItem.addEventListener('click', () => {
+        const textVal = newTextInput.value.trim();
+        if (!textVal) return;
+
+        const cropCenter = {
+          x: state.cropRect.x + state.cropRect.w * 0.1,
+          y: state.cropRect.y + state.cropRect.h * 0.85
+        };
+
+        const newItem = {
+          id: 'text_' + Date.now(),
+          text: textVal,
+          x: Math.round(cropCenter.x),
+          y: Math.round(cropCenter.y),
+          size: parseInt(textSizeSelect.value, 10),
+          color: textColorSelect.value
+        };
+
+        state.textItems.push(newItem);
+        state.selectedTextId = newItem.id;
+        saveHistorySnapshot('添加文字');
+        redraw();
+        showToast('文字已放置，可鼠标拖动位置');
+      });
+    }
+
+    function renderCroppedFrameToCanvas(frame) {
+      const outputCanvas = document.createElement('canvas');
+      const w = Math.max(1, Math.round(state.cropRect.w));
+      const h = Math.max(1, Math.round(state.cropRect.h));
+      outputCanvas.width = w;
+      outputCanvas.height = h;
+
+      const outCtx = outputCanvas.getContext('2d');
+      outCtx.fillStyle = state.bgColor;
+      outCtx.fillRect(0, 0, w, h);
+
+      outCtx.save();
+      outCtx.translate(-state.cropRect.x, -state.cropRect.y);
+      if (frame && frame.visible !== false) {
+        drawFrameWithTransform(outCtx, frame, 1.0, false);
+      }
+      drawTextAnnotations(outCtx, false);
+      outCtx.restore();
+
+      return outputCanvas;
+    }
+
+    // Direct Uncompressed PNG Export (Single or Multi downloads with YYYYMMDD-Project-01 naming)
+    document.getElementById('btnExportPngDirect').addEventListener('click', () => {
+      const visibleFrames = state.frames.filter(f => f.visible !== false);
+      if (!visibleFrames.length) {
+        showToast('暂无可导出的可见图层');
+        return;
+      }
+
+      showToast(`正在导出 ${visibleFrames.length} 张原画 PNG...`);
+      visibleFrames.forEach((frame, index) => {
+        const canvas = renderCroppedFrameToCanvas(frame);
+        const fileName = `${getFormattedFileName(index)}.png`;
+        
+        // Lossless uncompressed PNG blob trigger
+        canvas.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = fileName;
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }, 'image/png');
+      });
+    });
+
+    // ZIP Export Bundle
+    document.getElementById('btnExportZip').addEventListener('click', async () => {
+      const visibleFrames = state.frames.filter(f => f.visible !== false);
+      if (!visibleFrames.length) {
+        showToast('暂无可导出的可见图层');
+        return;
+      }
+
+      showToast('正在导出并打包 PNG 序列...');
+      const zip = new JSZip();
+      const folderName = `${getTodayString()}-${state.projectName}`;
+      const folder = zip.folder(folderName);
+
+      visibleFrames.forEach((frame, index) => {
+        const canvas = renderCroppedFrameToCanvas(frame);
+        const dataUrl = canvas.toDataURL('image/png');
+        const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
+        const fileName = `${getFormattedFileName(index)}.png`;
+        folder.file(fileName, base64Data, { base64: true });
+      });
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(content);
+      link.download = `${folderName}.zip`;
+      link.click();
+      showToast('ZIP 下载完成');
+    });
+
+    const gifModal = document.getElementById('gifModal');
+    const gifPreviewCanvas = document.getElementById('gifPreviewCanvas');
+    const gifPreviewCtx = gifPreviewCanvas.getContext('2d');
+    const gifRenderedResult = document.getElementById('gifRenderedResult');
+    const gifEncodingSpinner = document.getElementById('gifEncodingSpinner');
+    const btnCloseGifModal = document.getElementById('btnCloseGifModal');
+    const btnCancelGif = document.getElementById('btnCancelGif');
+    const btnGenerateAndDownloadGif = document.getElementById('btnGenerateAndDownloadGif');
+    
+    const modalSpeedSecInput = document.getElementById('modalSpeedSecInput');
+    const modalSpeedSlider = document.getElementById('modalSpeedSlider');
+    const modalSpeedFpsLabel = document.getElementById('modalSpeedFpsLabel');
+    const modalCurFrameIndicator = document.getElementById('modalCurFrameIndicator');
+
+    let cachedFrameCanvases = [];
+
+    function setSpeedInSeconds(sec, source = 'none') {
+      const validSec = Math.max(0.05, Math.min(5.0, parseFloat(sec) || 0.5));
+      state.gifIntervalSec = Math.round(validSec * 100) / 100;
+
+      if (source !== 'input') {
+        modalSpeedSecInput.value = state.gifIntervalSec.toFixed(2);
+      }
+      if (source !== 'slider') {
+        modalSpeedSlider.value = Math.min(2.0, Math.max(0.05, state.gifIntervalSec));
+      }
+
+      const fps = (1 / state.gifIntervalSec).toFixed(1);
+      modalSpeedFpsLabel.textContent = `${fps} FPS`;
+
+      updateSpeedPresetButtons(state.gifIntervalSec);
+
+      if (state.gifPreviewTimer) {
+        clearTimeout(state.gifPreviewTimer);
+        runGifTick();
+      }
+    }
+
+    function runGifTick() {
+      if (!cachedFrameCanvases.length) return;
+      const w = Math.round(state.cropRect.w);
+      const h = Math.round(state.cropRect.h);
+
+      const currentCanvas = cachedFrameCanvases[state.gifPreviewCurrentFrameIndex];
+      gifPreviewCtx.clearRect(0, 0, w, h);
+      gifPreviewCtx.drawImage(currentCanvas, 0, 0);
+
+      modalCurFrameIndicator.textContent = `帧: ${state.gifPreviewCurrentFrameIndex + 1} / ${cachedFrameCanvases.length}`;
+
+      state.gifPreviewCurrentFrameIndex = (state.gifPreviewCurrentFrameIndex + 1) % cachedFrameCanvases.length;
+      state.gifPreviewTimer = setTimeout(runGifTick, state.gifIntervalSec * 1000);
+    }
+
+    function startGifLivePreview() {
+      stopGifLivePreview();
+      const visibleFrames = state.frames.filter(f => f.visible !== false);
+      cachedFrameCanvases = visibleFrames.map(f => renderCroppedFrameToCanvas(f));
+
+      const w = Math.round(state.cropRect.w);
+      const h = Math.round(state.cropRect.h);
+      gifPreviewCanvas.width = w;
+      gifPreviewCanvas.height = h;
+
+      gifPreviewCanvas.classList.remove('hidden');
+      gifRenderedResult.classList.add('hidden');
+      gifEncodingSpinner.classList.add('hidden');
+
+      state.gifPreviewCurrentFrameIndex = 0;
+      runGifTick();
+    }
+
+    function stopGifLivePreview() {
+      if (state.gifPreviewTimer) {
+        clearTimeout(state.gifPreviewTimer);
+        state.gifPreviewTimer = null;
+      }
+    }
+
+    document.getElementById('btnOpenGifStudio').addEventListener('click', () => {
+      const visibleCount = state.frames.filter(f => f.visible !== false).length;
+      if (visibleCount < 2) {
+        showToast('生成动效至少需要 2 个可见图层');
+        return;
+      }
+      setSpeedInSeconds(state.gifIntervalSec);
+      gifModal.classList.remove('hidden');
+      startGifLivePreview();
+    });
+
+    function closeGifModal() {
+      stopGifLivePreview();
+      gifModal.classList.add('hidden');
+    }
+
+    btnCloseGifModal.addEventListener('click', closeGifModal);
+    btnCancelGif.addEventListener('click', closeGifModal);
+
+    modalSpeedSecInput.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      if (!isNaN(val) && val > 0) setSpeedInSeconds(val, 'input');
+    });
+
+    modalSpeedSlider.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      setSpeedInSeconds(val, 'slider');
+    });
+
+    document.querySelectorAll('.speed-preset-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const sec = parseFloat(e.target.dataset.sec);
+        setSpeedInSeconds(sec, 'preset');
+      });
+    });
+
+    function updateSpeedPresetButtons(activeSec) {
+      document.querySelectorAll('.speed-preset-btn').forEach(b => {
+        const presetVal = parseFloat(b.dataset.sec);
+        if (Math.abs(presetVal - activeSec) < 0.01) {
+          b.className = 'speed-preset-btn px-1.5 py-0.5 rounded bg-ink-900 text-white font-mono';
+        } else {
+          b.className = 'speed-preset-btn px-1.5 py-0.5 rounded border border-ink-200 bg-ink-50 hover:bg-ink-100 text-ink-700 font-mono';
+        }
+      });
+    }
+
+    btnGenerateAndDownloadGif.addEventListener('click', () => {
+      const visibleFrames = state.frames.filter(f => f.visible !== false);
+      if (visibleFrames.length < 2) return;
+      gifEncodingSpinner.classList.remove('hidden');
+
+      const frameDataUrls = cachedFrameCanvases.map(c => c.toDataURL('image/png'));
+      const targetW = Math.round(state.cropRect.w);
+      const targetH = Math.round(state.cropRect.h);
+
+      gifshot.createGIF({
+        images: frameDataUrls,
+        gifWidth: targetW,
+        gifHeight: targetH,
+        interval: state.gifIntervalSec,
+        numWorkers: 2
+      }, function(obj) {
+        gifEncodingSpinner.classList.add('hidden');
+        if (!obj.error) {
+          const link = document.createElement('a');
+          link.href = obj.image;
+          link.download = `${getTodayString()}-${state.projectName}-${state.gifIntervalSec}s.gif`;
+          link.click();
+          showToast('GIF 已成功导出');
+        } else {
+          showToast('生成 GIF 失败，请缩减画幅重试');
+        }
+      });
+    });
+
+    window.addEventListener('resize', redraw);
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      updateNamingPreview();
+      initIngestion();
+      initInteractions();
+      initToolbar();
+      saveHistorySnapshot('启动');
+    });
+  </script>
+</body>
+</html>
