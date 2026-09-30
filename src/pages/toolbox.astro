@@ -1,0 +1,126 @@
+---
+import { readdirSync, readFileSync } from 'node:fs';
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+/**
+ * /toolbox — 小工具索引
+ *
+ * 扫描 src/content/tool/ 下的 .html 文件，提取 <title> 作为工具名，
+ * 链接到 /tools/<name>（由 tools/[name].ts 原样渲染）。
+ */
+
+const TOOL_DIR = new URL('../content/tool/', import.meta.url);
+
+interface ToolItem {
+  name: string;
+  title: string;
+  href: string;
+}
+
+const tools: ToolItem[] = readdirSync(TOOL_DIR)
+  .filter((f) => f.endsWith('.html'))
+  .map((file) => {
+    const html = readFileSync(new URL(file, TOOL_DIR), 'utf-8');
+    const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    const title = (m ? m[1].trim() : file.replace(/\.html$/i, ''));
+    return {
+      name: file.replace(/\.html$/i, ''),
+      title,
+      href: `/tools/${encodeURIComponent(file.replace(/\.html$/i, ''))}`,
+    };
+  });
+---
+
+<BaseLayout title="工具箱" description="小工具与实验 — Tools &amp; Experiments" pageClass="page-list">
+  <header class="tools-header">
+    <div class="tools-eyebrow">Toolbox</div>
+    <h1 class="tools-title">工具箱</h1>
+    <p class="tools-sub">小工具与实验 — Small tools and experiments.</p>
+  </header>
+
+  {tools.length === 0 ? (
+    <p class="empty-state">暂无工具 — 把 HTML 工具文件放入 src/content/tool/ 目录即可自动出现在这里。</p>
+  ) : (
+    <ul class="tool-list">
+      {tools.map((tool) => (
+        <li class="tool-item">
+          <a href={tool.href}>
+            <span class="tool-name">{tool.title}</span>
+            <span class="tool-meta">{tool.name}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
+</BaseLayout>
+
+<style>
+  .tools-header {
+    padding: 4rem 0 3rem;
+    margin-bottom: 3rem;
+  }
+  .tools-eyebrow {
+    font-family: var(--ff-caps);
+    font-size: var(--fs-xs);
+    letter-spacing: 0.18em;
+    color: var(--c-mid);
+    margin: 0 0 0.4rem;
+    text-transform: uppercase;
+  }
+  .tools-title {
+    font-family: var(--ff-caps);
+    font-size: 28pt;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    color: var(--c-ink);
+    margin: 0;
+    line-height: 1.1;
+  }
+  .tools-sub {
+    font-family: var(--ff-serif);
+    color: var(--c-mid);
+    margin-top: 0.8rem;
+    font-size: var(--fs-sm);
+  }
+  .tool-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .tool-item {
+    border-bottom: 1px solid var(--c-rule);
+  }
+  .tool-item a {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 0;
+    color: inherit;
+    transition: color 0.18s ease;
+  }
+  .tool-item a:hover {
+    color: var(--c-ink);
+  }
+  .tool-name {
+    font-family: var(--ff-serif);
+    font-size: var(--fs-sm);
+    color: var(--c-ink);
+  }
+  .tool-meta {
+    font-family: var(--ff-caps);
+    font-size: 6.5pt;
+    letter-spacing: 0.12em;
+    color: var(--c-mid);
+    text-transform: uppercase;
+    text-align: right;
+  }
+  .empty-state {
+    margin-top: 4rem;
+    font-size: var(--fs-sm);
+    color: var(--c-mid);
+    font-style: italic;
+  }
+</style>
