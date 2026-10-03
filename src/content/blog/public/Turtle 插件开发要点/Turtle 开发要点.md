@@ -1,36 +1,72 @@
 ---
-title: "Turtle 插件开发要点"
+title: "Turtle 开发要点"
 titleEn: "Turtle Plugin Development Guide"
 date: "2026-09-22"
-description: "Turtle Rhino 8 插件开发要点：插件骨架、命令与 Python 脚本的路径机制、Grasshopper 工具集（视觉合并方案）、ghuser 集成与版本校验、资源归类原则与文件添加规范、常用工具脚本（材质/立面/线条）。每段代码块顶部标注文件路径，可调参数见文末速查索引。"
+description: "Turtle Rhino 8 插件开发：openLink工作室的完全工作流，插件骨架、命令与 Python 脚本的路径机制、Grasshopper 工具集（视觉合并方案）、ghuser 集成与版本校验、资源归类原则与文件添加规范、常用工具脚本（材质/立面/script）。"
 author: "zhenliu"
 category:
-  - 工厂
+  - cooding
 status: "public"
 ---
 
-本文记录 {Turtle|Rhino 8 跨平台插件，含 C# 命令、嵌入式 Python 脚本、Grasshopper 工具集与用户对象} 插件的开发要点。结构按"文件放在哪、代码怎么调、参数怎么改"组织：代码块顶部用注释标注**文件路径**，正文带下划线的词是引注（悬停看解释），文末附**可调参数索引**，后续随开发不断补充。
+本文记录 {Turtle|Rhino 8 跨平台插件，含 C# 命令、嵌入式 Python 脚本、Grasshopper 工具集与用户对象} 插件的开发要点与过程。结构按"文件路径、代码调试、参数组织：代码块顶部用注释标注**文件路径**，正文带下划线的词是引注（悬停看解释），文末附**可调参数索引**，后续随开发不断补充。
 
 ---
 
 
-## 初始设置
-### 自动导入
-- toolbar(include python script)
-- aliases
-- ini view
-### 手动导入
-- 鼠标中键
-- 3dm模版文件
-- 材质库
-- 原生的view
-- 空间布局
-- package里的插件包
-  ```path
-  
-  ```
-### 布局设置
-- page 的颜色，
+## 0. 初始设置
+### 同步仓库
+- {**本地仓同步**|check，sync rui，materials，script}
+```bash
+cd /Users/zhenliu/study/coding/rhinoPluging/Resources/Skill/rhino-turtle-sync/scripts # 进入到脚本目录
+python3 sync_resources.py --check   # 先看差异
+python3 sync_resources.py           # 真同步（rui + 材质 + 脚本）
+python3 sync_resources.py --scripts # 只同步脚本
+```
+
+
+- **远程同步**(cd 到当前目录git)
+- cd to {turtlePluging| turtle 已经被放入alias，在.zshrc文件里}
+
+|#|资源|位置|
+|---|---|---|
+|1|工具列 rui|6 处（仓库 + Rhino UI/MacPlugIns/packages×2）|
+|2|材质 .rmtl|3 处（Rhino Render Content + 仓库两处）|
+|3|材质贴图子目录|Mac 专属，内容去重补缺|
+|4|Python 脚本|仓库 `Scripts/` ↔ Rhino `scripts/`|
+
+- 远程仓库同步
+```
+git add -A && git commit -m "一些修改更新" && git push origin main
+```
+- [netlify](https://app.netlify.com/sites/kaihe) 端口同步-网页非插件
+- [openlink自动发布](https://app.netlify.com/projects/kaihe/deploys){开关| Lock to stop auto publish}和[heschel 自动发布开关](https://app.netlify.com/projects/herschel-blog/deploys)
+- {**手动发布**| 当push 到 GitHub ， Deploys 列表出现一条新部署（状态：构建完成 / 待发布） ， 右侧出现 "Publish deploy" 按钮 ← 点它才上线（扣 15 credits，每月有300）}通过netlify来完成发布
+- 设定快捷路径的方法
+```
+echo 'alias heschel="cd /Users/zhenliu/study/coding/Hershel-blog"' >> ~/.zshrc && source ~/.zshrc
+```
+
+| 序号|步骤|
+| ---- | ---- |
+|1| 把 alias 写入 .zshrc | 
+|2| && 按顺序执行 | 
+|3| source ~/.zshrc 立即加载 | 
+
+
+### turtle安装
+
+|手动导入|自动导入|
+|---|---|
+|鼠标中键|toolbar(include python script)|
+|3dm 模版文件|aliases|
+|材质库|ini view|
+|原生的 view||
+|空间布局||
+|package 里的插件包||
+|layout 颜色||
+
+
 ## 1. 插件骨架
 
 Turtle 是一个 {net7.0|.NET 7 目标框架，Rhino 8 跨平台（Win+Mac）插件标准} 的 Rhino 8 插件，整体结构如下：
@@ -55,22 +91,13 @@ rhinoPluging/
 └── README.md
 ```
 
-### - 编译与产物
 
-```bash
-# build.command / build.ps1：一键编译（dotnet build -c Release）
-cd rhinoPluging && dotnet build Turtle.csproj -c Release
-# 产物：bin/Release/net7.0/Turtle.rhp
-```
-
-- 编译后 csproj 的 `MakeRhp` 目标自动把 `Turtle.dll` 复制为 `Turtle.rhp`。
-- {MakeRhp|csproj 里的 MSBuild Target，编译后复制 dll 为 rhp 后缀，Rhino 才能识别为插件} 定义在 {Turtle.csproj|项目文件} 底部。
 
 ---
 
-## 2. 命令与 Python 脚本
+### 命令与 Python 脚本
 
-工具栏按钮、命令行命令与 Python 脚本的关系是：**宏只负责"点一下调 C# 命令"，脚本路径由 C# 在运行时拼接**——彻底摆脱绝对路径。
+工具栏按钮、命令行命令与 Python 脚本的关系是：**宏负责"调 C# 命令"，脚本路径由 C# 在运行时拼接**——彻底摆脱绝对路径。
 
 ### - 脚本分发机制
 
@@ -88,120 +115,8 @@ protected override LoadReturnCode OnLoad(ref string errorMessage)
 - 解压目标：`ScriptDir = %APPDATA%/Turtle/Scripts`（Win）/ `~/.config/Turtle/Scripts`（Mac），**已存在则跳过**——方便直接改缓存里的脚本调试。
 - 脚本按 `Assembly.GetManifestResourceStream()` 读取资源流，资源名 `Turtle.Scripts.xxx.py`，去掉 `Scripts/` 前缀平铺到缓存目录。
 
-### - 命令模板
 
-```csharp
-// Commands/TurtleRun.cs：调用 Python 脚本的命令模板
-public override string EnglishName => "TurtleRun";
-
-protected override Result RunCommand(RhinoDoc doc, RunMode mode)
-{
-    string script = Path.Combine(TurtlePlugin.ScriptDir, "BlockTools.py");
-    // RhinoApp.RunScript($"_RunPythonScript \"{script}\"", ...)
-    return Result.Success;
-}
-```
-
-- 命令类继承 `Rhino.Commands.Command`，`EnglishName` 是命令行里的命令名。
-- 所有命令统一用 `Path.Combine(TurtlePlugin.ScriptDir, "xxx.py")` 拼路径，**不写死绝对路径**。
-- 需要新命令：复制 `TurtleRun.cs`，改类名 + `EnglishName` + 脚本名。
-
-### - 工具栏宏与命令的对应
-
-{rui|Rhino 工具栏文件，XML 格式，定义按钮与宏} 里按钮的宏只需要写 `!_TurtleXxx`：
-
-```xml
-<!-- Resources/Turtle.rui：按钮宏示例（macro/script 节点） -->
-<script>!_TurtleBlockToSu</script>
-```
-
-- `!` = 静默执行（不显示命令回显）；`_` = 强制英文命令名（避免本地化歧义）；后段 = C# 命令的 `EnglishName`。
-- 命令名**不固定**：改类名/EnglishName 后同步改 rui 里的宏即可，两者一一对应。
-
----
-
-## 3. Grasshopper 工具集（视觉合并方案）
-
-GH 电池由两部分组成，**统一使用 `Category = "Turtle"`**（大写），在 GH 面板合并成同一个 Turtle 标签页：
-
-| 来源 | 示例 | 分类 |
-|---|---|---|
-| 代码内 GH 组件（随 .rhp 加载） | TurtleHelloComponent | `Turtle`（TurtleInfo.Category 常量） |
-| 释放的 ghuser 用户对象 | arrows（画箭头 cluster） | 文件内 Category 字段 = `Turtle` |
-
-### - GH 组件骨架
-
-```csharp
-// Grasshopper/TurtleInfo.cs：统一分类常量（改分类只改这里）
-public const string Category = "Turtle";     // ← 可调参数：GH 面板标签页名
-public const string SubCategory = "箭头";    // ← 可调参数：GH 面板子分类名
-```
-
-```csharp
-// Grasshopper/TurtleHelloComponent.cs：GH 组件写法（继承 GH_Component）
-public TurtleHelloComponent()
-    : base("TurtleHello", "THello", "描述", TurtleInfo.Category, "测试")
-{ }
-public override Guid ComponentGuid => new Guid("B7E2C4A1-...");   // 必须唯一
-protected override Bitmap Icon => CreateIcon();                   // GH 8: Icon 是 protected
-```
-
-- GH 8 中 `Icon` 是 **protected 成员**，`public override` 会报 CS0507，必须写 `protected override`。
-- `ComponentGuid` 每个组件必须唯一，新组件换新 GUID。
-- GH 工具集不建独立 .gha，直接在 Turtle 程序集内嵌 GH 组件，加载 .rhp 时 GH 自动扫描注册。
-
-### - ghuser 集成（保留炸开编辑）
-
-ghuser 本质是 {cluster|Grasshopper 组件集群，把多个电池打包成一个，可右键炸开编辑内部参数}，所以"炸开后改内部电池参数"的特性天然保留——这与原来方案 B 完全一致。
-
-```csharp
-// TurtlePlugin.cs：InstallUserObjects() —— 释放 ghuser 到 GH 用户对象目录
-string ghDir = global::Grasshopper.Folders.DefaultUserObjectFolder;  // 注意 global:: 前缀
-string dest = Path.Combine(ghDir, "Arrows.ghuser");
-InstalledGhUserPath = dest;
-if (File.Exists(dest) && HashEquals(File.ReadAllBytes(dest), embedded))
-    return;    // 版本校验：哈希一致则不动
-File.WriteAllBytes(dest, embedded);
-```
-
-- 释放位置：`Grasshopper.Folders.DefaultUserObjectFolder`（Win: `%APPDATA%\Grasshopper\UserObjects`；Mac: `~/Library/Application Support/Grasshopper/UserObjects`）。
-- **版本校验**：SHA-256 对比嵌入资源与已安装文件，内容不一致才覆盖——插件升级后旧 ghuser 自动更新，一致则不写盘。
-- `global::Grasshopper` 前缀**必须有**：项目里已有 `Turtle.Grasshopper` 命名空间，直接写 `Grasshopper.Folders` 会被误解析（CS0234）。
-- 安装后**需重启 Grasshopper** 才会扫描到新用户对象（GH 启动时才读用户对象目录）。
-
-### - 修改 ghuser 属性（Category 等）
-
-ghuser 是 {raw-deflate|zlib 的 raw deflate 流（wbits=-15），非 zip 容器} 压缩的 GH_IO 序列化流，字段明文可改。字段格式：`字段名 + \xff\xff\xff\xff + \x0a\x00\x00\x00 + 长度 + UTF8值`。
-
-```python
-# tools/patch_ghuser.py：修改 ghuser 内 Category / SubCategory 字段
-# 用法：python3 tools/patch_ghuser.py <输入.ghuser> <输出.ghuser> [Category] [SubCategory]
-def patch_str(data: bytes, name: bytes, new_val: str):
-    marker = name + b'\xff\xff\xff\xff\x0a\x00\x00\x00'
-    idx = data.find(marker)
-    vs = idx + len(marker)
-    old_len = data[vs]
-    nb = new_val.encode('utf-8')
-    return data[:vs] + bytes([len(nb)]) + nb + data[vs + old_len + 1:]
-```
-
-- 改了原始 ghuser（`assets/ghuser/arrows.ghuser`）后，必须重新跑 patch 把 Category 改成 `Turtle`，**覆盖到 `Grasshopper/Arrows.ghuser`**（这才是嵌入分发的那份）。
-- 属性窗口（GH 里 File > Create User Object）填的 Category 决定电池进哪个标签页——视觉合并方案的核心。
-
-### - 清理逻辑
-
-Rhino 8 插件**没有卸载回调**（只有 OnLoad / OnShutdown），所以清理用命令实现：
-
-```csharp
-// Commands/TurtleClean.cs：删除释放的 ghuser（命令行输入 _TurtleClean）
-File.Delete(TurtlePlugin.InstalledGhUserPath);
-```
-
-- 只要插件还在加载，下次启动会重新释放 ghuser；彻底移除 = 先卸载插件，再跑 `_TurtleClean`。
-
----
-
-## 4. 资源归类原则
+###  资源归类原则
 
 | 文件 | 放哪里 | 原因 |
 |---|---|---|
@@ -246,7 +161,7 @@ Grasshopper/
 
 3. **Category 填 `Turtle`**：制作电池时（`File > Create User Object` 属性窗口），Category 填 `Turtle`，SubCategory 填想显示的子分类名，和 GHA 组件合并进同一标签页。
 
-三个坑：
+更换环境：
 
 | 坑 | 后果 | 怎么避 |
 |---|---|---|
@@ -317,104 +232,13 @@ Write-Host "分发完成。ghuser 需手动 patch 后放 Grasshopper\，脚本�
 
 ---
 
-## 5. 工具脚本与组件
+## 2. 脚本与电池
 
 > 随开发积累的可用脚本与 GH 组件存档（合并自"turtle 插件开发日志"）。代码内注释已含输入/输出与参数说明，需要旧版（0.1 等）见 git 历史。
 
-### - 材质工具：颜色一键转材质
+### - 立面工具：
 
-**0.2 版（推荐）**——将对象颜色一键转换为材质（RenderMaterial 版，防重复）：
-
-- 读取每个对象的{实际显示颜色|若图层颜色继承，也会正确取到}
-- 相同颜色的对象自动共用同一个材质，不会重复创建
-- 创建新材质前会先检查文档里是否已存在{同名材质|比如之前跑过一次本脚本、或者之前手动建过}，有就直接复用，不会再新建重复的一份——反复运行也不会产生重复材质
-- 材质使用 Rhino.Render.RenderMaterial（Basic Material），材质库同款机制：无论从"材质面板"改材质球，还是从"属性面板"改选中物体的材质，其他共用该材质的物体都会联动
-
-```python
-# 用法：
-#   1. 在 Rhino 命令行输入 EditPythonScript (Rhino 6/7) 或 ScriptEditor (Rhino 8)
-#   2. 粘贴本脚本并运行 (F5)
-#   3. 若有选中的对象，只处理选中对象；若没有选中任何对象，则处理场景中所有对象
-
-import rhinoscriptsyntax as rs
-import scriptcontext as sc
-import Rhino
-
-
-def find_existing_render_material(doc, name):
-    """在文档已有的 RenderMaterial 里查找同名材质，找到就返回它，找不到返回 None"""
-    for mat in doc.RenderMaterials:
-        if mat.Name == name:
-            return mat
-    return None
-
-
-def color_to_material():
-    doc = sc.doc
-
-    # 优先使用选中对象，没有选中则处理全部对象
-    selected = rs.SelectedObjects()
-    obj_ids = selected if selected else rs.AllObjects()
-
-    if not obj_ids:
-        print("场景中没有找到任何对象。")
-        return
-
-    color_material_map = {}  # {(R,G,B): RenderMaterial}
-    count = 0
-    created_count = 0
-    reused_count = 0
-
-    for obj_id in obj_ids:
-        rhobj = rs.coercerhinoobject(obj_id)
-        if rhobj is None:
-            continue
-
-        # 获取对象的实际显示颜色（若按图层显示颜色，会自动取图层颜色）
-        color = rhobj.Attributes.DrawColor(doc)
-        key = (color.R, color.G, color.B)
-
-        if key in color_material_map:
-            mat = color_material_map[key]
-        else:
-            mat_name = "Color_{}_{}_{}".format(color.R, color.G, color.B)
-
-            # 先看文档里有没有同名材质，有就直接复用，不新建
-            existing_mat = find_existing_render_material(doc, mat_name)
-
-            if existing_mat is not None:
-                mat = existing_mat
-                reused_count += 1
-            else:
-                # 创建 Basic Material（材质库同款的 RenderContent 对象）
-                mat = Rhino.Render.RenderContentType.NewContentFromTypeId(
-                    Rhino.Render.ContentUuids.BasicMaterialType, doc)
-                mat.BeginChange(Rhino.Render.RenderContent.ChangeContexts.Program)
-                mat.Fields.Set("diffuse", color)
-                mat.EndChange()
-                mat.Name = mat_name
-
-                doc.RenderMaterials.Add(mat)
-                created_count += 1
-
-            color_material_map[key] = mat
-
-        # 赋值给物体（RenderMaterial 属性走的是渲染内容系统，天然支持联动）
-        rhobj.RenderMaterial = mat
-        rhobj.CommitChanges()
-        count += 1
-
-    doc.Views.Redraw()
-    print("完成：共处理 {} 个对象，涉及 {} 种颜色（新建 {} 个材质，复用已有 {} 个材质）。".format(
-        count, len(color_material_map), created_count, reused_count))
-
-
-color_to_material()
-```
-
-**0.1 版差异**：0.1 只在"本次运行内"合并相同颜色，**不查文档已有同名材质**——反复运行会重复创建材质；且行内调用时注意 {`_-RunPythonScript`|嵌入式 Python 脚本命令} 后面**必须要有空格**再跟脚本内容或路径，否则 Rhino 无法正确解析。
-
-### - 立面工具：Random UV Grid + Extrude（facad RandomLine）
+#### Random UV Grid + Extrude（facad RandomLine）
 
 Grasshopper "C# Script" 组件：Random UV Grid + Extrude（限制相邻剔除 + 区分 U/V 挤出面）。
 
@@ -714,7 +538,15 @@ public class Script_Instance : GH_ScriptInstance
 }
 ```
 
-### - 线条工具：曲线沿法线双向挤出（offset both side）
+#### 待实现
+> 根据输入数字划分柜子
+> 吊顶表皮类型
+> 路径成矩的几种方式，等分，步长，
+> 三角面生成与楼梯
+> 
+### - 线条工具：
+
+#### 曲线沿法线双向挤出（offset both side）
 
 Grasshopper "C# Script" 组件：Extrude Along Normal (Domain)——曲线沿曲面法线方向**双向**挤出，两端距离独立可控（不必对称）。
 
@@ -840,88 +672,129 @@ public class Script_Instance : GH_ScriptInstance
 
 ---
 
-## 6. 可调参数索引
+### - toolbar脚本
 
-> 想改任何参数：先按定位找文件，改完重新编译（`dotnet build -c Release`）。代码内改动需重编译；ghuser/rui 文件改动需重启 Rhino/Grasshopper 生效。
+#### 颜色一键转材质
 
-| 参数 | 位置 | 说明 |
-|---|---|---|
-| GH 面板标签页名 `Category` | Grasshopper/TurtleInfo.cs 第 11 行 | 统一分类，GHA 组件与 ghuser 必须一致 |
-| GH 面板子分类 `SubCategory` | Grasshopper/TurtleInfo.cs 第 14 行 | ghuser 用 patch 工具同步改 |
-| ghuser 内 Category / SubCategory | tools/patch_ghuser.py 命令行参数 | 改完覆盖到 Grasshopper/Arrows.ghuser |
-| 脚本缓存目录 `ScriptDir` | TurtlePlugin.cs `ExtractEmbeddedScripts()` | 默认 `%APPDATA%/Turtle/Scripts` |
-| 嵌入脚本范围 | Turtle.csproj `<EmbeddedResource Include="Scripts\**\*.py" />` | 新脚本放进 Scripts/ 即自动嵌入 |
-| ghuser 释放文件名 | TurtlePlugin.cs `InstallUserObjects()` 的 `"Arrows.ghuser"` | 对应 GH 面板显示名 |
-| 清理命令名 | Commands/TurtleClean.cs `EnglishName` | 命令行输入 `_TurtleClean` |
-| 工具栏宏 | Resources/Turtle.rui `<script>` 节点 | 格式 `!_命令EnglishName` |
-| 组件 GUID | 各 GH 组件 `ComponentGuid` | 每个组件必须唯一 |
-| 版本校验 | TurtlePlugin.cs `HashEquals()` | SHA-256，内容变才覆盖 |
+**0.2 版（推荐）**——将对象颜色一键转换为材质（RenderMaterial 版，防重复）：
+
+- 读取每个对象的{实际显示颜色|若图层颜色继承，也会正确取到}
+- 相同颜色的对象自动共用同一个材质，不会重复创建
+- 创建新材质前会先检查文档里是否已存在{同名材质|比如之前跑过一次本脚本、或者之前手动建过}，有就直接复用，不会再新建重复的一份——反复运行也不会产生重复材质
+- 材质使用 Rhino.Render.RenderMaterial（Basic Material），材质库同款机制：无论从"材质面板"改材质球，还是从"属性面板"改选中物体的材质，其他共用该材质的物体都会联动
+
+```python
+# 用法：
+#   1. 在 Rhino 命令行输入 EditPythonScript (Rhino 6/7) 或 ScriptEditor (Rhino 8)
+#   2. 粘贴本脚本并运行 (F5)
+#   3. 若有选中的对象，只处理选中对象；若没有选中任何对象，则处理场景中所有对象
+
+import rhinoscriptsyntax as rs
+import scriptcontext as sc
+import Rhino
+
+
+def find_existing_render_material(doc, name):
+    """在文档已有的 RenderMaterial 里查找同名材质，找到就返回它，找不到返回 None"""
+    for mat in doc.RenderMaterials:
+        if mat.Name == name:
+            return mat
+    return None
+
+
+def color_to_material():
+    doc = sc.doc
+
+    # 优先使用选中对象，没有选中则处理全部对象
+    selected = rs.SelectedObjects()
+    obj_ids = selected if selected else rs.AllObjects()
+
+    if not obj_ids:
+        print("场景中没有找到任何对象。")
+        return
+
+    color_material_map = {}  # {(R,G,B): RenderMaterial}
+    count = 0
+    created_count = 0
+    reused_count = 0
+
+    for obj_id in obj_ids:
+        rhobj = rs.coercerhinoobject(obj_id)
+        if rhobj is None:
+            continue
+
+        # 获取对象的实际显示颜色（若按图层显示颜色，会自动取图层颜色）
+        color = rhobj.Attributes.DrawColor(doc)
+        key = (color.R, color.G, color.B)
+
+        if key in color_material_map:
+            mat = color_material_map[key]
+        else:
+            mat_name = "Color_{}_{}_{}".format(color.R, color.G, color.B)
+
+            # 先看文档里有没有同名材质，有就直接复用，不新建
+            existing_mat = find_existing_render_material(doc, mat_name)
+
+            if existing_mat is not None:
+                mat = existing_mat
+                reused_count += 1
+            else:
+                # 创建 Basic Material（材质库同款的 RenderContent 对象）
+                mat = Rhino.Render.RenderContentType.NewContentFromTypeId(
+                    Rhino.Render.ContentUuids.BasicMaterialType, doc)
+                mat.BeginChange(Rhino.Render.RenderContent.ChangeContexts.Program)
+                mat.Fields.Set("diffuse", color)
+                mat.EndChange()
+                mat.Name = mat_name
+
+                doc.RenderMaterials.Add(mat)
+                created_count += 1
+
+            color_material_map[key] = mat
+
+        # 赋值给物体（RenderMaterial 属性走的是渲染内容系统，天然支持联动）
+        rhobj.RenderMaterial = mat
+        rhobj.CommitChanges()
+        count += 1
+
+    doc.Views.Redraw()
+    print("完成：共处理 {} 个对象，涉及 {} 种颜色（新建 {} 个材质，复用已有 {} 个材质）。".format(
+        count, len(color_material_map), created_count, reused_count))
+
+
+color_to_material()
+```
+
+**0.1 版差异**：0.1 只在"本次运行内"合并相同颜色，**不查文档已有同名材质**——反复运行会重复创建材质；且行内调用时注意 {`_-RunPythonScript`|嵌入式 Python 脚本命令} 后面**必须要有空格**再跟脚本内容或路径，否则 Rhino 无法正确解析。
+
+#### 材质存储与制作图标
+- 通过选择物件存储材质贴图
+- 通过贴图制作rhino材质和快捷按钮
+## 3. 显示模式
+{白线模式|以白色轮廓，黑色体块为显示模式，可忽略材质，用于黑白分析图}
+{黑线模式|以黑色轮廓，白色体块为显示模式，可忽略材质，用于黑白分析图}
+{还原材质|还原原本的材质或者颜色显示}  
+
+
+
 
 ---
 
-## 7. 版本更新
-
-### 2026-09-27（补充合并）
-
-- 新增 §8 功能规划笔记（显示模式 / 表皮 / 电池图形界面，合并自本地草稿）。
-- 新增 §9 Toolbar 图标修复记录（Mac Rhino 经 yak 从 packages 目录加载 rui，修复 31 个按钮图标显示问题，合并自"Turtle development log"本地新增内容）。
-- 新增 §10 Toolbars 面板空白与工具列固化（tool_bar_groups 残留空 item 根因、GUI 恢复流程、删除旧工具列并清理孤儿宏/图标）。
-- "Turtle development log" 文章全部内容已并入本文档，日志文章下架删除。
-
-### 2026-09-22（合并开发日志）
-
-- 合并"turtle 插件开发日志"内容：新增 §5 工具脚本与组件（材质工具 0.2、facad RandomLine、线条双向挤出），扩充 §4 文件添加规范（三条去向、GH 电池三步、文件去向总表、distribute.ps1 分发脚本）；原日志文章删除，内容归档至此。
-
-### 2026-09-12 (v0.3)
-
-- 资源归类：分发文件进 `Resources/`（rui / DisplayStyles / Materials），原始素材进 `assets/` 存档；删除无用的 RhinoWorkspace startup 脚本。
-- 新增 `_TurtleClean` 命令：删除释放到 GH 的 ghuser（卸载/清理逻辑）。
-- ghuser 集成（视觉合并方案）：`Category=turtle` 小写 → 后统一为大写 `Turtle`；插件启动时 SHA-256 校验、旧文件自动覆盖。
-- 新增 `tools/patch_ghuser.py`：ghuser 属性补丁工具。
-- git 远程配置完成，已 push 到 `github.com/liuzhen4242/Turtle.git`。
-
-### 2026-09-11 (v0.2)
-
-- 插件整体改名为 turtle：`Turtle.csproj/sln/TurtlePlugin.cs/Turtle.rui` 全量替换；缓存目录变 `~/.config/Turtle/Scripts`。
-- OpenLink.rui 三个宏改为 `!_TurtleBlockToSu` / `!_TurtleOutline`，摆脱硬编码绝对路径。
-- GH 工具集骨架：TurtleInfo / TurtleAssemblyPriority / TurtleHelloComponent（踩坑：GH 8 Icon 需 protected override）。
-
-### 2026-09-09 (v0.1)
-
-- 按 README 搭建 Rhino 8 跨平台插件骨架（net7.0，Mac+Windows）。
-- 修复 MyToolsPlugin.cs 缺 `using System.Runtime.InteropServices` 导致的 CS0616。
-- 命令 + 嵌入式 Python 脚本 + 工具栏基础链路打通。
 
 
----
+## 74 版本更新
 
-## 8. 功能规划笔记（2026-09-27）
+### 重写toolbar（2026-09-27）
+- 重写toolbar工具栏，彻底摆脱继承与共享导致的问题
+- 重新编制material 材质库
+- 使用affinity3 制作svg图标logo- 
 
-（合并自本地"Turtle 插件开发要点"草稿，功能构思记录）
-
-### 显示模式
-白线模式
-> 分析图时，以白色为显示模式，忽略材质  
-> 以黑色为显示模式，局部进入白色模式中  
-> 还原材质  
-
-### 表皮
-> 根据输入数字划分柜子
-> 吊顶表皮类型
-> 路径成矩的几种方式，等分，步长，
-> 三角面生成与楼梯
-
-### 电池图形界面
-> graph map 外置于电池  
-> 时间轴
-
----
-
-## 9. Toolbar 图标修复记录（2026-09-27）
+## 5. 开发skill 纪要
+### Toolbar 图标修复记录（2026-09-27）
 
 > 背景：`color-material-turtle` 工具列 31 个按钮图标长期显示"默认蓝 → 文字"，反复重做无效。最终根因是 **Mac 上 Rhino 加载的 rui 文件根本不是一直在改的那份**。以下是完整排查方法与结论，后续做 toolbar 直接照此流程。
 
-### 问题现象
+- 问题现象
 
 | 阶段 | 现象 | 原因 |
 |---|---|---|
@@ -930,7 +803,7 @@ public class Script_Instance : GH_ScriptInstance
 | 插入单 PNG 后 | 仍显示文字 | **真正根因：改的文件 Rhino 根本不读**，PNG 格式本身没问题 |
 | 决定性测试（复制能渲染的白圆） | 仍显示文字 | 同样证实：不是图标数据问题，是加载文件不对 |
 
-### 最终根因（重点）
+- 最终根因（重点）
 
 **Mac Rhino 通过 yak 包加载 rui，加载位是 packages 目录，不是 UI 目录**：
 
@@ -950,7 +823,7 @@ public class Script_Instance : GH_ScriptInstance
 - 旧版里 `color-turtle` 的白圆图标（guid `837c614b-…`）本来就有 → 显示正常；`color-material-turtle` 的 31 个新图标 guid 旧版里全都没有 → 悬空 → 文字。
 - **修复动作**：把新版 rui 覆盖到 packages 加载位（先 `cp` 备份为 `.bak-yakold`），5 处 md5 全部一致后重启 Rhino 即正常。
 
-### 可渲染 vs 不可渲染的图标格式（Mac Rhino）
+- 可渲染 vs 不可渲染的图标格式（Mac Rhino）
 
 ```xml
 <!-- ✅ 可渲染：单张 32x32 PNG，name 为 "guid.png"（参考 color-turtle 白圆 837c614b） -->
@@ -969,7 +842,7 @@ public class Script_Instance : GH_ScriptInstance
 - **纯色方块 PNG 生成**：PIL 生成 32x32 RGB 纯色 PNG（无 alpha），`Image.new('RGB',(32,32),color)` → base64 约 152 字符即可被 Rhino 渲染。A120 半透明项用 RGBA + 黑描边。
 - 图标 guid 必须与 `macro_item bitmap_id` 一致，且 name 建议用 `guid.png`。
 
-### 其他必踩的坑（toolbar 开发速查）
+### toolbar常见问题（toolbar 开发速查）
 
 1. **改 rui 前必须完全退出 Rhino**：Rhino 退出时会用自己状态覆盖 rui；进程名是 `Rhinoceros`（不是 "Rhino 8"），用 `kill <pid>` / `kill -9 <pid>`（pkill 受系统限制不可用）。用户可能正在用 Rhino，先确认再动手。
 2. **工具栏 dock 位置在 `containers.xml`**：`~/Library/Application Support/McNeel/Rhinoceros/8.0/settings/Scheme__Default/containers.xml` 定义每个 dock_bar 的 `dock_location`/`float_point`/`visible`。删了它会丢浮动位置 → "勾选可见但找不到"。
@@ -992,7 +865,6 @@ public class Script_Instance : GH_ScriptInstance
 | 31 色映射 | 索引 0–30，24–30 为 A120 半透明+黑描边 | 见 color-turtle 面板顺序 |
 
 
-## 10. Toolbars 面板空白与工具列固化（2026-09-27）
 
 ### Toolbars 面板空白修复记录
 

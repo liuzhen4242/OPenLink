@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 import { remarkGalleryPlugin, remarkObsidianImages } from './scripts/remark-obsidian-media.mjs';
+import { remarkCurlyNotes } from './scripts/remark-curly-notes.mjs';
 import { devSourceMediaFallbackPlugin } from './scripts/vite-dev-media.mjs';
 
 /**
@@ -37,73 +38,6 @@ function remarkPlainNoteIndex() {
       }
     };
     visit(tree);
-  };
-}
-
-/** 把 HTML 属性里的文本安全转义 */
-function escapeHtmlAttr(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
-/**
- * 新手向内联注释（作者显式指定范围）：
- *   {需要注释的文字|注释内容}
- * 渲染为 <span class="note-word">文字</span><sup data-note="注释内容">自动序号</sup>。
- * 下划线范围由作者用花括号决定，注释正文与序号全部自动生成。
- */
-function remarkCurlyNotes() {
-  return (tree) => {
-    let index = 0;
-
-    const visit = (node, parent) => {
-      if (
-        node.type === 'text' &&
-        parent && parent.type === 'paragraph' &&
-        /\{[^}|]+\|[^}]*\}/.test(node.value)
-      ) {
-        const re = /\{([^}|]+)\|([^}]*)\}/g;
-        const parts = [];
-        let last = 0;
-        let changed = false;
-        let m;
-
-        while ((m = re.exec(node.value))) {
-          parts.push({ type: 'text', value: node.value.slice(last, m.index) });
-          const target = m[1].trim();
-          const note = m[2].trim();
-          if (target) {
-            index += 1;
-            parts.push({ type: 'html', value: '<span class="note-word">' });
-            parts.push({ type: 'text', value: target });
-            parts.push({ type: 'html', value: '</span>' });
-            parts.push({ type: 'html', value: `<sup data-note="${escapeHtmlAttr(note)}">` });
-            parts.push({ type: 'text', value: String(index) });
-            parts.push({ type: 'html', value: '</sup>' });
-          }
-          last = re.lastIndex;
-          changed = true;
-        }
-
-        if (changed) {
-          if (last < node.value.length) {
-            parts.push({ type: 'text', value: node.value.slice(last) });
-          }
-          const list = parent.children;
-          list.splice(list.indexOf(node), 1, ...parts);
-          return;
-        }
-      }
-
-      if (Array.isArray(node.children)) {
-        for (const child of node.children) visit(child, node);
-      }
-    };
-
-    visit(tree, null);
   };
 }
 

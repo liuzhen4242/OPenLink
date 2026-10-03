@@ -10,6 +10,7 @@ import { getCollection, render } from 'astro:content';
 import { statSync } from 'node:fs';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import MediaGallery from '../../components/MediaGallery.astro';
+import { renderInlineMd } from '../../lib/renderInlineMd';
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog');
@@ -215,7 +216,7 @@ const nextPost =
       {notes.map((note, index) => (
         <p class="note-item leading-relaxed text-neutral-600 dark:text-neutral-400" data-note-index={index + 1}>
           <span class="font-normal shrink-0">{index + 1}:</span>
-          <span>{note}</span>
+          <span class="note-text" set:html={renderInlineMd(note)} />
         </p>
       ))}
     </aside>
@@ -224,6 +225,8 @@ const nextPost =
 </BaseLayout>
 
 <script>
+  import { renderInlineMd } from '../../lib/renderInlineMd';
+
   // 本地主题切换按钮逻辑，和项目页一致
   const localToggle = document.getElementById('theme-toggle-desktop');
   localToggle?.addEventListener('click', () => {
@@ -350,7 +353,7 @@ const nextPost =
       numEl.textContent = `${num}:`;
       const textEl = document.createElement('span');
       textEl.className = 'note-text';
-      textEl.textContent = noteText;
+      textEl.innerHTML = renderInlineMd(noteText);
       item.append(numEl, textEl);
       aside.appendChild(item);
     });

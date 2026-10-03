@@ -1,5 +1,6 @@
 ---
 import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import BaseLayout from '../layouts/BaseLayout.astro';
 
 /**
@@ -9,9 +10,12 @@ import BaseLayout from '../layouts/BaseLayout.astro';
  * 若存在同名 .js（如 AlignIMG.html ↔ AlignIMG.js），把该 JS 内联为
  * 卡片缩略图上的互动动画（点击动画区域产生互动、不跳转），
  * 卡片下方文字行链接到 /tools/<name> 打开完整工具。
+ *
+ * 路径用 process.cwd() 锚定项目根：dev 与 build（含 Netlify/双机）下
+ * cwd 都是项目根，避免 import.meta.url 在 build 时被解析到 dist/.prerender/content/tool。
  */
 
-const TOOL_DIR = new URL('../content/tool/', import.meta.url);
+const TOOL_DIR = join(process.cwd(), 'src/content/tool');
 
 interface ToolItem {
   name: string;
@@ -26,7 +30,7 @@ const tools: ToolItem[] = toolFiles
   .filter((f) => f.endsWith('.html'))
   .map((file) => {
     const name = file.replace(/\.html$/i, '');
-    const html = readFileSync(new URL(file, TOOL_DIR), 'utf-8');
+    const html = readFileSync(join(TOOL_DIR, file), 'utf-8');
     const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     const title = (m ? m[1].trim() : name);
     return {
@@ -42,7 +46,7 @@ const tools: ToolItem[] = toolFiles
 // 故每页只挂第一个动画实例；多工具需各自动画时再扩展为 class 遍历。
 const coverScripts = tools
   .filter((t) => t.hasCover)
-  .map((t) => readFileSync(new URL(`${t.name}.js`, TOOL_DIR), 'utf-8'));
+  .map((t) => readFileSync(join(TOOL_DIR, `${t.name}.js`), 'utf-8'));
 
 const coverToolName = tools.find((t) => t.hasCover)?.name ?? '';
 ---
