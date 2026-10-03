@@ -28,11 +28,16 @@ const CONCURRENCY = 4;
 
 const COMPRESSIBLE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.tiff', '.avif']);
 
-// macOS (and some sync tools) drop hidden AppleDouble metadata files
-// ("._filename") and .DS_Store next to real files. They are not images:
-// skip them so they don't spam warnings or get copied into the output.
-function isMacJunk(name) {
-  return name.startsWith('._') || name === '.DS_Store';
+// macOS（及部分同步工具）会在真实文件旁生成 AppleDouble 元数据（"._filename"）
+// 与 .DS_Store；Windows 会生成 Thumbs.db 缩略图缓存。它们都不是图片：
+// 跳过以免污染输出或中断同步。
+function isJunk(name) {
+  return (
+    name.startsWith('._') ||
+    name === '.DS_Store' ||
+    name === 'Thumbs.db' ||
+    name === 'desktop.ini'
+  );
 }
 
 // sharp refuses to touch images above ~268 million pixels by default, as a
@@ -65,7 +70,7 @@ async function processImageSet(imagesSrc, imagesDest, label) {
   mkdirSync(imagesDest, { recursive: true });
 
   const files = readdirSync(imagesSrc, { withFileTypes: true }).filter(
-    (f) => f.isFile() && !isMacJunk(f.name)
+    (f) => f.isFile() && !isJunk(f.name)
   );
 
   const jobs = []; // { srcPath, destPath, width }
@@ -73,7 +78,15 @@ async function processImageSet(imagesSrc, imagesDest, label) {
   for (const file of files) {
     const ext = path.extname(file.name).toLowerCase();
     const srcPath = path.join(imagesSrc, file.name);
-    const srcMtime = statSync(srcPath).mtimeMs;
+    const srcStat = statSync(srcPath);
+
+    // 0 字节空文件（如 Obsidian 粘贴失败的占位）不是有效媒体：
+    // sharp 读不了、复制也白费，跳过以免中断整个同步。
+    if (srcStat.size === 0) {
+      console.warn(`[sync-project-images] skipping empty file ${file.name}`);
+      continue;
+    }
+    const srcMtime = srcStat.mtimeMs;
 
     if (!COMPRESSIBLE_EXTENSIONS.has(ext)) {
       // GIF (would lose animation on re-encode), SVG (already tiny), and
@@ -103,8 +116,12 @@ async function processImageSet(imagesSrc, imagesDest, label) {
       );
       const destPath = path.join(imagesDest, file.name);
       globalExpected.add(path.relative(publicRoot, destPath));
-      cpSync(srcPath, destPath);
-      passthroughCount++;
+      try {
+        cpSync(srcPath, destPath);
+        passthroughCount++;
+      } catch (cpErr) {
+        console.error(`[sync-project-images] also failed to copy ${file.name}:`, cpErr.message);
+      }
       continue;
     }
 
@@ -192,16 +209,33 @@ for (const dir of projectDirs) {
   await processImageSet(imagesSrc, imagesDest, `${dir.name}/images`);
 }
 
-// Blog 共享图片目录（src/content/blog/images）→ public/project-images/images
-// blog 文章的 getRelativeProjectDir 为空，URL 为 /project-images/images/xxx
+// Blog 文章：public/ 与 draft/ 下每个文章目录的 images/ 各自同步
+// 到 public/project-images/<文章slug>/images（对应 remark 插件的 slug 解析）。
+// 历史共享目录 src/content/blog/images → public/project-images/images 保留兼容。
+for (const sub of ['public', 'draft']) {
+  const base = path.join(blogRoot, sub);
+  if (!existsSync(base)) continue;
+  for (const dir of readdirSync(base, { withFileTypes: true }).filter(
+    (entry) => entry.isDirectory() && !entry.name.startsWith('.')
+  )) {
+    const imagesSrc = path.join(base, dir.name, 'images');
+    const imagesDest = path.join(publicRoot, dir.name, 'images');
+    await processImageSet(imagesSrc, imagesDest, `blog/${sub}/${dir.name}/images`);
+  }
+}
 await processImageSet(path.join(blogRoot, 'images'), path.join(publicRoot, 'images'), 'blog/images');
 
 // Remove outputs whose source no longer exists (keeps the build dir tidy).
 for (const rel of listFiles(publicRoot)) {
   if (!globalExpected.has(rel)) {
     const orphan = path.join(publicRoot, rel);
-    unlinkSync(orphan);
-    console.log(`[sync-project-images] removed orphan ${rel}`);
+    try {
+      unlinkSync(orphan);
+      console.log(`[sync-project-images] removed orphan ${rel}`);
+    } catch (err) {
+      // 文件可能正被系统/预览进程占用（Windows Thumbs.db 等），跳过不中断
+      console.warn(`[sync-project-images] could not remove orphan ${rel}:`, err.message);
+    }
   }
 }
 

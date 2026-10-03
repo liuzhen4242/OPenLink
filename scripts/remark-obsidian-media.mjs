@@ -9,6 +9,7 @@ import sharp from 'sharp';
 const PUBLIC_IMAGES_ROOT = fileURLToPath(new URL('../public/project-images/', import.meta.url));
 
 const PROJECTS_ROOT_MARKER = 'content/projects/';
+const BLOG_ROOT_MARKER = 'content/blog/';
 
 /**
  * 轮播图 <img> 的 sizes 属性。三栏骨架中正文列被 max-w-2xl（672px）封顶，
@@ -33,17 +34,32 @@ function normalize(str) {
 }
 
 /**
- * Given the absolute path to a project's .md file, return the project's
- * directory relative to src/content/projects/ — e.g. "Xinjiang_Museum".
+ * Given the absolute path to a project's .md file, return the article's
+ * directory relative to its collection root — e.g. "Xinjiang_Museum" for a
+ * project, or the article slug (e.g. "深汕大塘智慧产业园过程记录") for a blog
+ * post whose images live in the article's own images/ subfolder.
+ * Blog posts with an empty result (no article folder) fall back to the
+ * shared /project-images/images pool.
  */
 function getRelativeProjectDir(filePath) {
   const normalizedPath = filePath.replace(/\\/g, '/');
   const idx = normalizedPath.indexOf(PROJECTS_ROOT_MARKER);
-  if (idx === -1) return '';
-  const afterRoot = normalizedPath.slice(idx + PROJECTS_ROOT_MARKER.length);
-  const parts = afterRoot.split('/');
-  parts.pop(); // drop the .md filename itself
-  return parts.join('/');
+  if (idx !== -1) {
+    const afterRoot = normalizedPath.slice(idx + PROJECTS_ROOT_MARKER.length);
+    const parts = afterRoot.split('/');
+    parts.pop(); // drop the .md filename itself
+    return parts.join('/');
+  }
+  const bidx = normalizedPath.indexOf(BLOG_ROOT_MARKER);
+  if (bidx !== -1) {
+    const afterRoot = normalizedPath.slice(bidx + BLOG_ROOT_MARKER.length);
+    const parts = afterRoot.split('/');
+    parts.pop(); // drop the .md filename itself
+    // blog/public/<slug>/… or blog/draft/<slug>/… → <slug>
+    if (parts[0] === 'public' || parts[0] === 'draft') parts.shift();
+    return parts.join('/');
+  }
+  return '';
 }
 
 /**
