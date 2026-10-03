@@ -57,11 +57,27 @@ function devSourceMediaFallbackPlugin() {
         const segments = dirPart.split('/').filter(Boolean);
         if (segments[segments.length - 1] !== 'images') return next();
 
-        const isBlog = segments.length === 1;
-        const sourceImages = isBlog
-          ? path.join(CONTENT_ROOT, 'blog', 'images')
-          : path.join(CONTENT_ROOT, 'projects', segments[0], 'images');
-        if (!existsSync(sourceImages)) return next();
+        // segments 形如 ["X","images"]（projects 或 blog 文章自身目录），
+        // 或 ["images"]（历史共享目录 src/content/blog/images）。
+        let sourceImages;
+        if (segments.length === 1) {
+          sourceImages = path.join(CONTENT_ROOT, 'blog', 'images');
+        } else {
+          const dirName = segments[0];
+          const projectImages = path.join(CONTENT_ROOT, 'projects', dirName, 'images');
+          if (existsSync(projectImages)) {
+            sourceImages = projectImages;
+          } else {
+            const pub = path.join(CONTENT_ROOT, 'blog', 'public', dirName, 'images');
+            const draft = path.join(CONTENT_ROOT, 'blog', 'draft', dirName, 'images');
+            sourceImages = existsSync(pub)
+              ? pub
+              : existsSync(draft)
+                ? draft
+                : null;
+          }
+        }
+        if (!sourceImages || !existsSync(sourceImages)) return next();
 
         // Strip a "-480w.webp"-style responsive suffix so a variant request
         // can match the original source file (base name, any extension).
