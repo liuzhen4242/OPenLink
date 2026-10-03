@@ -221,11 +221,16 @@ const metaDesc = description ?? 'A minimalist architecture and design portfolio.
         overflow-y: auto;
         overflow-x: auto;
         border-radius: 8px;
-        /* 隐藏滚动条：四角保持完整圆角；滚动时由系统 overlay 短暂提示（Mac 触控板） */
+      }
+      /* 隐藏滚动条：pre 与内层 code 都可能成为横向滚动容器（code 由下面
+         overflow-x: auto 触发），两个都要隐藏，滚动能力保留 */
+      .prose pre,
+      .prose pre code {
         scrollbar-width: none;
         -ms-overflow-style: none;
       }
-      .prose pre::-webkit-scrollbar {
+      .prose pre::-webkit-scrollbar,
+      .prose pre code::-webkit-scrollbar {
         display: none;
         width: 0;
         height: 0;

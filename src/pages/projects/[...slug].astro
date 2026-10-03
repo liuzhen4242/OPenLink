@@ -17,6 +17,7 @@
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import MediaGallery from '../../components/MediaGallery.astro';
+import { renderInlineMd } from '../../lib/renderInlineMd';
 
 /** Convert entry id → URL slug (strip .md extension and leading Projects/) */
 function idToSlug(id: string): string {
@@ -232,7 +233,7 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
       {hasNotes &&
         data.notes!.map((note, index) => (
           <p class="note-item leading-relaxed text-neutral-600 dark:text-neutral-400" data-note-index={index + 1}>
-            <span class="note-num font-normal shrink-0">{index + 1}:</span><span class="note-text">{note}</span>
+            <span class="note-num font-normal shrink-0">{index + 1}:</span><span class="note-text" set:html={renderInlineMd(note)} />
           </p>
         ))}
     </aside>
@@ -251,7 +252,7 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
         data.notes!.map((note, index) => (
           <p class="leading-relaxed" data-note-index={index + 1}>
             <span class="font-normal mr-2">{index + 1}.</span>
-            {note}
+            <span set:html={renderInlineMd(note)} />
           </p>
         ))}
     </div>
@@ -296,6 +297,8 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
 </script>
 
 <script>
+  import { renderInlineMd } from '../../lib/renderInlineMd';
+
   // ── 注释系统（Herschel 完整移植）─────────────────────────────────────
 
   // 内联注释（{目标|注释} 语法）：从正文 sup[data-note] 收集到右栏与文末脚注
@@ -337,7 +340,7 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
       numEl.textContent = `${num}:`;
       const textEl = document.createElement('span');
       textEl.className = 'note-text';
-      textEl.textContent = noteText;
+      textEl.innerHTML = renderInlineMd(noteText);
       item.append(numEl, textEl);
       aside.appendChild(item);
 
@@ -349,7 +352,7 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
       fNum.className = 'font-normal mr-2';
       fNum.textContent = `${num}.`;
       const fText = document.createElement('span');
-      fText.textContent = noteText;
+      fText.innerHTML = renderInlineMd(noteText);
       fItem.append(fNum, fText);
       footerList?.appendChild(fItem);
     });
