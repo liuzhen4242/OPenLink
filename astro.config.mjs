@@ -101,6 +101,10 @@ function remarkWordUnderline() {
 }
 
 export default defineConfig({
+  // 关闭 Astro 开发工具栏，避免底部浮动图标进入本地预览界面。
+  devToolbar: {
+    enabled: false,
+  },
   markdown: {
     remarkPlugins: [
       remarkGalleryPlugin,

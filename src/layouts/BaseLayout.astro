@@ -55,8 +55,9 @@ const metaDesc = description ?? 'A minimalist architecture and design portfolio.
            视口左缘空隙小于该值时，左侧内容用 calc 连续避让（与 Herschel 同款参数，见 .site-main / .nav-inner） */
         --toggle-safe: 60px;
 
-        --ff-serif:   'Noto Serif SC', 'Georgia', serif;
-        --ff-caps:    'IM Fell English SC', serif;
+        --ff-serif:   -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+        --ff-caps:    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+        --ff-wordmark: 'IM Fell English SC', serif;
         /* 编程等宽字体栈（参考 Gemini / Cloud Code）；中文注释回落到黑体，避免宋体 */
         --ff-mono:    'JetBrains Mono', 'SF Mono', 'Menlo', 'Consolas', 'Cascadia Mono', 'Roboto Mono', 'Courier New', ui-monospace, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', monospace;
 
@@ -135,7 +136,7 @@ const metaDesc = description ?? 'A minimalist architecture and design portfolio.
         max-width: none;
       }
       .prose h1, .prose h2, .prose h3 {
-        font-family: var(--ff-caps);
+        font-family: var(--ff-serif);
         font-weight: 400;
         letter-spacing: 0.04em;
       }
@@ -190,6 +191,74 @@ const metaDesc = description ?? 'A minimalist architecture and design portfolio.
       /* 该视频文件左右各带 96px 黑边（画面实际为 2328x1080），显示时裁掉 */
       .prose video[src*="%E8%A1%A8%E7%9A%AE%E8%82%8C%E7%90%86"] {
         aspect-ratio: 97 / 45;
+      }
+
+      /* ── OpenLink 全站排版规则：Hershel 式系统无衬线层级 ── */
+      body.page-typography-preview .prose {
+        font-family: var(--ff-serif);
+        font-size: 1rem;
+        color: var(--c-ink);
+      }
+      body.page-typography-preview .prose p,
+      body.page-typography-preview .prose li {
+        color: var(--c-mid);
+        font-weight: 400;
+        opacity: 0.78;
+      }
+      body.page-typography-preview .prose h1,
+      body.page-typography-preview .prose h2,
+      body.page-typography-preview .prose h3,
+      body.page-typography-preview .prose h4 {
+        font-family: var(--ff-serif);
+        color: var(--c-ink);
+        font-weight: 500;
+      }
+      body.page-typography-preview .prose img,
+      body.page-typography-preview .prose video {
+        margin-top: 2em;
+        margin-bottom: 2em;
+      }
+
+      /* ── 全站状态色与页面标题基线 ─────────────────────
+         所有未激活的导航/筛选项都退到正文同一灰度；激活项只提升到主色，
+         让“状态变化”来自清晰的对比，而不是不同的字体系统。 */
+      body.page-typography-preview .nav-link:not(.active),
+      body.page-typography-preview .category-tag:not(.is-active),
+      body.page-typography-preview [data-heading-link]:not(.toc-active),
+      body.page-typography-preview [data-toc-top]:not(.toc-active) {
+        color: var(--c-mid) !important;
+        opacity: 0.78;
+      }
+      body.page-typography-preview .nav-link.active,
+      body.page-typography-preview .category-tag.is-active,
+      body.page-typography-preview [data-heading-link].toc-active,
+      body.page-typography-preview [data-toc-top].toc-active {
+        color: var(--c-ink) !important;
+        opacity: 1;
+      }
+
+      /* Projects / Blog / Toolbox 使用同一组顶部节奏，保证中英文标题基线一致。 */
+      body.page-typography-preview .gallery-header,
+      body.page-typography-preview .blog-header,
+      body.page-typography-preview .tools-header {
+        padding-top: 4rem;
+        padding-bottom: 3rem;
+        margin-bottom: 3rem;
+      }
+      body.page-typography-preview .gallery-title,
+      body.page-typography-preview .blog-title,
+      body.page-typography-preview .tools-title {
+        font-family: var(--ff-caps);
+        font-size: 28pt;
+        line-height: 1.1;
+        margin-top: 0;
+        margin-bottom: 0;
+      }
+      body.page-typography-preview .gallery-sub,
+      body.page-typography-preview .blog-eyebrow,
+      body.page-typography-preview .tools-eyebrow {
+        min-height: 1.1em;
+        margin-bottom: 0.4rem;
       }
 
       /*
@@ -274,7 +343,7 @@ const metaDesc = description ?? 'A minimalist architecture and design portfolio.
       }
     </style>
   </head>
-  <body class={pageClass}>
+  <body class={`${pageClass} page-typography-preview`}>
     <ThemeToggle />
     <Navbar />
     <main class="site-main">

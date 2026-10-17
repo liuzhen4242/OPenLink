@@ -20,6 +20,6 @@ body {
 /* 超链接统一加粗（字重 600），与正文文字明显区分 */
 @layer base {
   a {
-    font-weight: 600;
+    font-weight: 400;
   }
 }

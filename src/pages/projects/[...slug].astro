@@ -84,8 +84,12 @@ const hasNotes = (data.notes?.length ?? 0) > 0;
 const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
 ---
 
-<BaseLayout title={data.title} description={data.description} pageClass="page-detail">
-  <div class:list={['grid grid-cols-1 lg:items-start lg:gap-12', gridCols]}>
+<BaseLayout
+  title={data.title}
+  description={data.description}
+  pageClass="page-detail"
+>
+  <div class:list={['grid grid-cols-1 lg:items-start lg:gap-12', gridCols, 'page-detail-preview']}>
     <!-- ── 左栏（吸顶）：圆钮 + 上/下篇导航 + 标题树（复刻 Herschel）────── -->
     <div class="hidden lg:block self-start sticky top-[2.7rem] z-10">
       <div class="mb-10 flex items-center justify-between pr-4">
@@ -218,11 +222,22 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
         <Content />
       </div>
 
-      <!-- Back link -->
-      <nav class="back-nav">
-        <a href="/projects" class="back-link">
-          <span aria-hidden="true">←</span>&ensp;所有项目
-        </a>
+      <!-- Minimal previous / next navigation -->
+      <nav class="back-nav" aria-label="项目切换">
+        <a
+          href={prevProject ? `/projects/${idToSlug(prevProject.id)}` : '#'}
+          class="back-link"
+          aria-label="上一篇"
+          title="上一篇"
+          class:list={{ 'is-disabled': !prevProject }}
+        >←</a>
+        <a
+          href={nextProject ? `/projects/${idToSlug(nextProject.id)}` : '#'}
+          class="back-link"
+          aria-label="下一篇"
+          title="下一篇"
+          class:list={{ 'is-disabled': !nextProject }}
+        >→</a>
       </nav>
     </article>
 
@@ -271,8 +286,69 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
 -->
 <script define:vars={{ projectDir }}>
   document.addEventListener('DOMContentLoaded', () => {
-    const prose = document.querySelector('.prose');
-    if (!prose) return;
+  const prose = document.querySelector('.prose');
+  if (!prose) return;
+
+    // 项目信息是项目文章的固定格式：将中英文混排列表整理为两列信息行。
+    const infoHeading = Array.from(prose.querySelectorAll('h2, h3, h4')).find(
+      (heading) => heading.textContent?.trim() === '项目信息',
+    );
+    const infoList = infoHeading?.nextElementSibling;
+    if (infoList?.tagName === 'UL' && !infoList.classList.contains('project-info-list')) {
+      const tables = document.createElement('div');
+      tables.className = 'project-info-tables';
+      const cnTable = document.createElement('div');
+      cnTable.className = 'project-info-table project-info-table-cn';
+      const enTable = document.createElement('div');
+      enTable.className = 'project-info-table project-info-table-en';
+
+      infoList.querySelectorAll(':scope > li').forEach((item) => {
+        const text = item.textContent?.trim() || '';
+        const colon = text.indexOf('：');
+        const label = colon >= 0 ? text.slice(0, colon).trim() : '';
+        const rest = colon >= 0 ? text.slice(colon + 1).trim() : text;
+        const slashMatch = rest.match(/\s*\/\s*/);
+        const slash = slashMatch ? slashMatch.index : -1;
+        const slashLength = slashMatch?.[0].length ?? 0;
+        const zh = slash >= 0 ? rest.slice(0, slash).trim() : rest;
+        const enRaw = slash >= 0 ? rest.slice(slash + slashLength).trim() : '';
+        const enColonMatch = enRaw.match(/\s*[:：]\s*/);
+        const enColon = enColonMatch ? enColonMatch.index : -1;
+        const enColonLength = enColonMatch?.[0].length ?? 0;
+        const enLabel = enColon >= 0 ? enRaw.slice(0, enColon).trim() : '';
+        const enValue = enColon >= 0 ? enRaw.slice(enColon + enColonLength).trim() : enRaw;
+
+        const cnRow = document.createElement('div');
+        cnRow.className = 'project-info-row';
+        cnRow.innerHTML = `<span class="project-info-label">${label}：</span><span>${zh}</span>`;
+        cnTable.appendChild(cnRow);
+
+        const enRow = document.createElement('div');
+        enRow.className = 'project-info-row';
+        enRow.innerHTML = `<span class="project-info-label">${enLabel ? `${enLabel}:` : ''}</span><span>${enValue}</span>`;
+        enTable.appendChild(enRow);
+      });
+
+      tables.append(cnTable, enTable);
+      infoList.replaceWith(tables);
+
+      const syncInfoRows = () => {
+        const cnRows = Array.from(cnTable.querySelectorAll('.project-info-row'));
+        const enRows = Array.from(enTable.querySelectorAll('.project-info-row'));
+        cnRows.forEach((cnRow, index) => {
+          const enRow = enRows[index];
+          if (!enRow) return;
+          cnRow.style.minHeight = '';
+          enRow.style.minHeight = '';
+          const height = Math.max(cnRow.getBoundingClientRect().height, enRow.getBoundingClientRect().height);
+          cnRow.style.minHeight = `${height}px`;
+          enRow.style.minHeight = `${height}px`;
+        });
+      };
+      syncInfoRows();
+      window.addEventListener('load', syncInfoRows, { once: true });
+      window.addEventListener('resize', syncInfoRows);
+    }
 
     // Mark paragraphs that mix an image with following text (e.g.
     // "<img>老旧厂房升级更新</p>") so CSS can pull the text closer to the
@@ -413,7 +489,7 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
   });
 
   // ── 点击被注释词 → 正文词与对应注释（右栏或文末脚注）同时灰底高亮，1.8s 后自动消退 ──
-  const flashNote = (num) => {
+  const flashNote = (num, fromAside = false) => {
     const aside = document.getElementById('notes-aside');
     const footerList = document.getElementById('notes-footer-list');
     const article = document.querySelector('article');
@@ -439,7 +515,13 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
     if (a) { a.classList.add('note-highlight'); shown = a; }
     if (f) { f.classList.add('note-highlight'); shown = shown || f; }
     if (!shown) return;
-    shown.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const matchingSup = Array.from(article?.querySelectorAll('sup') || []).find(
+      (item) => item.textContent.trim() === num || item.textContent.trim() === `[${num}]`,
+    );
+    const targetWord = matchingSup?.previousElementSibling?.classList.contains('note-word')
+      ? matchingSup.previousElementSibling
+      : null;
+    (fromAside ? targetWord : shown)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 
     clearTimeout(window.__noteFlashTimer);
     window.__noteFlashTimer = setTimeout(clear, 1800);
@@ -455,6 +537,14 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
     if (!supEl || supEl.tagName !== 'SUP') return;
     const m = supEl.textContent.match(/\d+/);
     if (m) flashNote(m[0]);
+  });
+
+  // 点击右侧注释，反向定位到正文对应词语；桌面右栏与移动端文末注释共用。
+  ['notes-aside', 'notes-footer-list'].forEach((id) => {
+    document.getElementById(id)?.addEventListener('click', (e) => {
+      const item = e.target.closest('[data-note-index]');
+      if (item?.dataset.noteIndex) flashNote(item.dataset.noteIndex, true);
+    });
   });
 
   // ── 标题树：手风琴互斥 + 滚动高亮 + 顶部高亮（与博客文章页同款逻辑）──
@@ -540,6 +630,22 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
       { root: null, rootMargin: '-20% 0px -60% 0px', threshold: 0 },
     );
     topObserver.observe(topSentinel);
+
+    // 点击左侧英文标题时立即反馈激活状态，不等待平滑滚动完成。
+    tocTopLink.addEventListener('click', () => {
+      tocLockId = 'top';
+      tocTopLink.classList.add('toc-active', 'font-medium');
+      document.querySelectorAll('[data-heading-link]').forEach((link) => {
+        link.classList.remove('toc-active', 'font-medium');
+      });
+      const finalize = () => {
+        tocLockId = null;
+        tocTopLink.classList.add('toc-active', 'font-medium');
+        window.removeEventListener('scrollend', finalize);
+      };
+      if ('onscrollend' in window) window.addEventListener('scrollend', finalize);
+      else setTimeout(finalize, 600);
+    });
   }
 
   // 点击目录：锁定高亮，滚动期间不被滚动跟踪覆盖；滚动结束（scrollend）解锁恢复跟踪
@@ -660,9 +766,14 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
 
   /* ── Back navigation ──────────────────────────────── */
   .back-nav {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.8rem;
+    width: fit-content;
     margin-top: 6rem;
-    padding-top: 2rem;
-    border-top: 1px solid var(--c-rule);
+    padding-top: 0;
+    border-top: 0;
   }
   .back-link {
     font-family: var(--ff-caps);
@@ -670,9 +781,15 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--c-mid);
+    text-decoration: none;
+    border: 0;
     transition: color 0.18s ease;
   }
   .back-link:hover { color: var(--c-ink); }
+  .back-link.is-disabled {
+    opacity: 0.25;
+    pointer-events: none;
+  }
 
   /* ── 标题树（Herschel 手风琴）────────────────────── */
   /* 颜色继承正文 HAINAN 小标题（--c-mid 灰），悬停/高亮加深为 --c-ink（黑/暗色米白） */
@@ -703,5 +820,191 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
   }
   .toc-group[open] .toc-caret {
     transform: rotate(90deg);
+  }
+
+  /* ── 单页排版预览：只作用于深圳南园项目 ─────────────── */
+  :global(.page-detail-preview .project-title) {
+    font-weight: 400;
+  }
+  :global(.page-detail-preview .project-title-en),
+  :global(.page-detail-preview .project-desc) {
+    font-style: normal;
+  }
+  :global(.page-detail-preview .prose p) {
+    margin-top: 0;
+    margin-bottom: 0.95rem;
+    line-height: 1.78;
+  }
+  :global(.page-detail-preview .prose h2),
+  :global(.page-detail-preview .prose h3) {
+    font-weight: 400;
+    margin-top: 2.7rem;
+    margin-bottom: 0.8rem;
+  }
+  :global(.page-detail-preview .prose h4) {
+    font-weight: 400;
+    margin-top: 2rem;
+    margin-bottom: 0.65rem;
+  }
+  :global(.page-detail-preview [data-heading-link]),
+  :global(.page-detail-preview [data-toc-top]) {
+    color: var(--c-mid);
+    font-weight: 400;
+  }
+  :global(.page-detail-preview [data-heading-link].toc-active),
+  :global(.page-detail-preview [data-toc-top].toc-active) {
+    color: var(--c-ink);
+    font-weight: 500;
+  }
+  :global(.page-detail-preview .prose) {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+      'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+      sans-serif;
+    font-size: 1rem;
+    color: var(--c-ink);
+  }
+  :global(.page-detail-preview .prose img),
+  :global(.page-detail-preview .prose video) {
+    margin-top: 2em;
+    margin-bottom: 2em;
+  }
+  :global(.page-detail-preview .prose li) {
+    margin-top: 0.35rem;
+    margin-bottom: 0.35rem;
+    line-height: 1.7;
+  }
+
+  /* ── Hershel 字体预览：仅当前项目页，主标题保留 OpenLink 字体 ── */
+  :global(body.page-typography-preview),
+  :global(body.page-typography-preview .nav-link),
+  :global(body.page-typography-preview [data-heading-link]),
+  :global(body.page-typography-preview [data-toc-top]),
+  :global(body.page-typography-preview .project-category),
+  :global(body.page-typography-preview .project-date),
+  :global(body.page-typography-preview .project-title-en),
+  :global(body.page-typography-preview .project-desc),
+  :global(body.page-typography-preview .back-link),
+  :global(body.page-typography-preview .note-item) {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+      'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+      sans-serif;
+  }
+  :global(body.page-typography-preview .wordmark) {
+    font-family: var(--ff-wordmark);
+  }
+  :global(body.page-typography-preview .project-title),
+  :global(body.page-typography-preview .nav-link),
+  :global(body.page-typography-preview .project-title-en),
+  :global(body.page-typography-preview .project-desc),
+  :global(body.page-typography-preview .back-link),
+  :global(body.page-typography-preview .note-item) {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+      'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+      sans-serif;
+  }
+  :global(body.page-typography-preview .project-category),
+  :global(body.page-typography-preview .project-date),
+  :global(body.page-typography-preview .project-title-en),
+  :global(body.page-typography-preview .project-desc) {
+    color: var(--c-mid);
+    opacity: 0.62;
+  }
+  :global(body.page-typography-preview .prose h2),
+  :global(body.page-typography-preview .prose h3),
+  :global(body.page-typography-preview .prose h4) {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+      'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+      sans-serif;
+  }
+  :global(body.page-typography-preview .prose p),
+  :global(body.page-typography-preview .prose li) {
+    color: var(--c-mid);
+    font-weight: 400;
+    opacity: 0.78;
+  }
+  :global(body.page-typography-preview .prose h2),
+  :global(body.page-typography-preview .prose h3),
+  :global(body.page-typography-preview .prose h4) {
+    color: var(--c-ink);
+    font-weight: 500;
+  }
+  :global(body.page-typography-preview .nav-link) {
+    color: var(--c-mid) !important;
+    font-weight: 400 !important;
+    opacity: 0.62;
+  }
+  :global(body.page-typography-preview .nav-link.active) {
+    color: var(--c-ink) !important;
+    font-weight: 500 !important;
+    opacity: 1;
+  }
+  :global(body.page-typography-preview .project-info-tables) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(0.9rem, 2.4vw, 1.6rem);
+    margin: 0 0 2.5rem;
+  }
+  :global(body.page-typography-preview .project-info-table) {
+    min-width: 0;
+    width: fit-content;
+    max-width: 100%;
+    border-top: 1px solid var(--c-rule);
+    color: var(--c-mid);
+    opacity: 0.68;
+    font-size: 0.74rem;
+    font-weight: 400;
+    line-height: 1.45;
+  }
+  :global(body.page-typography-preview .project-info-row) {
+    display: grid;
+    grid-template-columns: minmax(4rem, max-content) minmax(0, max-content);
+    gap: 0.15rem;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0;
+    padding: 0.42rem 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--c-rule) 55%, transparent);
+  }
+  :global(body.page-typography-preview .project-info-table-en .project-info-row) {
+    grid-template-columns: clamp(5.2rem, 8vw, 6.5rem) minmax(0, max-content);
+  }
+  :global(body.page-typography-preview .project-info-table-cn .project-info-row) {
+    grid-template-columns: clamp(4rem, 6vw, 5.2rem) minmax(0, max-content);
+  }
+  :global(body.page-typography-preview .project-info-row > span) {
+    max-width: 100%;
+  }
+  :global(body.page-typography-preview .project-info-label) {
+    color: var(--c-mid);
+    font-weight: 400;
+  }
+  :global(body.page-typography-preview .note-item) {
+    cursor: pointer;
+    transition: color 0.18s ease, opacity 0.18s ease;
+  }
+  :global(body.page-typography-preview .note-item:hover) {
+    color: var(--c-ink) !important;
+    opacity: 1;
+  }
+  :global(body.page-typography-preview .note-word) {
+    color: var(--c-ink);
+  }
+  :global(body.page-typography-preview .page-detail-preview [data-heading-link]),
+  :global(body.page-typography-preview .page-detail-preview [data-toc-top]) {
+    color: var(--c-mid) !important;
+    font-weight: 400 !important;
+    opacity: 0.62;
+  }
+  :global(body.page-typography-preview .page-detail-preview [data-heading-link].toc-active),
+  :global(body.page-typography-preview .page-detail-preview [data-toc-top].toc-active) {
+    color: var(--c-ink) !important;
+    font-weight: 500 !important;
+    opacity: 1;
+  }
+  @media (max-width: 640px) {
+    :global(body.page-typography-preview .project-info-tables) {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
   }
 </style>
