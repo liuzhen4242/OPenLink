@@ -1,13 +1,12 @@
 ---
-title: "OpenLink 博客写作指南"
-titleEn: "OpenLink Blog Writing Guide"
-date: "2026-09-12"
-description: "OpenLink 博客写作速查模板：frontmatter、文件夹结构、注释、gallery 轮播、视频嵌入、文章互链。所有元素都是本站真实支持的能力，照着写即可。本文会随网页优化持续更新。"
-author: "zhenliu"
+title: OpenLink 博客写作指南
+titleEn: OpenLink Blog Writing Guide
+date: 2026-09-12
+description: OpenLink 博客写作速查模板：frontmatter、文件夹结构、注释、gallery 轮播、视频嵌入、文章互链。所有元素都是本站真实支持的能力，照着写即可。本文会随网页优化持续更新。
+author: zhenliu
 category:
   - 日志
-  - 学习
-status: "public"
+status: public
 ---
 
 这篇是 OpenLink 的写作指南模板，目标是"想写任何东西都能照抄结构"。每个元素都经过本站渲染代码实测：**frontmatter 字段、文件夹结构、注释语法、gallery 轮播、视频、文章互链**。随网页优化不断更新，遇到新能力就加一节。

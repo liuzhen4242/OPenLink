@@ -770,6 +770,266 @@ color_to_material()
 #### 材质存储与制作图标
 - 通过选择物件存储材质贴图
 - 通过贴图制作rhino材质和快捷按钮
+### su 与 rhino互相复制
+- 1- su端加入插件，设置快捷键ctrl shift c
+将文件放入C:\Users\Liuzhen\AppData\Roaming\SketchUp\SketchUp 2022\SketchUp\Plugins
+![](images/rhinoCopy%201.rb)
+rhinoCopy
+```ruby
+require 'sketchup.rb'
+
+require 'fileutils'
+
+  
+
+module RhinoBridge
+
+  DIR  = File.join(Dir.home, "su_rhino_bridge")
+
+  FILE = File.join(DIR, "clip.skp")
+
+  META = File.join(DIR, "clip.txt")
+
+  
+
+  SHOW_POPUP   = false  # 想要复制成功后弹窗确认就改成 true
+
+  SAVE_VERSION = nil    # Rhino 读不了时改成 Sketchup::Model::VERSION_2021 之类
+
+  
+
+  class PickBaseTool
+
+    def initialize
+
+      @ip = Sketchup::InputPoint.new
+
+    end
+
+  
+
+    def activate
+
+      Sketchup.status_text = "点击基点（Rhino 中将以此点粘贴），Esc 取消"
+
+    end
+
+  
+
+    def onMouseMove(flags, x, y, view)
+
+      @ip.pick(view, x, y)
+
+      view.tooltip = @ip.tooltip
+
+      view.invalidate
+
+    end
+
+  
+
+    def onLButtonDown(flags, x, y, view)
+
+      @ip.pick(view, x, y)
+
+      return unless @ip.valid?
+
+      base = @ip.position.clone
+
+      Sketchup.active_model.select_tool(nil)
+
+      RhinoBridge.export(base)
+
+    end
+
+  
+
+    def draw(view)
+
+      @ip.draw(view) if @ip.valid?
+
+    end
+
+  
+
+    def onCancel(reason, view)
+
+      Sketchup.active_model.select_tool(nil)
+
+    end
+
+  end
+
+  
+
+  def self.start
+
+    if Sketchup.active_model.selection.empty?
+
+      UI.messagebox("请先选中要复制的物件")
+
+      return
+
+    end
+
+    Sketchup.active_model.select_tool(PickBaseTool.new)
+
+  end
+
+  
+
+  def self.export(base_world)
+
+    model = Sketchup.active_model
+
+    sel   = model.selection.to_a
+
+    FileUtils.mkdir_p(DIR)
+
+    File.delete(FILE) if File.exist?(FILE)
+
+    File.delete(META) if File.exist?(META)
+
+  
+
+    # 编辑组内部时，把世界坐标换算成局部坐标
+
+    base  = base_world.transform(model.edit_transform.inverse)
+
+    error = nil
+
+  
+
+    # 记录：选中物件包围盒最小角相对基点的偏移，以及包围盒对角线长度（单位：英寸）
+
+    bb = Geom::BoundingBox.new
+
+    sel.each { |e| bb.add(e.bounds) }
+
+    off = bb.min - base
+
+    File.write(META, "#{off.x.to_f} #{off.y.to_f} #{off.z.to_f} #{bb.diagonal.to_f}")
+
+  
+
+    model.start_operation("Copy to Rhino", true)
+
+    begin
+
+      grp  = model.active_entities.add_group(sel)
+
+      move = Geom::Transformation.translation(
+
+        Geom::Vector3d.new(-base.x, -base.y, -base.z))
+
+      grp.entities.transform_entities(move, grp.entities.to_a)
+
+  
+
+      defn = grp.definition
+
+      SAVE_VERSION ? defn.save_as(FILE, SAVE_VERSION) : defn.save_as(FILE)
+
+    rescue => e
+
+      error = e.message
+
+    ensure
+
+      model.abort_operation   # 撤销临时分组，模型保持原样
+
+    end
+
+  
+
+    if File.exist?(FILE)
+
+      msg = "已复制 #{sel.length} 个物件（#{File.size(FILE) / 1024} KB），请到 Rhino 运行 PS"
+
+      Sketchup.status_text = msg
+
+      UI.messagebox(msg) if SHOW_POPUP
+
+    else
+
+      UI.messagebox("复制失败：#{error || '文件没有生成'}\n路径：#{FILE}")
+
+    end
+
+  end
+
+  
+
+  unless file_loaded?(__FILE__)
+
+    UI.menu("Extensions").add_item("复制到 Rhino") { start }
+
+    file_loaded(__FILE__)
+
+  end
+
+end
+
+
+
+```
+
+- 2- rhino端运行python
+```python
+# -*- coding: utf-8 -*-
+import os
+import tempfile
+import rhinoscriptsyntax as rs
+import scriptcontext as sc
+
+tmp_dir = os.path.join(tempfile.gettempdir(), "su_rhino_bridge")
+path = None
+for ext in ("skp", "dae"):
+    p = os.path.join(tmp_dir, "clip." + ext)
+    if os.path.exists(p):
+        path = p
+        break
+
+if not path:
+    print("没有找到 SketchUp 复制的内容，请先在 SU 里执行“复制到 Rhino”")
+else:
+    # 1. 先指定粘贴点
+    target = rs.GetPoint("指定粘贴位置（回车则保持原坐标）")
+
+    # 2. 记录导入前已有物件，用来找出新导入的物件
+    before = set(str(o) for o in rs.AllObjects())
+
+    # 3. 导入
+    rs.EnableRedraw(False)
+    rs.Command('-_Import "{}" _Enter'.format(path), False)
+
+    after = rs.AllObjects()
+    new_objs = [o for o in after if str(o) not in before] if after else []
+
+    if not new_objs:
+        rs.EnableRedraw(True)
+        print("导入失败或没有新物件（可能是导入选项对话框被取消了）")
+    else:
+        # 4. 移动到指定点
+        if target:
+            box = rs.BoundingBox(new_objs)
+            if box:
+                # box[0] 是最小角点，box[2] 是对角点
+                # 基准点 = 包围盒底面中心
+                base = [(box[0][0] + box[2][0]) / 2.0,
+                        (box[0][1] + box[2][1]) / 2.0,
+                        box[0][2]]
+                vec = [target[0] - base[0],
+                       target[1] - base[1],
+                       target[2] - base[2]]
+                rs.MoveObjects(new_objs, vec)
+
+        # 5. 选中新物件，方便后续操作
+        rs.UnselectAllObjects()
+        rs.SelectObjects(new_objs)
+        rs.EnableRedraw(True)
+        print("已粘贴 {} 个物件".format(len(new_objs)))
+```
 ## 3. 显示模式
 {白线模式|以白色轮廓，黑色体块为显示模式，可忽略材质，用于黑白分析图}
 {黑线模式|以黑色轮廓，白色体块为显示模式，可忽略材质，用于黑白分析图}
