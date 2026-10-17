@@ -1,12 +1,13 @@
 ---
-title: "Rhino 疑难杂症"
-titleEn: "Rhino Troubleshooting"
+title: Rhino 疑难杂症
+titleEn: Rhino Troubleshooting
 date: 2026-09-12
-description: "Rhino 8 插件与工具列疑难杂症排查笔记：pOd 组件主标签不显示的根因（WireGuard 虚拟网卡无 MAC）、color-material-turtle 工具列图标不显示的根因（Mac 加载位错误）与解决办法。"
-author: "zhenliu"
+description: Rhino 8 插件与工具列疑难杂症排查笔记：pOd 组件主标签不显示的根因（WireGuard 虚拟网卡无 MAC）、color-material-turtle 工具列图标不显示的根因（Mac 加载位错误）与解决办法。
+author: zhenliu
 category:
-  - 学习
-status: "public"
+  - soft
+  - rhino
+status: public
 ---
 
 
