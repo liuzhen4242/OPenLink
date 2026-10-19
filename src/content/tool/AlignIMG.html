@@ -91,18 +91,20 @@
       transform: scale(0.98);
     }
 
-    /* 原位输入框样式 */
     .inline-editor-box {
       position: absolute;
-      background: transparent;
+      background: rgba(255, 255, 255, 0.95);
       outline: none;
       border: 1px dashed #0f172a;
-      padding: 0 4px;
+      padding: 2px 6px;
       margin: 0;
       white-space: nowrap;
       line-height: 1.1;
-      z-index: 50;
+      z-index: 60;
       caret-color: #0f172a;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+      border-radius: 2px;
+      min-width: 60px;
     }
   </style>
 </head>
@@ -132,15 +134,6 @@
           <i data-lucide="redo-2" class="w-3.5 h-3.5"></i>
         </button>
       </div>
-    </div>
-
-    <!-- Quick Instruction Pill -->
-    <div class="hidden lg:flex items-center gap-2 text-[11px] text-ink-500">
-      <span><kbd class="font-mono text-ink-700 bg-ink-100 px-1 py-0.5 rounded border border-ink-200">Ctrl+V</kbd> 贴图</span>
-      <span class="text-ink-300">·</span>
-      <span><kbd class="font-mono text-ink-700 bg-ink-100 px-1 py-0.5 rounded border border-ink-200">空格+拖拽</kbd> 平移</span>
-      <span class="text-ink-300">·</span>
-      <span><kbd class="font-mono text-ink-700 bg-ink-100 px-1 py-0.5 rounded border border-ink-200">方向键</kbd> 1px 微调</span>
     </div>
 
     <!-- Ingestion Actions -->
@@ -239,9 +232,8 @@
       <!-- Top Secondary Hairline Toolbar -->
       <div class="h-9 bg-white border-b border-ink-200 px-3.5 flex items-center justify-between text-xs text-ink-600 z-10 shrink-0">
         
-        <!-- Left Tools: Onion Skin & Blink & Magnifier & Text Tool -->
+        <!-- Left Tools: Onion Skin & Blink & Magnifier & Text & Drawing -->
         <div class="flex items-center gap-2.5">
-          <!-- Onion Skin Toggle -->
           <label class="inline-flex items-center gap-1.5 cursor-pointer">
             <input type="checkbox" id="onionSkinToggle" class="w-3.5 h-3.5 rounded border-ink-300 text-ink-900 focus:ring-0" checked>
             <span class="text-[11px] font-medium text-ink-700">洋葱皮</span>
@@ -254,14 +246,12 @@
 
           <div class="h-3 w-px bg-ink-200"></div>
 
-          <!-- Blink -->
           <button id="btnBlink" class="btn-minimal px-2 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-[11px] text-ink-700 active:bg-ink-900 active:text-white transition">
             空格对比
           </button>
 
           <div class="h-3 w-px bg-ink-200"></div>
 
-          <!-- Magnifier -->
           <label class="inline-flex items-center gap-1 cursor-pointer">
             <input type="checkbox" id="loupeToggle" class="w-3.5 h-3.5 rounded border-ink-300 text-ink-900 focus:ring-0" checked>
             <span class="text-[11px] text-ink-700">放大镜</span>
@@ -274,16 +264,17 @@
 
           <div class="h-3 w-px bg-ink-200"></div>
 
-          <!-- Text Tool Trigger -->
-          <button id="btnToggleTextMode" class="btn-minimal inline-flex items-center gap-1 px-2 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-[11px] text-ink-700" title="在画布上直接点击落字，或拖动文字框调整大小">
+          <button id="btnToggleTextMode" class="btn-minimal inline-flex items-center gap-1 px-2 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-[11px] text-ink-700" title="在画布上直接点击落字，上方弹出富文本排版">
             <i data-lucide="type" class="w-3 h-3 text-ink-500"></i> 文字
+          </button>
+
+          <button id="btnToggleDrawMode" class="btn-minimal inline-flex items-center gap-1 px-2 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-[11px] text-ink-700" title="在线条与面域之间自由绘制标注">
+            <i data-lucide="pen-tool" class="w-3 h-3 text-ink-500"></i> 绘图
           </button>
         </div>
 
-        <!-- Right Tools: Streamlined Color Pickers & Ratios -->
+        <!-- Right Tools -->
         <div class="flex items-center gap-2">
-          
-          <!-- Minimal Backdrop Swatch -->
           <div class="flex items-center gap-1 border border-ink-200 rounded p-0.5 bg-white">
             <button id="btnToggleBW" class="btn-minimal px-1.5 py-0.5 rounded text-[10px] font-mono hover:bg-ink-100 text-ink-800" title="在纯白与纯黑之间快速切换">
               白/黑
@@ -296,7 +287,6 @@
 
           <div class="h-3 w-px bg-ink-200 hidden sm:block"></div>
 
-          <!-- Ratio Presets -->
           <div class="hidden sm:flex items-center gap-1 text-[11px]">
             <button class="crop-ratio-btn px-1.5 py-0.5 rounded text-[10px] bg-ink-900 text-white font-mono" data-ratio="free">自由</button>
             <button class="crop-ratio-btn px-1.5 py-0.5 rounded text-[10px] bg-white border border-ink-200 text-ink-600 hover:bg-ink-50 font-mono" data-ratio="16:9">16:9</button>
@@ -307,7 +297,6 @@
 
           <div class="h-3 w-px bg-ink-200"></div>
 
-          <!-- Reset View -->
           <button id="btnResetView" title="缩放居中" class="px-1.5 py-0.5 rounded bg-white hover:bg-ink-50 text-[10px] font-mono text-ink-700 border border-ink-200">
             <span id="zoomPercent">100%</span>
           </button>
@@ -317,6 +306,120 @@
       <!-- Main Canvas Viewport -->
       <div id="viewportWrap" class="flex-1 min-h-0 relative overflow-hidden canvas-bg-pattern flex items-center justify-center cursor-default">
         <canvas id="mainCanvas" class="block w-full h-full"></canvas>
+
+        <!-- 1. 浮动富文本排版卡片 -->
+        <div id="textRichCard" class="hidden absolute top-3.5 right-6 bg-white/95 backdrop-blur-sm border border-ink-200 rounded-lg shadow-md px-3 py-1.5 flex items-center gap-2.5 z-30 text-xs transition-all">
+          <select id="fontFamilySelect" class="border border-ink-200 rounded px-1.5 py-0.5 bg-white text-[11px] outline-none text-ink-800 hover:border-ink-400 transition cursor-pointer">
+            <option value="-apple-system, sans-serif">无衬线 (Sans)</option>
+            <option value="Georgia, serif">人文衬线 (Serif)</option>
+            <option value="ui-monospace, monospace">等宽代码 (Mono)</option>
+            <option value="Impact, sans-serif">展示黑体 (Display)</option>
+          </select>
+
+          <select id="fontWeightSelect" class="border border-ink-200 rounded px-1.5 py-0.5 bg-white text-[11px] outline-none text-ink-800 hover:border-ink-400 transition cursor-pointer" title="调节字体粗细字重">
+            <option value="100">100 极细</option>
+            <option value="300">300 细体</option>
+            <option value="400">400 常规</option>
+            <option value="500">500 中等</option>
+            <option value="700" selected>700 加粗</option>
+            <option value="900">900 特粗</option>
+          </select>
+
+          <button id="btnTextItalic" class="w-5 h-5 rounded italic font-serif border border-ink-200 hover:bg-ink-100 text-ink-700 transition flex items-center justify-center text-xs" title="斜体">I</button>
+
+          <div class="flex items-center gap-1">
+            <span class="text-[11px] text-ink-400">字号:</span>
+            <input id="fontSizeInput" type="number" value="24" min="10" max="180" class="w-11 border border-ink-200 rounded px-1 py-0.5 bg-white text-center font-mono text-[11px] outline-none">
+            <span class="text-[10px] text-ink-400">px</span>
+          </div>
+
+          <div class="flex items-center gap-1" title="字体颜色">
+            <span class="text-[11px] text-ink-400">颜色:</span>
+            <div class="relative w-5 h-5 rounded overflow-hidden border border-ink-300 flex items-center justify-center cursor-pointer shadow-sm">
+              <input type="color" id="textColorPicker" value="#0f172a" class="absolute -inset-2 w-8 h-8 opacity-0 cursor-pointer">
+              <div id="textColorSwatch" class="w-full h-full bg-[#0f172a]"></div>
+            </div>
+          </div>
+
+          <div class="h-3 w-px bg-ink-200 mx-0.5"></div>
+
+          <div class="flex items-center gap-1.5" title="字体外描边">
+            <label class="inline-flex items-center gap-1 cursor-pointer">
+              <input type="checkbox" id="strokeToggle" class="w-3.5 h-3.5 rounded border-ink-300 text-ink-900 focus:ring-0">
+              <span class="text-[11px] text-ink-700">描边</span>
+            </label>
+            <div id="strokeControlsWrap" class="flex items-center gap-1 opacity-40 pointer-events-none">
+              <div class="relative w-4 h-4 rounded overflow-hidden border border-ink-300 flex items-center justify-center cursor-pointer shadow-sm">
+                <input type="color" id="strokeColorPicker" value="#ffffff" class="absolute -inset-2 w-8 h-8 opacity-0 cursor-pointer">
+                <div id="strokeColorSwatch" class="w-full h-full bg-white"></div>
+              </div>
+              <input id="strokeWidthInput" type="number" value="3" min="1" max="20" class="w-9 border border-ink-200 rounded px-0.5 py-0.5 bg-white text-center font-mono text-[10px] outline-none" title="描边粗细 (px)">
+              <span class="text-[9px] text-ink-400">px</span>
+            </div>
+          </div>
+
+          <button id="btnCloseTextBar" class="p-1 text-ink-400 hover:text-ink-800 transition ml-0.5" title="收起文字面板">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        <!-- 2. 浮动绘图工具栏 -->
+        <div id="drawingToolbarCard" class="hidden absolute top-3.5 right-6 bg-white/95 backdrop-blur-sm border border-ink-200 rounded-lg shadow-md px-3 py-1.5 flex items-center gap-2.5 z-30 text-xs transition-all">
+          <select id="drawShapeTypeSelect" class="border border-ink-200 rounded px-1.5 py-0.5 bg-white text-[11px] outline-none text-ink-800 hover:border-ink-400 transition cursor-pointer">
+            <optgroup label="线条">
+              <option value="polygon">多段线</option>
+              <option value="curve">平滑曲线</option>
+            </optgroup>
+            <optgroup label="面域">
+              <option value="rect">矩形</option>
+              <option value="circle">圆形</option>
+            </optgroup>
+          </select>
+
+          <div id="fillOptionWrap" class="flex items-center gap-1.5 opacity-40 pointer-events-none">
+            <label class="inline-flex items-center gap-1 cursor-pointer">
+              <input type="checkbox" id="drawFillToggle" class="w-3.5 h-3.5 rounded border-ink-300 text-ink-900 focus:ring-0">
+              <span class="text-[11px] text-ink-700">填充</span>
+            </label>
+            <div class="relative w-4 h-4 rounded overflow-hidden border border-ink-300 flex items-center justify-center cursor-pointer shadow-sm" title="填充颜色">
+              <input type="color" id="drawFillColorPicker" value="#e2e8f0" class="absolute -inset-2 w-8 h-8 opacity-0 cursor-pointer">
+              <div id="drawFillColorSwatch" class="w-full h-full bg-[#e2e8f0]"></div>
+            </div>
+          </div>
+
+          <button id="drawSolidLineBtn" type="button" title="实线/虚线（对所有绘图对象生效）" class="w-6 h-6 rounded flex items-center justify-center border transition" aria-pressed="true">
+            <svg id="drawSolidIcon" viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+            </svg>
+            <svg id="drawDashIcon" viewBox="0 0 24 24" class="w-3.5 h-3.5 hidden" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="3" y1="12" x2="9" y2="12"></line>
+              <line x1="12" y1="12" x2="15" y2="12"></line>
+              <line x1="18" y1="12" x2="21" y2="12"></line>
+            </svg>
+          </button>
+
+          <button id="drawArrowBtn" type="button" title="加箭头（对开放线条生效）" class="w-6 h-6 rounded flex items-center justify-center border transition" aria-pressed="false">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="12" x2="19" y2="12"></line>
+              <path d="M15 6l6 6-6 6"></path>
+            </svg>
+          </button>
+
+          <div class="h-3 w-px bg-ink-200"></div>
+
+          <div class="flex items-center gap-1">
+            <span class="text-[11px] text-ink-400">线宽:</span>
+            <input id="drawStrokeWidthInput" type="number" value="2" min="1" max="30" class="w-10 border border-ink-200 rounded px-1 py-0.5 bg-white text-center font-mono text-[11px] outline-none">
+            <div class="relative w-4 h-4 rounded overflow-hidden border border-ink-300 flex items-center justify-center cursor-pointer shadow-sm" title="线条/描边颜色">
+              <input type="color" id="drawStrokeColorPicker" value="#0f172a" class="absolute -inset-2 w-8 h-8 opacity-0 cursor-pointer">
+              <div id="drawStrokeColorSwatch" class="w-full h-full bg-[#0f172a]"></div>
+            </div>
+          </div>
+
+          <button id="btnCloseDrawBar" class="p-1 text-ink-400 hover:text-ink-800 transition ml-0.5" title="收起绘图面板">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
 
         <!-- Empty Canvas Hint -->
         <div id="canvasEmptyState" class="absolute inset-0 flex flex-col items-center justify-center text-center p-4 pointer-events-none">
@@ -357,7 +460,7 @@
     </main>
   </div>
 
-  <!-- Pinned Bottom Toolbar with Formatted PNG Export & ZIP & GIF -->
+  <!-- Pinned Bottom Toolbar -->
   <footer class="h-11 bg-white border-t border-ink-200 px-4 flex items-center justify-between shrink-0 z-30">
     <div class="flex items-center gap-3">
       <div class="text-[11px] flex items-center gap-1.5">
@@ -368,7 +471,6 @@
       <span class="hidden sm:inline text-[10px] text-ink-400 font-mono" id="namingPreviewBadge">命名: 20260930-逻辑生成-01.png</span>
     </div>
 
-    <!-- Export Buttons -->
     <div class="flex items-center gap-2">
       <button id="btnExportPngDirect" class="btn-minimal inline-flex items-center gap-1 px-3 py-1 rounded border border-ink-200 bg-white hover:bg-ink-50 text-xs font-medium text-ink-800" title="逐张下载无损未压缩的原尺寸PNG序列文件">
         <i data-lucide="image" class="w-3 h-3 text-ink-500"></i> 导出 PNG
@@ -384,10 +486,9 @@
     </div>
   </footer>
 
-  <!-- Live GIF Preview & Modal (Calibrated in Seconds) -->
+  <!-- Live GIF Preview & Modal -->
   <div id="gifModal" class="fixed inset-0 bg-ink-900/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white border border-ink-200 rounded-lg max-w-xl w-full flex flex-col overflow-hidden shadow-lg max-h-[88vh]">
-      
       <div class="h-10 px-4 border-b border-ink-100 flex items-center justify-between shrink-0">
         <span class="text-xs font-semibold text-ink-900 flex items-center gap-1.5">
           <i data-lucide="play" class="w-3.5 h-3.5 text-ink-700"></i> 动效与导出
@@ -411,12 +512,10 @@
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="text-xs text-ink-600 font-medium">每帧时长:</span>
-            
             <div class="flex items-center rounded border border-ink-200 bg-ink-50 px-1.5 py-0.5 focus-within:border-ink-800">
               <input type="number" id="modalSpeedSecInput" min="0.05" max="5.0" step="0.05" value="0.5" class="w-14 bg-transparent text-xs font-mono text-ink-900 outline-none text-right">
               <span class="text-[10px] text-ink-400 font-mono ml-0.5 select-none">秒 (s)</span>
             </div>
-
             <input type="range" id="modalSpeedSlider" min="0.05" max="2.0" step="0.05" value="0.5" class="w-24 sm:w-32 h-1 bg-ink-200 rounded cursor-pointer">
             <span id="modalSpeedFpsLabel" class="text-[10px] font-mono text-ink-400">2.0 FPS</span>
           </div>
@@ -467,8 +566,8 @@
       camera: { x: 0, y: 0, zoom: 1.0 },
       cropRect: { x: 0, y: 0, w: 0, h: 0 },
 
-      // Text Annotations (支持直接输入与拖动手柄缩放)
-      textItems: [], // { id, text, x, y, size, color }
+      // Text Annotations
+      textItems: [],
       selectedTextId: null,
       isTextModeActive: false,
       isDraggingText: false,
@@ -477,6 +576,42 @@
       textDragOffset: { x: 0, y: 0 },
       initialTextState: null,
       editingTextId: null,
+
+      textTypography: {
+        font: '-apple-system, sans-serif',
+        weight: '700',
+        italic: false,
+        size: 24,
+        color: '#0f172a',
+        strokeEnabled: false,
+        strokeColor: '#ffffff',
+        strokeWidth: 3
+      },
+
+      // Drawing Annotations
+      drawItems: [],
+      selectedDrawId: null,
+      isDrawModeActive: false,
+      isDrawingNow: false,
+      currentDrawingItem: null,
+      isDraggingDraw: false,
+      drawDragOffset: { x: 0, y: 0 },
+
+      drawParams: {
+        shapeType: 'polygon',
+        strokeWidth: 2,
+        strokeColor: '#0f172a',
+        fillEnabled: false,
+        fillColor: '#e2e8f0',
+        hasArrow: false,
+        solidLine: true
+      },
+
+      // 选中绘图对象缩放（拖动选框手柄）
+      isResizingDraw: false,
+      activeDrawHandle: null,
+      resizeStartBBox: null,
+      resizeStartPoints: null,
 
       isPanning: false,
       panStart: { x: 0, y: 0 },
@@ -548,10 +683,41 @@
     const btnResetAnchor = document.getElementById('btnResetAnchor');
     const btnAutoRefineCV = document.getElementById('btnAutoRefineCV');
     const btnToggleTextMode = document.getElementById('btnToggleTextMode');
+    const btnToggleDrawMode = document.getElementById('btnToggleDrawMode');
+
+    // 文字卡片控件
+    const textRichCard = document.getElementById('textRichCard');
+    const fontFamilySelect = document.getElementById('fontFamilySelect');
+    const fontWeightSelect = document.getElementById('fontWeightSelect');
+    const btnTextItalic = document.getElementById('btnTextItalic');
+    const fontSizeInput = document.getElementById('fontSizeInput');
+    const textColorPicker = document.getElementById('textColorPicker');
+    const textColorSwatch = document.getElementById('textColorSwatch');
+    const strokeToggle = document.getElementById('strokeToggle');
+    const strokeControlsWrap = document.getElementById('strokeControlsWrap');
+    const strokeColorPicker = document.getElementById('strokeColorPicker');
+    const strokeColorSwatch = document.getElementById('strokeColorSwatch');
+    const strokeWidthInput = document.getElementById('strokeWidthInput');
+    const btnCloseTextBar = document.getElementById('btnCloseTextBar');
+
+    // 绘图卡片控件
+    const drawingToolbarCard = document.getElementById('drawingToolbarCard');
+    const drawShapeTypeSelect = document.getElementById('drawShapeTypeSelect');
+    const drawSolidLineBtn = document.getElementById('drawSolidLineBtn');
+    const drawSolidIcon = document.getElementById('drawSolidIcon');
+    const drawDashIcon = document.getElementById('drawDashIcon');
+    const drawArrowBtn = document.getElementById('drawArrowBtn');
+    const drawStrokeWidthInput = document.getElementById('drawStrokeWidthInput');
+    const drawStrokeColorPicker = document.getElementById('drawStrokeColorPicker');
+    const drawStrokeColorSwatch = document.getElementById('drawStrokeColorSwatch');
+    const drawFillToggle = document.getElementById('drawFillToggle');
+    const fillOptionWrap = document.getElementById('fillOptionWrap');
+    const drawFillColorPicker = document.getElementById('drawFillColorPicker');
+    const drawFillColorSwatch = document.getElementById('drawFillColorSwatch');
+    const btnCloseDrawBar = document.getElementById('btnCloseDrawBar');
 
     const HANDLE_SIZE = 7;
-    const TEXT_HANDLE_SIZE = 6;
-
+    const TEXT_HANDLE_SIZE = 7;
     function showToast(msg, duration = 1800) {
       toast.textContent = msg;
       toast.classList.remove('opacity-0', 'translate-y-1');
@@ -604,6 +770,10 @@
           angle: f.angle || 0.0
         })),
         textItems: state.textItems.map(t => ({ ...t })),
+        drawItems: state.drawItems.map(d => ({
+          ...d,
+          points: d.points.map(p => ({ ...p }))
+        })),
         cropRect: { ...state.cropRect },
         bgColor: state.bgColor,
         activeFrameIndex: state.activeFrameIndex,
@@ -656,6 +826,10 @@
       });
 
       state.textItems = snapshot.textItems ? snapshot.textItems.map(t => ({ ...t })) : [];
+      state.drawItems = snapshot.drawItems ? snapshot.drawItems.map(d => ({
+        ...d,
+        points: d.points.map(p => ({ ...p }))
+      })) : [];
       state.cropRect = { ...snapshot.cropRect };
       setBackdropColor(snapshot.bgColor);
       state.activeFrameIndex = Math.min(snapshot.activeFrameIndex, Math.max(0, state.frames.length - 1));
@@ -732,6 +906,7 @@
         if (!state.frames.length) return;
         state.frames = [];
         state.textItems = [];
+        state.drawItems = [];
         state.activeFrameIndex = 0;
         state.cropRect = { x: 0, y: 0, w: 0, h: 0 };
         state.historyStack = [];
@@ -874,26 +1049,139 @@
       }
     }
 
-    // 互斥控制：对齐模式 vs 文字工具
+    // 互斥控制：对齐模式 vs 文字工具 vs 绘图工具
     function setAppMode(mode) {
+      state.isTextModeActive = (mode === 'text');
+      state.isDrawModeActive = (mode === 'draw');
+      // 切换模式时取消未完成的绘制
+      state.currentDrawingItem = null;
+      state.isDrawingNow = false;
+
       if (mode === 'text') {
-        state.isTextModeActive = true;
+        textRichCard.classList.remove('hidden');
+        drawingToolbarCard.classList.add('hidden');
         btnToggleTextMode.className = 'btn-minimal inline-flex items-center gap-1 px-2 py-0.5 rounded bg-ink-900 text-white text-[11px] font-medium';
+        btnToggleDrawMode.className = 'btn-minimal inline-flex items-center gap-1 px-2 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-[11px] text-ink-700';
         viewportWrap.style.cursor = 'text';
         loupeContainer.classList.add('hidden');
-        showToast('已激活文字模式：直接点击画布输入，拖拽边角缩放字号');
-      } else {
-        state.isTextModeActive = false;
+        showToast('已激活文字模式：在画布点击直接输入文字');
+      } else if (mode === 'draw') {
+        drawingToolbarCard.classList.remove('hidden');
+        textRichCard.classList.add('hidden');
+        btnToggleDrawMode.className = 'btn-minimal inline-flex items-center gap-1 px-2 py-0.5 rounded bg-ink-900 text-white text-[11px] font-medium';
         btnToggleTextMode.className = 'btn-minimal inline-flex items-center gap-1 px-2 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-[11px] text-ink-700';
         viewportWrap.style.cursor = 'crosshair';
+        loupeContainer.classList.add('hidden');
+        showToast('已激活绘图模式：点击落点，再次点击完成绘制（多边形/曲线可连续加点，双击结束）');
+      } else {
+        textRichCard.classList.add('hidden');
+        drawingToolbarCard.classList.add('hidden');
+        btnToggleTextMode.className = 'btn-minimal inline-flex items-center gap-1 px-2 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-[11px] text-ink-700';
+        btnToggleDrawMode.className = 'btn-minimal inline-flex items-center gap-1 px-2 py-0.5 rounded border border-ink-200 bg-white hover:bg-ink-50 text-[11px] text-ink-700';
+        viewportWrap.style.cursor = 'crosshair';
         state.selectedTextId = null;
+        state.selectedDrawId = null;
       }
+      syncTextToolbarValues();
+      syncDrawToolbarValues();
       redraw();
     }
 
     btnToggleTextMode.addEventListener('click', () => {
       setAppMode(state.isTextModeActive ? 'align' : 'text');
     });
+
+    btnToggleDrawMode.addEventListener('click', () => {
+      setAppMode(state.isDrawModeActive ? 'align' : 'draw');
+    });
+
+    btnCloseTextBar.addEventListener('click', () => setAppMode('align'));
+    btnCloseDrawBar.addEventListener('click', () => setAppMode('align'));
+
+    // 同步文字排版工具栏参数
+    function syncTextToolbarValues() {
+      const activeText = state.textItems.find(t => t.id === state.selectedTextId);
+
+      const curFont = activeText ? (activeText.font || state.textTypography.font) : state.textTypography.font;
+      const curWeight = activeText ? (activeText.weight || state.textTypography.weight) : state.textTypography.weight;
+      const curItalic = activeText ? !!activeText.italic : state.textTypography.italic;
+      const curSize = activeText ? activeText.size : state.textTypography.size;
+      const curColor = activeText ? activeText.color : state.textTypography.color;
+      const curStrokeEnabled = activeText ? !!activeText.strokeEnabled : state.textTypography.strokeEnabled;
+      const curStrokeColor = activeText ? (activeText.strokeColor || state.textTypography.strokeColor) : state.textTypography.strokeColor;
+      const curStrokeWidth = activeText ? (activeText.strokeWidth || state.textTypography.strokeWidth) : state.textTypography.strokeWidth;
+
+      fontFamilySelect.value = curFont;
+      fontWeightSelect.value = curWeight;
+      fontSizeInput.value = curSize;
+      textColorPicker.value = curColor;
+      textColorSwatch.style.backgroundColor = curColor;
+
+      strokeToggle.checked = curStrokeEnabled;
+      strokeColorPicker.value = curStrokeColor;
+      strokeColorSwatch.style.backgroundColor = curStrokeColor;
+      strokeWidthInput.value = curStrokeWidth;
+
+      if (curStrokeEnabled) {
+        strokeControlsWrap.classList.remove('opacity-40', 'pointer-events-none');
+      } else {
+        strokeControlsWrap.classList.add('opacity-40', 'pointer-events-none');
+      }
+
+      btnTextItalic.className = curItalic 
+        ? 'w-5 h-5 rounded italic font-serif bg-ink-900 text-white transition flex items-center justify-center text-xs' 
+        : 'w-5 h-5 rounded italic font-serif border border-ink-200 hover:bg-ink-100 text-ink-700 transition flex items-center justify-center text-xs';
+    }
+
+    // 同步绘图工具栏参数
+    function syncDrawToolbarValues() {
+      const activeDraw = state.drawItems.find(d => d.id === state.selectedDrawId);
+
+      const shapeType = activeDraw ? activeDraw.type : state.drawParams.shapeType;
+      const strokeWidth = activeDraw ? activeDraw.strokeWidth : state.drawParams.strokeWidth;
+      const strokeColor = activeDraw ? activeDraw.strokeColor : state.drawParams.strokeColor;
+      const fillEnabled = activeDraw ? !!activeDraw.fillEnabled : state.drawParams.fillEnabled;
+      const fillColor = activeDraw ? activeDraw.fillColor : state.drawParams.fillColor;
+
+      // 旧数据兼容：line/dashed 不再在下拉中，选中时按多段线显示
+      if (shapeType === 'line' || shapeType === 'dashed') drawShapeTypeSelect.value = 'polygon';
+      else drawShapeTypeSelect.value = shapeType;
+      drawStrokeWidthInput.value = strokeWidth;
+      drawStrokeColorPicker.value = strokeColor;
+      drawStrokeColorSwatch.style.backgroundColor = strokeColor;
+      drawFillToggle.checked = fillEnabled;
+      drawFillColorPicker.value = fillColor;
+      drawFillColorSwatch.style.backgroundColor = fillColor;
+
+      // 实线/虚线按钮（激活=实线）与箭头按钮（激活=加箭头）反映全局设置
+      updateDrawSolidLineBtnUI();
+      updateDrawArrowBtnUI();
+
+      const isArea = ['rect', 'circle', 'polygon'].includes(shapeType);
+      if (isArea) {
+        fillOptionWrap.classList.remove('opacity-40', 'pointer-events-none');
+      } else {
+        fillOptionWrap.classList.add('opacity-40', 'pointer-events-none');
+      }
+    }
+
+    function updateDrawSolidLineBtnUI() {
+      const on = state.drawParams.solidLine;
+      drawSolidLineBtn.setAttribute('aria-pressed', String(on));
+      drawSolidLineBtn.className = on
+        ? 'w-6 h-6 rounded flex items-center justify-center bg-ink-900 text-white transition'
+        : 'w-6 h-6 rounded flex items-center justify-center border border-ink-200 text-ink-500 hover:bg-ink-50 transition';
+      drawSolidIcon.classList.toggle('hidden', !on);
+      drawDashIcon.classList.toggle('hidden', on);
+    }
+
+    function updateDrawArrowBtnUI() {
+      const on = state.drawParams.hasArrow;
+      drawArrowBtn.setAttribute('aria-pressed', String(on));
+      drawArrowBtn.className = on
+        ? 'w-6 h-6 rounded flex items-center justify-center bg-ink-900 text-white transition'
+        : 'w-6 h-6 rounded flex items-center justify-center border border-ink-200 text-ink-500 hover:bg-ink-50 transition';
+    }
 
     function syncSidebarLayerModeUI() {
       const activeFrame = state.frames[state.activeFrameIndex];
@@ -1310,7 +1598,181 @@
       targetCtx.restore();
     }
 
-    // 绘制文字并附带选中缩放框与手柄
+    // 辅助：绘制箭头
+    function drawArrowhead(c, fromX, fromY, toX, toY, strokeWidth) {
+      const angle = Math.atan2(toY - fromY, toX - fromX);
+      const headlen = Math.max(8, strokeWidth * 3.5);
+      c.save();
+      c.beginPath();
+      c.moveTo(toX, toY);
+      c.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+      c.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+      c.closePath();
+      c.fillStyle = c.strokeStyle;
+      c.fill();
+      c.restore();
+    }
+
+    // 绘制矢量图形 (线、曲线、面域)
+    function drawVectorGraphics(targetCtx, isWorkspace = true) {
+      if (!state.drawItems.length && !state.currentDrawingItem) return;
+
+      targetCtx.save();
+      if (isWorkspace) {
+        targetCtx.translate(state.camera.x, state.camera.y);
+        targetCtx.scale(state.camera.zoom, state.camera.zoom);
+      }
+
+      const allItems = [...state.drawItems];
+      if (state.currentDrawingItem) allItems.push(state.currentDrawingItem);
+
+      allItems.forEach(item => {
+        if (!item.points || item.points.length < 2) return;
+        targetCtx.save();
+        targetCtx.lineWidth = item.strokeWidth;
+        targetCtx.strokeStyle = item.strokeColor;
+        targetCtx.fillStyle = item.fillColor || 'transparent';
+        targetCtx.lineCap = 'round';
+        targetCtx.lineJoin = 'round';
+
+        // 线型（实线/虚线）对所有绘图对象全局生效
+        if (state.drawParams.solidLine) {
+          targetCtx.setLineDash([]);
+        } else {
+          targetCtx.setLineDash([item.strokeWidth * 3, item.strokeWidth * 2]);
+        }
+
+        const pts = item.points;
+
+        if (item.type === 'line' || item.type === 'dashed') {
+          targetCtx.beginPath();
+          targetCtx.moveTo(pts[0].x, pts[0].y);
+          targetCtx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+          targetCtx.stroke();
+          if (state.drawParams.hasArrow) {
+            drawArrowhead(targetCtx, pts[0].x, pts[0].y, pts[pts.length - 1].x, pts[pts.length - 1].y, item.strokeWidth);
+          }
+        } else if (item.type === 'curve') {
+          targetCtx.beginPath();
+          targetCtx.moveTo(pts[0].x, pts[0].y);
+          for (let i = 1; i < pts.length - 1; i++) {
+            const xc = (pts[i].x + pts[i + 1].x) / 2;
+            const yc = (pts[i].y + pts[i + 1].y) / 2;
+            targetCtx.quadraticCurveTo(pts[i].x, pts[i].y, xc, yc);
+          }
+          targetCtx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+          targetCtx.stroke();
+          if (state.drawParams.hasArrow && pts.length >= 2) {
+            const last = pts[pts.length - 1];
+            const prev = pts[pts.length - 2];
+            drawArrowhead(targetCtx, prev.x, prev.y, last.x, last.y, item.strokeWidth);
+          }
+        } else if (item.type === 'rect') {
+          const x = Math.min(pts[0].x, pts[1].x);
+          const y = Math.min(pts[0].y, pts[1].y);
+          const w = Math.abs(pts[1].x - pts[0].x);
+          const h = Math.abs(pts[1].y - pts[0].y);
+          if (item.fillEnabled) targetCtx.fillRect(x, y, w, h);
+          targetCtx.strokeRect(x, y, w, h);
+        } else if (item.type === 'circle') {
+          const r = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+          targetCtx.beginPath();
+          targetCtx.arc(pts[0].x, pts[0].y, r, 0, Math.PI * 2);
+          if (item.fillEnabled) targetCtx.fill();
+          targetCtx.stroke();
+        } else if (item.type === 'polygon') {
+          targetCtx.beginPath();
+          targetCtx.moveTo(pts[0].x, pts[0].y);
+          for (let i = 1; i < pts.length; i++) targetCtx.lineTo(pts[i].x, pts[i].y);
+          // 仅显式闭合的才闭合成面（点回起点闭合）；绘制中与双击结束的保持开放多段线
+          if (item.closed === true) {
+            targetCtx.closePath();
+            if (item.fillEnabled) targetCtx.fill();
+          }
+          targetCtx.stroke();
+          // 开放多段线可按全局箭头开关加末端箭头
+          if (item.closed !== true && state.drawParams.hasArrow && pts.length >= 2) {
+            const last = pts[pts.length - 1];
+            const prev = pts[pts.length - 2];
+            drawArrowhead(targetCtx, prev.x, prev.y, last.x, last.y, item.strokeWidth);
+          }
+        }
+
+        // 选中高亮边框 + 缩放手柄
+        if (isWorkspace && state.selectedDrawId === item.id) {
+          targetCtx.save();
+          targetCtx.setLineDash([3, 3]);
+          targetCtx.strokeStyle = '#2563eb';
+          targetCtx.lineWidth = 1;
+          const bbox = getDrawItemBBox(item);
+          targetCtx.strokeRect(bbox.x - 4, bbox.y - 4, bbox.w + 8, bbox.h + 8);
+          targetCtx.restore();
+          // 8 个缩放手柄（屏幕约 8px，换算到 base 坐标；零尺寸轴方向隐藏）
+          const hs = 8 / state.camera.zoom;
+          const hOK = bbox.h >= hs * 1.2;
+          const wOK = bbox.w >= hs * 1.2;
+          let handles = [];
+          if (wOK && hOK) {
+            handles = [
+              [bbox.x, bbox.y], [bbox.x + bbox.w / 2, bbox.y], [bbox.x + bbox.w, bbox.y],
+              [bbox.x + bbox.w, bbox.y + bbox.h / 2], [bbox.x + bbox.w, bbox.y + bbox.h],
+              [bbox.x + bbox.w / 2, bbox.y + bbox.h], [bbox.x, bbox.y + bbox.h], [bbox.x, bbox.y + bbox.h / 2]
+            ];
+          } else if (wOK) {
+            handles = [[bbox.x, bbox.y + bbox.h / 2], [bbox.x + bbox.w, bbox.y + bbox.h / 2]];
+          } else if (hOK) {
+            handles = [[bbox.x + bbox.w / 2, bbox.y], [bbox.x + bbox.w / 2, bbox.y + bbox.h]];
+          }
+          targetCtx.save();
+          targetCtx.setLineDash([]);
+          targetCtx.fillStyle = '#ffffff';
+          targetCtx.strokeStyle = '#2563eb';
+          targetCtx.lineWidth = 1.5;
+          handles.forEach(h => {
+            targetCtx.fillRect(h[0] - hs, h[1] - hs, hs * 2, hs * 2);
+            targetCtx.strokeRect(h[0] - hs, h[1] - hs, hs * 2, hs * 2);
+          });
+          targetCtx.restore();
+        }
+
+        targetCtx.restore();
+      });
+
+      targetCtx.restore();
+
+      // 绘制过程中的操作提示（屏幕坐标，不随画布缩放）
+      if (isWorkspace && state.currentDrawingItem) {
+        targetCtx.save();
+        targetCtx.font = '11px ui-monospace, SFMono-Regular, Menlo, Monaco, monospace';
+        targetCtx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+        targetCtx.textBaseline = 'top';
+        const hintText = state.currentDrawingItem.type === 'polygon'
+          ? '继续点击加点 · 点回起点或双击闭合 · Esc 取消'
+          : state.currentDrawingItem.type === 'curve'
+            ? '继续点击加点 · 双击结束 · Esc 取消'
+            : '点击下一点完成绘制 · Esc 取消';
+        targetCtx.fillText(hintText, 14, 14);
+        targetCtx.restore();
+      }
+    }
+
+    // 计算图形外包矩形
+    function getDrawItemBBox(item) {
+      if (item.type === 'circle') {
+        const r = Math.hypot(item.points[1].x - item.points[0].x, item.points[1].y - item.points[0].y);
+        return { x: item.points[0].x - r, y: item.points[0].y - r, w: r * 2, h: r * 2 };
+      }
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      item.points.forEach(p => {
+        minX = Math.min(minX, p.x);
+        minY = Math.min(minY, p.y);
+        maxX = Math.max(maxX, p.x);
+        maxY = Math.max(maxY, p.y);
+      });
+      return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+    }
+
+    // 绘制文字并支持外描边、字重、等比缩放
     function drawTextAnnotations(targetCtx, isWorkspace = true) {
       if (!state.textItems.length) return;
 
@@ -1321,21 +1783,29 @@
       }
 
       state.textItems.forEach(item => {
-        // 如果正在原地打字编辑，隐藏当前渲染中的文本，避免重影
         if (item.id === state.editingTextId) return;
 
         targetCtx.save();
-        targetCtx.font = `600 ${item.size}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        const fontName = item.font || state.textTypography.font;
+        const fontWeight = item.weight || state.textTypography.weight;
+        const fontItalic = item.italic ? 'italic' : 'normal';
+        targetCtx.font = `${fontItalic} ${fontWeight} ${item.size}px ${fontName}`;
         targetCtx.textBaseline = 'top';
 
-        targetCtx.strokeStyle = (item.color === '#ffffff') ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)';
-        targetCtx.lineWidth = Math.max(2, item.size / 8);
-        targetCtx.strokeText(item.text, item.x, item.y);
+        // 实体外描边渲染 (支持独立自定义粗细)
+        if (item.strokeEnabled) {
+          targetCtx.strokeStyle = item.strokeColor || '#ffffff';
+          targetCtx.lineWidth = (item.strokeWidth || 3);
+          targetCtx.lineJoin = 'round';
+          targetCtx.miterLimit = 2;
+          targetCtx.strokeText(item.text, item.x, item.y);
+        }
 
+        // 文字主体填充
         targetCtx.fillStyle = item.color;
         targetCtx.fillText(item.text, item.x, item.y);
 
-        // 如果被选中，绘制文字边框与四角缩放手柄
+        // 选中文本状态的边框与四角手柄
         if (isWorkspace && state.selectedTextId === item.id) {
           const metrics = targetCtx.measureText(item.text);
           const tw = metrics.width;
@@ -1346,7 +1816,6 @@
           targetCtx.setLineDash([3, 3]);
           targetCtx.strokeRect(item.x - 3, item.y - 2, tw + 6, th + 4);
 
-          // 四角缩放手柄
           targetCtx.setLineDash([]);
           targetCtx.fillStyle = '#ffffff';
           targetCtx.strokeStyle = '#0f172a';
@@ -1406,6 +1875,8 @@
         if (activeFrame && activeFrame.visible !== false) drawFrameWithTransform(ctx, activeFrame, state.onionOpacity, true);
       }
 
+      // 渲染矢量与文字
+      drawVectorGraphics(ctx, true);
       drawTextAnnotations(ctx, true);
       ctx.restore();
 
@@ -1426,6 +1897,7 @@
         if (baseFrame && baseFrame.visible !== false) drawFrameWithTransform(ctx, baseFrame, 1.0, true);
         if (activeFrame && activeFrame.visible !== false) drawFrameWithTransform(ctx, activeFrame, state.onionOpacity, true);
       }
+      drawVectorGraphics(ctx, true);
       drawTextAnnotations(ctx, true);
       ctx.restore();
 
@@ -1437,8 +1909,8 @@
         ctx.strokeRect(baseTL.x, baseTL.y, baseFrame.image.naturalWidth * state.camera.zoom, baseFrame.image.naturalHeight * state.camera.zoom);
       }
 
-      // 4. 定点准心
-      if (activeFrame && activeFrame.visible !== false && !state.isTextModeActive) {
+      // 4. 定点准心 (仅对齐模式可见)
+      if (activeFrame && activeFrame.visible !== false && !state.isTextModeActive && !state.isDrawModeActive) {
         drawAnchorSystem(activeFrame);
       }
 
@@ -1447,7 +1919,7 @@
 
       ctx.restore();
 
-      if (state.loupeEnabled && state.isMouseOverCanvas && !state.isTextModeActive) {
+      if (state.loupeEnabled && state.isMouseOverCanvas && !state.isTextModeActive && !state.isDrawModeActive) {
         renderMagnifierLoupe();
       }
     }
@@ -1539,7 +2011,7 @@
 
       ctx.beginPath();
       ctx.moveTo(x - 12, y); ctx.lineTo(x + 12, y);
-      ctx.moveTo(x, y - 12); ctx.lineTo(x, y + 12);
+      ctx.moveTo(x, y - 12); ctx.lineTo(x + 12, y);
       ctx.stroke();
 
       ctx.font = '9px monospace';
@@ -1621,6 +2093,7 @@
       } else {
         drawFrameWithTransform(loupeCtx, activeFrame, 1.0, false);
       }
+      drawVectorGraphics(loupeCtx, false);
       drawTextAnnotations(loupeCtx, false);
       loupeCtx.restore();
 
@@ -1644,7 +2117,10 @@
       for (let i = state.textItems.length - 1; i >= 0; i--) {
         const item = state.textItems[i];
         ctx.save();
-        ctx.font = `600 ${item.size}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        const fontName = item.font || state.textTypography.font;
+        const fontWeight = item.weight || state.textTypography.weight;
+        const fontItalic = item.italic ? 'italic' : 'normal';
+        ctx.font = `${fontItalic} ${fontWeight} ${item.size}px ${fontName}`;
         const metrics = ctx.measureText(item.text);
         ctx.restore();
 
@@ -1657,11 +2133,13 @@
       return null;
     }
 
-    // 检查文字四角手柄命中
     function getTextHandleAt(basePos, item) {
       if (!item) return null;
       ctx.save();
-      ctx.font = `600 ${item.size}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      const fontName = item.font || state.textTypography.font;
+      const fontWeight = item.weight || state.textTypography.weight;
+      const fontItalic = item.italic ? 'italic' : 'normal';
+      ctx.font = `${fontItalic} ${fontWeight} ${item.size}px ${fontName}`;
       const metrics = ctx.measureText(item.text);
       ctx.restore();
 
@@ -1674,39 +2152,101 @@
         br: { x: item.x + tw + 3, y: item.y + th + 2 }
       };
 
-      const hitDist = 8 / state.camera.zoom;
+      const hitDist = 9 / state.camera.zoom;
       for (const [key, pt] of Object.entries(handles)) {
         if (Math.hypot(basePos.x - pt.x, basePos.y - pt.y) <= hitDist) return key;
       }
       return null;
     }
 
-    // 原位直接输入控件
+    function getDrawItemAt(basePos) {
+      for (let i = state.drawItems.length - 1; i >= 0; i--) {
+        const item = state.drawItems[i];
+        const bbox = getDrawItemBBox(item);
+        if (basePos.x >= bbox.x - 8 && basePos.x <= bbox.x + bbox.w + 8 &&
+            basePos.y >= bbox.y - 8 && basePos.y <= bbox.y + bbox.h + 8) {
+          return item;
+        }
+      }
+      return null;
+    }
+
+    // 命中选中图元缩放手柄（8 个方向，屏幕约 8px 热区；零尺寸轴方向的手柄隐藏）
+    function getDrawHandleAt(basePos) {
+      if (!state.selectedDrawId) return null;
+      const item = state.drawItems.find(d => d.id === state.selectedDrawId);
+      if (!item || !item.points || item.points.length < 2) return null;
+      const bbox = getDrawItemBBox(item);
+      if (bbox.w < 1 && bbox.h < 1) return null;
+      const hs = 8 / state.camera.zoom;
+      const hOK = bbox.h >= hs * 1.2;   // 高度足够才提供 t/b 手柄
+      const wOK = bbox.w >= hs * 1.2;   // 宽度足够才提供 l/r 手柄
+      const handles = [];
+      if (wOK && hOK) {
+        handles.push(
+          ['tl', bbox.x, bbox.y],
+          ['t', bbox.x + bbox.w / 2, bbox.y],
+          ['tr', bbox.x + bbox.w, bbox.y],
+          ['r', bbox.x + bbox.w, bbox.y + bbox.h / 2],
+          ['br', bbox.x + bbox.w, bbox.y + bbox.h],
+          ['b', bbox.x + bbox.w / 2, bbox.y + bbox.h],
+          ['bl', bbox.x, bbox.y + bbox.h],
+          ['l', bbox.x, bbox.y + bbox.h / 2]
+        );
+      } else if (wOK) {
+        handles.push(['l', bbox.x, bbox.y + bbox.h / 2], ['r', bbox.x + bbox.w, bbox.y + bbox.h / 2]);
+      } else if (hOK) {
+        handles.push(['t', bbox.x + bbox.w / 2, bbox.y], ['b', bbox.x + bbox.w / 2, bbox.y + bbox.h]);
+      }
+      for (const [name, hx, hy] of handles) {
+        if (Math.abs(basePos.x - hx) <= hs && Math.abs(basePos.y - hy) <= hs) return name;
+      }
+      return null;
+    }
+
     function startDirectTextInput(basePos, existingItem = null) {
+      const activeExisting = document.querySelector('.inline-editor-box');
+      if (activeExisting) activeExisting.blur();
+
       const screenPos = baseToCanvasCoords(basePos.x, basePos.y);
       const input = document.createElement('div');
-      input.contentEditable = true;
+      input.contentEditable = 'true';
       input.className = 'inline-editor-box';
       input.style.left = `${screenPos.x}px`;
       input.style.top = `${screenPos.y}px`;
 
-      const fontSize = existingItem ? existingItem.size : 24;
-      input.style.fontSize = `${fontSize * state.camera.zoom}px`;
-      input.style.color = existingItem ? existingItem.color : '#0f172a';
+      const fontSize = existingItem ? existingItem.size : state.textTypography.size;
+      const fontColor = existingItem ? existingItem.color : state.textTypography.color;
+      const fontName = existingItem ? (existingItem.font || state.textTypography.font) : state.textTypography.font;
+      const fontWeight = existingItem ? (existingItem.weight || state.textTypography.weight) : state.textTypography.weight;
+      const fontItalic = existingItem ? !!existingItem.italic : state.textTypography.italic;
+
+      input.style.fontSize = `${Math.max(12, fontSize * state.camera.zoom)}px`;
+      input.style.color = fontColor;
+      input.style.fontFamily = fontName;
+      input.style.fontWeight = fontWeight;
+      input.style.fontStyle = fontItalic ? 'italic' : 'normal';
       input.textContent = existingItem ? existingItem.text : '';
 
       viewportWrap.appendChild(input);
-      input.focus();
 
       if (existingItem) {
         state.editingTextId = existingItem.id;
-        const range = document.createRange();
-        range.selectNodeContents(input);
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
       }
       redraw();
+
+      setTimeout(() => {
+        input.focus();
+        if (existingItem) {
+          const range = document.createRange();
+          range.selectNodeContents(input);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }, 20);
+
+      input.addEventListener('mousedown', (e) => e.stopPropagation());
 
       let isCommitted = false;
       function commit() {
@@ -1725,20 +2265,26 @@
               text: val,
               x: Math.round(basePos.x),
               y: Math.round(basePos.y),
-              size: 24,
-              color: '#0f172a'
+              size: state.textTypography.size,
+              color: state.textTypography.color,
+              font: state.textTypography.font,
+              weight: state.textTypography.weight,
+              italic: state.textTypography.italic,
+              strokeEnabled: state.textTypography.strokeEnabled,
+              strokeColor: state.textTypography.strokeColor,
+              strokeWidth: state.textTypography.strokeWidth
             };
             state.textItems.push(newItem);
             state.selectedTextId = newItem.id;
             saveHistorySnapshot('添加文字');
           }
         } else if (existingItem) {
-          // 清空文字则删除
           state.textItems = state.textItems.filter(t => t.id !== existingItem.id);
           state.selectedTextId = null;
           saveHistorySnapshot('删除文字');
         }
         input.remove();
+        syncTextToolbarValues();
         redraw();
       }
 
@@ -1774,20 +2320,26 @@
         return basePos.x >= x && basePos.x <= x + w && basePos.y >= y && basePos.y <= y + h;
       }
 
+      // Mac 触控板平移与捏合手势
       viewportWrap.addEventListener('wheel', (e) => {
         e.preventDefault();
         if (!state.frames.length) return;
-
-        const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
-        const newZoom = Math.min(10.0, Math.max(0.1, state.camera.zoom * zoomFactor));
 
         const rect = mainCanvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
-        state.camera.x = mouseX - (mouseX - state.camera.x) * (newZoom / state.camera.zoom);
-        state.camera.y = mouseY - (mouseY - state.camera.y) * (newZoom / state.camera.zoom);
-        state.camera.zoom = newZoom;
+        if (e.ctrlKey || e.metaKey) {
+          const zoomFactor = Math.exp(-e.deltaY * 0.012);
+          const newZoom = Math.min(12.0, Math.max(0.08, state.camera.zoom * zoomFactor));
+
+          state.camera.x = mouseX - (mouseX - state.camera.x) * (newZoom / state.camera.zoom);
+          state.camera.y = mouseY - (mouseY - state.camera.y) * (newZoom / state.camera.zoom);
+          state.camera.zoom = newZoom;
+        } else {
+          state.camera.x -= e.deltaX;
+          state.camera.y -= e.deltaY;
+        }
 
         zoomPercentLabel.textContent = `${Math.round(state.camera.zoom * 100)}%`;
         redraw();
@@ -1795,6 +2347,7 @@
 
       viewportWrap.addEventListener('mousedown', (e) => {
         if (!state.frames.length) return;
+        if (e.target.closest('#textRichCard') || e.target.closest('#drawingToolbarCard') || e.target.classList.contains('inline-editor-box')) return;
 
         const rect = mainCanvas.getBoundingClientRect();
         const screenX = e.clientX - rect.left;
@@ -1809,9 +2362,8 @@
         }
 
         if (e.button === 0) {
-          // 1. 若当前处于文字工具状态
+          // 1. 文字模式交互
           if (state.isTextModeActive) {
-            // 先检测选中文本的缩放手柄
             if (state.selectedTextId) {
               const curItem = state.textItems.find(t => t.id === state.selectedTextId);
               const textHandle = getTextHandleAt(basePos, curItem);
@@ -1824,23 +2376,111 @@
               }
             }
 
-            // 检测点中文字
             const hitText = getTextItemAt(basePos);
             if (hitText) {
               state.selectedTextId = hitText.id;
               state.isDraggingText = true;
               state.textDragOffset = { x: basePos.x - hitText.x, y: basePos.y - hitText.y };
+              syncTextToolbarValues();
               redraw();
               return;
             } else {
-              // 点击画布空白处：原地直接输入新文字
               state.selectedTextId = null;
+              syncTextToolbarValues();
               startDirectTextInput(basePos);
               return;
             }
           }
 
-          // 2. 非文字模式下检测是否选中文字移动
+          // 2. 绘图模式交互（Rhino/CAD 点击式：先点起点，再点终点定稿）
+          if (state.isDrawModeActive) {
+            // 正在绘制中：处理后续点击
+            if (state.currentDrawingItem) {
+              const curType = state.currentDrawingItem.type;
+
+              // polygon：点击回到起点则闭合成面，否则继续加点
+              if (curType === 'polygon') {
+                const firstPt = state.currentDrawingItem.points[0];
+                if (Math.hypot(basePos.x - firstPt.x, basePos.y - firstPt.y) < 12 / state.camera.zoom) {
+                  state.currentDrawingItem.closed = true;
+                  state.drawItems.push(state.currentDrawingItem);
+                  state.selectedDrawId = state.currentDrawingItem.id;
+                  state.currentDrawingItem = null;
+                  state.isDrawingNow = false;
+                  saveHistorySnapshot('绘制闭合多段线');
+                  redraw();
+                  return;
+                }
+                state.currentDrawingItem.points.push({ x: Math.round(basePos.x), y: Math.round(basePos.y) });
+                redraw();
+                return;
+              }
+
+              // curve：每次点击加一个点，双击或 Esc 结束
+              if (curType === 'curve') {
+                state.currentDrawingItem.points.push({ x: Math.round(basePos.x), y: Math.round(basePos.y) });
+                redraw();
+                return;
+              }
+
+              // line / dashed / arrow / rect / circle：第二点点击定稿
+              state.currentDrawingItem.points[1] = { x: Math.round(basePos.x), y: Math.round(basePos.y) };
+              state.drawItems.push(state.currentDrawingItem);
+              state.selectedDrawId = state.currentDrawingItem.id;
+              state.currentDrawingItem = null;
+              state.isDrawingNow = false;
+              saveHistorySnapshot('绘制图元');
+              redraw();
+              return;
+            }
+
+            // 未在绘制中：优先命中选中对象缩放手柄（拖动选框角/边放大缩小，Shift 等比）
+            const drawHandle = getDrawHandleAt(basePos);
+            if (drawHandle && state.selectedDrawId) {
+              const resizeItem = state.drawItems.find(d => d.id === state.selectedDrawId);
+              if (resizeItem) {
+                state.isResizingDraw = true;
+                state.activeDrawHandle = drawHandle;
+                state.resizeStartBBox = getDrawItemBBox(resizeItem);
+                state.resizeStartPoints = resizeItem.points.map(p => ({ ...p }));
+                redraw();
+                return;
+              }
+            }
+
+            // 未在绘制中：再命中已有图元进入拖动
+            const hitDraw = getDrawItemAt(basePos);
+            if (hitDraw && !e.shiftKey) {
+              state.selectedDrawId = hitDraw.id;
+              state.isDraggingDraw = true;
+              const bbox = getDrawItemBBox(hitDraw);
+              state.drawDragOffset = { x: basePos.x - bbox.x, y: basePos.y - bbox.y };
+              syncDrawToolbarValues();
+              redraw();
+              return;
+            }
+
+            // 空白处点击：记录起点，进入两点式绘制
+            state.isDrawingNow = true;
+            state.selectedDrawId = null;
+            state.currentDrawingItem = {
+              id: 'draw_' + Date.now(),
+              type: state.drawParams.shapeType,
+              strokeWidth: state.drawParams.strokeWidth,
+              strokeColor: state.drawParams.strokeColor,
+              fillEnabled: state.drawParams.fillEnabled,
+              fillColor: state.drawParams.fillColor,
+              hasArrow: state.drawParams.hasArrow,
+              points: [
+                { x: Math.round(basePos.x), y: Math.round(basePos.y) },
+                { x: Math.round(basePos.x), y: Math.round(basePos.y) }
+              ]
+            };
+            redraw();
+            return;
+          }
+
+          // 3. 通用选中图元或文字移动
           const hitText = getTextItemAt(basePos);
           if (hitText) {
             state.selectedTextId = hitText.id;
@@ -1852,7 +2492,18 @@
             state.selectedTextId = null;
           }
 
-          // 3. 裁切手柄交互
+          const hitDraw = getDrawItemAt(basePos);
+          if (hitDraw) {
+            state.selectedDrawId = hitDraw.id;
+            state.isDraggingDraw = true;
+            const bbox = getDrawItemBBox(hitDraw);
+            state.drawDragOffset = { x: basePos.x - bbox.x, y: basePos.y - bbox.y };
+            redraw();
+            return;
+          } else {
+            state.selectedDrawId = null;
+          }
+
           const hitHandle = getHitHandle(screenX, screenY);
           if (hitHandle) {
             state.isResizingCrop = true;
@@ -1869,19 +2520,45 @@
             return;
           }
 
-          // 4. 定点标定
-          if (!state.isTextModeActive) {
-            applyPointCalibrationAt(basePos);
-          }
+          // 4. 对齐模式落点
+          applyPointCalibrationAt(basePos);
         }
       });
 
-      // 双击文字重新编辑打字
       viewportWrap.addEventListener('dblclick', (e) => {
+        if (e.target.closest('#textRichCard') || e.target.closest('#drawingToolbarCard') || e.target.classList.contains('inline-editor-box')) return;
         const basePos = clientToBaseCoords(e.clientX, e.clientY);
+
+        if (state.isDrawModeActive && state.currentDrawingItem) {
+          if (state.currentDrawingItem.type === 'polygon') {
+            if (state.currentDrawingItem.points.length >= 2) {
+              // 双击结束为开放多段线（不闭合）；只有点回起点才闭合为面
+              state.currentDrawingItem.closed = false;
+              state.drawItems.push(state.currentDrawingItem);
+              state.selectedDrawId = state.currentDrawingItem.id;
+              state.currentDrawingItem = null;
+              state.isDrawingNow = false;
+              saveHistorySnapshot('绘制多段线');
+              redraw();
+              return;
+            }
+          } else if (state.currentDrawingItem.type === 'curve') {
+            if (state.currentDrawingItem.points.length >= 2) {
+              state.drawItems.push(state.currentDrawingItem);
+              state.selectedDrawId = state.currentDrawingItem.id;
+              state.currentDrawingItem = null;
+              state.isDrawingNow = false;
+              saveHistorySnapshot('绘制曲线');
+              redraw();
+              return;
+            }
+          }
+        }
+
         const hitText = getTextItemAt(basePos);
         if (hitText) {
           state.selectedTextId = hitText.id;
+          syncTextToolbarValues();
           startDirectTextInput({ x: hitText.x, y: hitText.y }, hitText);
         }
       });
@@ -1897,7 +2574,7 @@
         state.mousePosBaseImage = basePos;
         state.isMouseOverCanvas = (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom);
 
-        if (state.loupeEnabled && state.isMouseOverCanvas && !state.isTextModeActive) {
+        if (state.loupeEnabled && state.isMouseOverCanvas && !state.isTextModeActive && !state.isDrawModeActive) {
           let lx = screenX + 16;
           let ly = screenY - 144 - 16;
           if (lx + 144 > viewportWrap.clientWidth) lx = screenX - 144 - 16;
@@ -1915,7 +2592,85 @@
           return;
         }
 
-        // 拖拽手柄自由缩放文字字号
+        if (state.isDrawingNow && state.currentDrawingItem) {
+          const pts = state.currentDrawingItem.points;
+          // 点击式绘制：仅实时预览最后一个点（polygon 不加点不预览）
+          if (state.currentDrawingItem.type !== 'polygon') {
+            pts[pts.length - 1] = { x: Math.round(basePos.x), y: Math.round(basePos.y) };
+          }
+          redraw();
+          return;
+        }
+
+        // 拖动选框手柄缩放选中图元（Shift 等比）
+        if (state.isResizingDraw && state.selectedDrawId && state.resizeStartBBox && state.resizeStartPoints) {
+          const item = state.drawItems.find(d => d.id === state.selectedDrawId);
+          if (item) {
+            const ob = state.resizeStartBBox;
+            const handle = state.activeDrawHandle;
+            let nx = ob.x, ny = ob.y, nx2 = ob.x + ob.w, ny2 = ob.y + ob.h;
+
+            if (handle.includes('l')) nx = Math.min(basePos.x, nx2 - 1);
+            if (handle.includes('r')) nx2 = Math.max(basePos.x, nx + 1);
+            if (handle.includes('t')) ny = Math.min(basePos.y, ny2 - 1);
+            if (handle.includes('b')) ny2 = Math.max(basePos.y, ny + 1);
+
+            // Shift 等比：仅角手柄支持，以对角为固定点
+            if (e.shiftKey && ob.w > 0 && ob.h > 0 && ['tl', 'tr', 'br', 'bl'].includes(handle)) {
+              const fx = (handle === 'tr' || handle === 'br') ? ob.x : ob.x + ob.w;
+              const fy = (handle === 'bl' || handle === 'br') ? ob.y : ob.y + ob.h;
+              const ratio = ob.w / ob.h;
+              let nw = Math.abs(basePos.x - fx);
+              let nh = Math.abs(basePos.y - fy);
+              if (nw / ob.w >= nh / ob.h) {
+                nh = nw / ratio;
+              } else {
+                nw = nh * ratio;
+              }
+              nw = Math.max(nw, 1); nh = Math.max(nh, 1);
+              nx = (fx === ob.x) ? fx : fx - nw;
+              nx2 = (fx === ob.x) ? fx + nw : fx;
+              ny = (fy === ob.y) ? fy : fy - nh;
+              ny2 = (fy === ob.y) ? fy + nh : fy;
+            }
+
+            if (nx2 <= nx) nx2 = nx + 1;
+            if (ny2 <= ny) ny2 = ny + 1;
+            const newW = nx2 - nx;
+            const newH = ny2 - ny;
+
+            // 线性映射所有点
+            item.points = state.resizeStartPoints.map(src => ({
+              x: Math.round(nx + (src.x - ob.x) * (newW / ob.w)),
+              y: Math.round(ny + (src.y - ob.y) * (newH / ob.h))
+            }));
+
+            // 圆形保持正圆：圆心随框移动，半径取短边一半
+            if (item.type === 'circle') {
+              const cc = { x: nx + newW / 2, y: ny + newH / 2 };
+              const r = Math.min(newW, newH) / 2;
+              item.points = [
+                { x: Math.round(cc.x), y: Math.round(cc.y) },
+                { x: Math.round(cc.x + r), y: Math.round(cc.y) }
+              ];
+            }
+            redraw();
+          }
+          return;
+        }
+
+        if (state.isDraggingDraw && state.selectedDrawId) {
+          const item = state.drawItems.find(d => d.id === state.selectedDrawId);
+          if (item) {
+            const bbox = getDrawItemBBox(item);
+            const dx = Math.round(basePos.x - state.drawDragOffset.x - bbox.x);
+            const dy = Math.round(basePos.y - state.drawDragOffset.y - bbox.y);
+            item.points.forEach(p => { p.x += dx; p.y += dy; });
+            redraw();
+          }
+          return;
+        }
+
         if (state.isResizingText && state.selectedTextId) {
           const textItem = state.textItems.find(t => t.id === state.selectedTextId);
           if (textItem && state.initialTextState) {
@@ -1923,6 +2678,7 @@
             const factor = (state.activeTextHandle === 'tl' || state.activeTextHandle === 'tr') ? -dy : dy;
             const newSize = Math.max(10, Math.min(240, Math.round(state.initialTextState.size + factor * 0.8)));
             textItem.size = newSize;
+            fontSizeInput.value = newSize;
             redraw();
           }
           return;
@@ -2004,7 +2760,8 @@
           }
 
           const hitText = getTextItemAt(basePos);
-          if (hitText) {
+          const hitDraw = getDrawItemAt(basePos);
+          if (hitText || hitDraw) {
             viewportWrap.style.cursor = 'move';
             return;
           }
@@ -2028,6 +2785,18 @@
       });
 
       window.addEventListener('mouseup', () => {
+        // 点击式绘制：图元已在第二次点击时提交，此处不再提交
+        if (state.isResizingDraw) {
+          state.isResizingDraw = false;
+          state.activeDrawHandle = null;
+          state.resizeStartBBox = null;
+          state.resizeStartPoints = null;
+          saveHistorySnapshot('缩放图元');
+        }
+        if (state.isDraggingDraw) {
+          state.isDraggingDraw = false;
+          saveHistorySnapshot('移动图元');
+        }
         if (state.isResizingText) {
           state.isResizingText = false;
           saveHistorySnapshot('缩放文字大小');
@@ -2056,17 +2825,39 @@
           return;
         }
 
-        if ((e.key === 'Backspace' || e.key === 'Delete') && state.selectedTextId) {
-          state.textItems = state.textItems.filter(t => t.id !== state.selectedTextId);
-          state.selectedTextId = null;
-          saveHistorySnapshot('删除文字');
-          redraw();
-          showToast('已删除选中的文字');
-          return;
+        if (e.key === 'Escape') {
+          if (state.currentDrawingItem) {
+            state.currentDrawingItem = null;
+            state.isDrawingNow = false;
+            redraw();
+            showToast('已取消当前绘制');
+            return;
+          }
+        }
+
+        if (e.key === 'Backspace' || e.key === 'Delete') {
+          if (state.selectedTextId) {
+            state.textItems = state.textItems.filter(t => t.id !== state.selectedTextId);
+            state.selectedTextId = null;
+            syncTextToolbarValues();
+            saveHistorySnapshot('删除文字');
+            redraw();
+            showToast('已删除选中的文字');
+            return;
+          }
+          if (state.selectedDrawId) {
+            state.drawItems = state.drawItems.filter(d => d.id !== state.selectedDrawId);
+            state.selectedDrawId = null;
+            syncDrawToolbarValues();
+            saveHistorySnapshot('删除图元');
+            redraw();
+            showToast('已删除选中的图形');
+            return;
+          }
         }
 
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-          if (!state.frames.length || state.isTextModeActive) return;
+          if (!state.frames.length || state.isTextModeActive || state.isDrawModeActive) return;
           e.preventDefault();
           const activeFrame = state.frames[state.activeFrameIndex];
           if (!activeFrame) return;
@@ -2264,6 +3055,169 @@
         redraw();
         showToast('已自适应画幅边界');
       });
+
+      // 图 1 风格文字排版联动
+      fontFamilySelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        state.textTypography.font = val;
+        if (state.selectedTextId) {
+          const item = state.textItems.find(t => t.id === state.selectedTextId);
+          if (item) { item.font = val; saveHistorySnapshot('更改字体'); redraw(); }
+        }
+      });
+
+      fontWeightSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        state.textTypography.weight = val;
+        if (state.selectedTextId) {
+          const item = state.textItems.find(t => t.id === state.selectedTextId);
+          if (item) { item.weight = val; saveHistorySnapshot('修改字重'); redraw(); }
+        }
+      });
+
+      btnTextItalic.addEventListener('click', () => {
+        const item = state.textItems.find(t => t.id === state.selectedTextId);
+        if (item) {
+          item.italic = !item.italic;
+          saveHistorySnapshot('切换斜体');
+          syncTextToolbarValues();
+          redraw();
+        } else {
+          state.textTypography.italic = !state.textTypography.italic;
+          syncTextToolbarValues();
+        }
+      });
+
+      fontSizeInput.addEventListener('input', (e) => {
+        const val = Math.max(10, Math.min(180, parseInt(e.target.value, 10) || 24));
+        state.textTypography.size = val;
+        if (state.selectedTextId) {
+          const item = state.textItems.find(t => t.id === state.selectedTextId);
+          if (item) { item.size = val; redraw(); }
+        }
+      });
+      fontSizeInput.addEventListener('change', () => saveHistorySnapshot('修改字号'));
+
+      textColorPicker.addEventListener('input', (e) => {
+        const val = e.target.value;
+        state.textTypography.color = val;
+        textColorSwatch.style.backgroundColor = val;
+        if (state.selectedTextId) {
+          const item = state.textItems.find(t => t.id === state.selectedTextId);
+          if (item) { item.color = val; redraw(); }
+        }
+      });
+      textColorPicker.addEventListener('change', () => saveHistorySnapshot('修改文字颜色'));
+
+      strokeToggle.addEventListener('change', (e) => {
+        const enabled = e.target.checked;
+        state.textTypography.strokeEnabled = enabled;
+        if (enabled) {
+          strokeControlsWrap.classList.remove('opacity-40', 'pointer-events-none');
+        } else {
+          strokeControlsWrap.classList.add('opacity-40', 'pointer-events-none');
+        }
+        if (state.selectedTextId) {
+          const item = state.textItems.find(t => t.id === state.selectedTextId);
+          if (item) { item.strokeEnabled = enabled; saveHistorySnapshot('切换外描边'); redraw(); }
+        }
+      });
+
+      strokeColorPicker.addEventListener('input', (e) => {
+        const val = e.target.value;
+        state.textTypography.strokeColor = val;
+        strokeColorSwatch.style.backgroundColor = val;
+        if (state.selectedTextId) {
+          const item = state.textItems.find(t => t.id === state.selectedTextId);
+          if (item) { item.strokeColor = val; redraw(); }
+        }
+      });
+      strokeColorPicker.addEventListener('change', () => saveHistorySnapshot('修改描边颜色'));
+
+      strokeWidthInput.addEventListener('input', (e) => {
+        const val = Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 3));
+        state.textTypography.strokeWidth = val;
+        if (state.selectedTextId) {
+          const item = state.textItems.find(t => t.id === state.selectedTextId);
+          if (item) { item.strokeWidth = val; redraw(); }
+        }
+      });
+      strokeWidthInput.addEventListener('change', () => saveHistorySnapshot('修改描边粗细'));
+
+      // 绘图工具条联动
+      drawShapeTypeSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        state.drawParams.shapeType = val;
+        // 切换形状时取消未完成的绘制
+        state.currentDrawingItem = null;
+        state.isDrawingNow = false;
+        syncDrawToolbarValues();
+        if (state.selectedDrawId) {
+          const item = state.drawItems.find(d => d.id === state.selectedDrawId);
+          if (item) { item.type = val; saveHistorySnapshot('修改图元形态'); redraw(); }
+        }
+      });
+
+      // 实线/虚线按钮：激活=实线，未激活=虚线，对所有绘图对象生效
+      drawSolidLineBtn.addEventListener('click', () => {
+        state.drawParams.solidLine = !state.drawParams.solidLine;
+        updateDrawSolidLineBtnUI();
+        saveHistorySnapshot('切换实线/虚线');
+        redraw();
+      });
+
+      // 箭头按钮：激活=加箭头（对开放图形生效），默认不激活
+      drawArrowBtn.addEventListener('click', () => {
+        state.drawParams.hasArrow = !state.drawParams.hasArrow;
+        updateDrawArrowBtnUI();
+        saveHistorySnapshot('切换箭头');
+        redraw();
+      });
+
+      drawStrokeWidthInput.addEventListener('input', (e) => {
+        const val = Math.max(1, Math.min(30, parseInt(e.target.value, 10) || 2));
+        state.drawParams.strokeWidth = val;
+        if (state.selectedDrawId) {
+          const item = state.drawItems.find(d => d.id === state.selectedDrawId);
+          if (item) { item.strokeWidth = val; redraw(); }
+        }
+      });
+      drawStrokeWidthInput.addEventListener('change', () => saveHistorySnapshot('修改线条粗细'));
+
+      drawStrokeColorPicker.addEventListener('input', (e) => {
+        const val = e.target.value;
+        state.drawParams.strokeColor = val;
+        drawStrokeColorSwatch.style.backgroundColor = val;
+        if (state.selectedDrawId) {
+          const item = state.drawItems.find(d => d.id === state.selectedDrawId);
+          if (item) { item.strokeColor = val; redraw(); }
+        }
+      });
+      drawStrokeColorPicker.addEventListener('change', () => saveHistorySnapshot('修改线条颜色'));
+
+      drawFillToggle.addEventListener('change', (e) => {
+        const val = e.target.checked;
+        state.drawParams.fillEnabled = val;
+        if (state.selectedDrawId) {
+          const item = state.drawItems.find(d => d.id === state.selectedDrawId);
+          if (item) { item.fillEnabled = val; saveHistorySnapshot('切换填充'); redraw(); }
+        }
+      });
+
+      drawFillColorPicker.addEventListener('input', (e) => {
+        const val = e.target.value;
+        state.drawParams.fillColor = val;
+        drawFillColorSwatch.style.backgroundColor = val;
+        if (state.selectedDrawId) {
+          const item = state.drawItems.find(d => d.id === state.selectedDrawId);
+          if (item) { item.fillColor = val; redraw(); }
+        }
+      });
+      drawFillColorPicker.addEventListener('change', () => saveHistorySnapshot('修改填充颜色'));
+
+      // 初始化按钮视觉状态（实线默认激活、箭头默认不激活）
+      updateDrawSolidLineBtnUI();
+      updateDrawArrowBtnUI();
     }
 
     function renderCroppedFrameToCanvas(frame) {
@@ -2282,6 +3236,7 @@
       if (frame && frame.visible !== false) {
         drawFrameWithTransform(outCtx, frame, 1.0, false);
       }
+      drawVectorGraphics(outCtx, false);
       drawTextAnnotations(outCtx, false);
       outCtx.restore();
 
@@ -2465,7 +3420,7 @@
 
     btnGenerateAndDownloadGif.addEventListener('click', () => {
       const visibleFrames = state.frames.filter(f => f.visible !== false);
-      if (visibleFrames.length < 2) return;
+      if (!visibleFrames.length) return;
       gifEncodingSpinner.classList.remove('hidden');
 
       const frameDataUrls = cachedFrameCanvases.map(c => c.toDataURL('image/png'));

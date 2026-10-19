@@ -2,6 +2,7 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getCollection } from 'astro:content';
 import { newestFirst } from '../lib/dates';
+import { articleDate, articleTitle } from '../lib/articleMeta';
 
 // Redirect root → /projects (or show a brief landing)
 const projects = await getCollection('projects');
@@ -29,8 +30,8 @@ const latest = projects.sort(newestFirst).slice(0, 3);
             <li class="recent-item">
               <a href={`/projects/${slug}`}>
                 <span class="recent-cat">{p.data.category}</span>
-                <span class="recent-title">{p.data.title}</span>
-                {p.data.date && <span class="recent-year">{p.data.date}</span>}
+                <span class="recent-title">{articleTitle(p.id, p.data.title)}</span>
+                {articleDate(p.data.date, p.filePath) && <span class="recent-year">{articleDate(p.data.date, p.filePath)}</span>}
               </a>
             </li>
           );

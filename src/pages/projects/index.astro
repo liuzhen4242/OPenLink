@@ -16,6 +16,7 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { newestFirst } from '../../lib/dates';
+import { articleDate, articleTitle } from '../../lib/articleMeta';
 
 const allProjects = await getCollection('projects');
 const projects = allProjects.sort(newestFirst);
@@ -40,7 +41,7 @@ function idToSlug(id: string): string {
 function projectDirOf(id: string): string {
   const withoutMd = id.replace(/\.md$/, '');
   const slash = withoutMd.indexOf('/');
-  return slash >= 0 ? withoutMd.slice(0, slash) : '';
+  return slash >= 0 ? withoutMd.slice(0, slash) : withoutMd;
 }
 
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)$/i;
@@ -75,8 +76,10 @@ const VIDEO_EXT = /\.(mp4|webm|mov|m4v)$/i;
             mediaUrl = `/project-images/${encodeURIComponent(dir)}/images/${encodeURIComponent(fileName)}`;
           }
 
-          const slug = idToSlug(project.id);
+          const slug = project.data.slug || idToSlug(project.id);
           const href = `/projects/${slug}`;
+          const projectTitle = articleTitle(project.id, project.data.title);
+          const projectDate = articleDate(project.data.date, project.filePath);
 
           return (
             <a href={href} class="masonry-item" data-category={project.data.category.join(',')}>
@@ -94,7 +97,7 @@ const VIDEO_EXT = /\.(mp4|webm|mov|m4v)$/i;
                   ) : (
                     <img
                       src={mediaUrl}
-                      alt={project.data.title}
+                      alt={projectTitle}
                       loading="lazy"
                       decoding="async"
                     />
@@ -104,7 +107,7 @@ const VIDEO_EXT = /\.(mp4|webm|mov|m4v)$/i;
                 <div class="card-img-wrap">
                   <img
                     src={coverUrl}
-                    alt={project.data.title}
+                    alt={projectTitle}
                     loading="lazy"
                     decoding="async"
                   />
@@ -117,9 +120,9 @@ const VIDEO_EXT = /\.(mp4|webm|mov|m4v)$/i;
               <div class="card-meta">
                 <span class="card-category">{project.data.category.join(' / ')}</span>
                 <span class="card-sep">·</span>
-                <span class="card-title">{project.data.title}</span>
-                {project.data.date && (
-                  <span class="card-year">{project.data.date}</span>
+                <span class="card-title">{projectTitle}</span>
+                {projectDate && (
+                  <span class="card-year">{projectDate}</span>
                 )}
               </div>
             </a>
@@ -343,6 +346,8 @@ const VIDEO_EXT = /\.(mp4|webm|mov|m4v)$/i;
     width: 100%;
     aspect-ratio: 4 / 3;
     overflow: hidden;
+    border-radius: 0.75rem;
+    border: 1px solid var(--c-rule);
     background: #ebe9e4;
   }
   .card-img-wrap img {
@@ -367,6 +372,8 @@ const VIDEO_EXT = /\.(mp4|webm|mov|m4v)$/i;
   .card-img-placeholder {
     width: 100%;
     aspect-ratio: 4 / 3;
+    border-radius: 0.75rem;
+    border: 1px solid var(--c-rule);
     background: #e8e6e1;
     display: flex;
     align-items: center;

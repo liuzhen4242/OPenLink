@@ -5,6 +5,7 @@ import path from 'node:path';
 
 const PUBLIC_IMAGES_ROOT = fileURLToPath(new URL('../public/project-images/', import.meta.url));
 const CONTENT_ROOT = fileURLToPath(new URL('../src/content/', import.meta.url));
+const ATTACHMENT_ROOT = path.join(CONTENT_ROOT, 'attachment');
 
 const MIME = {
   '.png': 'image/png',
@@ -57,24 +58,37 @@ function devSourceMediaFallbackPlugin() {
         const segments = dirPart.split('/').filter(Boolean);
         if (segments[segments.length - 1] !== 'images') return next();
 
-        // segments 形如 ["X","images"]（projects 或 blog 文章自身目录），
-        // 或 ["images"]（历史共享目录 src/content/blog/images）。
-        let sourceImages;
-        if (segments.length === 1) {
-          sourceImages = path.join(CONTENT_ROOT, 'blog', 'images');
-        } else {
-          const dirName = segments[0];
-          const projectImages = path.join(CONTENT_ROOT, 'projects', dirName, 'images');
-          if (existsSync(projectImages)) {
-            sourceImages = projectImages;
-          } else {
-            const pub = path.join(CONTENT_ROOT, 'blog', 'public', dirName, 'images');
-            const draft = path.join(CONTENT_ROOT, 'blog', 'draft', dirName, 'images');
-            sourceImages = existsSync(pub)
-              ? pub
-              : existsSync(draft)
-                ? draft
-                : null;
+        // Resolve the article behind the existing public URL, then serve its
+        // source attachment folder as a dev-only fallback.
+        const articleDir = segments.slice(0, -1).join(path.sep);
+        const candidates = [
+          path.join(CONTENT_ROOT, 'projects', articleDir),
+          path.join(CONTENT_ROOT, 'blog', 'public', articleDir),
+          path.join(CONTENT_ROOT, 'blog', 'draft', articleDir),
+        ];
+        let sourceImages = null;
+        for (const candidate of candidates) {
+          if (!existsSync(candidate)) continue;
+          const note = readdirSync(candidate, { withFileTypes: true }).find((entry) => entry.isFile() && /\.md$/i.test(entry.name));
+          if (!note) continue;
+          const attachmentDir = path.join(ATTACHMENT_ROOT, path.basename(note.name, '.md'));
+          if (existsSync(attachmentDir)) {
+            sourceImages = attachmentDir;
+            break;
+          }
+        }
+        if (!sourceImages) {
+          const flatProjectNote = path.join(CONTENT_ROOT, 'projects', `${articleDir}.md`);
+          if (existsSync(flatProjectNote)) {
+            const attachmentDir = path.join(ATTACHMENT_ROOT, path.basename(flatProjectNote, '.md'));
+            if (existsSync(attachmentDir)) sourceImages = attachmentDir;
+          }
+        }
+        if (!sourceImages) {
+          const flatPublicNote = path.join(CONTENT_ROOT, 'blog', 'public', `${articleDir}.md`);
+          if (existsSync(flatPublicNote)) {
+            const attachmentDir = path.join(ATTACHMENT_ROOT, path.basename(flatPublicNote, '.md'));
+            if (existsSync(attachmentDir)) sourceImages = attachmentDir;
           }
         }
         if (!sourceImages || !existsSync(sourceImages)) return next();

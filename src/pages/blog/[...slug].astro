@@ -11,11 +11,12 @@ import { statSync } from 'node:fs';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import MediaGallery from '../../components/MediaGallery.astro';
 import { renderInlineMd } from '../../lib/renderInlineMd';
+import { articleDate, articleTitle, articleTitleEn, articleTimestamp } from '../../lib/articleMeta';
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog');
   return posts.flatMap((post) => {
-    const slug = post.id.replace(/\.md$/, '').split('/')[1];
+    const slug = post.data.slug || post.id.replace(/\.md$/, '').split('/')[1];
     const status = post.data.status;
     // 线上：hidden 彻底不生成页面（网上不可见）；本地 dev 正常显示，方便自己查看。
     if (import.meta.env.PROD && status === 'hidden') return [];
@@ -28,7 +29,10 @@ export async function getStaticPaths() {
 
 const { post } = Astro.props;
 const { Content, headings } = await render(post);
-const { title, titleEn, name: rawName, date, description, notes = [], author, update, category = [], status } = post.data;
+const { title: rawTitle, titleEn: rawTitleEn, name: rawName, date: rawDate, description, notes = [], author, update, category = [], status } = post.data;
+const title = articleTitle(post.id, rawTitle);
+const titleEn = articleTitleEn(post.id, rawTitleEn);
+const date = articleDate(rawDate, post.filePath);
 // 头部英文标题：titleEn 优先，缺省回退 title（兼容旧文章）；与 Herschel 目录顶部逻辑一致
 const headerTitle = titleEn || title;
 const displayName = rawName || title;
@@ -63,10 +67,10 @@ for (const heading of headings) {
 
 // 按日期降序排列全部文章，计算相邻的上/下一篇（借鉴 Herschel）
 const allPosts = (await getCollection('blog')).sort(
-  (a, b) => new Date(b.data.date || 0).getTime() - new Date(a.data.date || 0).getTime(),
+  (a, b) => articleTimestamp(b.data.date, b.filePath) - articleTimestamp(a.data.date, a.filePath),
 );
 const currentIndex = allPosts.findIndex((p) => p.id === post.id);
-const toPostLink = (p) => ({ url: `/blog/${p.id.replace(/\.md$/, '').split('/')[1]}`, title: p.data.name || p.data.title });
+const toPostLink = (p) => ({ url: `/blog/${p.data.slug || p.id.replace(/\.md$/, '').split('/')[1]}`, title: p.data.name || articleTitle(p.id, p.data.title) });
 const prevPost = currentIndex > 0 ? toPostLink(allPosts[currentIndex - 1]) : undefined;
 const nextPost =
   currentIndex >= 0 && currentIndex < allPosts.length - 1
@@ -212,9 +216,9 @@ const nextPost =
     </article>
 
     <!-- ── 右栏：引注（frontmatter notes + 内联 {词|注释}）──────────── -->
-    <aside id="notes-aside" class="hidden lg:block pt-2 text-xs text-neutral-500 dark:text-neutral-400 space-y-3 pl-4">
+    <aside id="notes-aside" class="hidden lg:block pt-2 text-xs text-neutral-400 dark:text-neutral-500 space-y-3 pl-4">
       {notes.map((note, index) => (
-        <p class="note-item leading-relaxed text-neutral-600 dark:text-neutral-400" data-note-index={index + 1}>
+        <p class="note-item leading-relaxed text-neutral-400 dark:text-neutral-500 cursor-pointer" data-note-index={index + 1}>
           <span class="font-normal shrink-0">{index + 1}:</span>
           <span class="note-text" set:html={renderInlineMd(note)} />
         </p>
@@ -346,7 +350,7 @@ const nextPost =
       const noteText = sup.getAttribute('data-note') || '';
       const num = sup.textContent.trim();
       const item = document.createElement('p');
-      item.className = 'note-item leading-relaxed text-neutral-600 dark:text-neutral-400';
+      item.className = 'note-item leading-relaxed text-neutral-400 dark:text-neutral-500 cursor-pointer';
       item.dataset.noteIndex = num;
       const numEl = document.createElement('span');
       numEl.className = 'note-num font-normal shrink-0';
@@ -398,7 +402,7 @@ const nextPost =
   });
 
   // 点击被注释词 → 正文词与对应注释同时灰底高亮
-  const flashNote = (num) => {
+  const flashNote = (num, fromAside = false) => {
     const aside = document.getElementById('notes-aside');
     const article = document.querySelector('article');
     const clear = () => {
@@ -414,7 +418,15 @@ const nextPost =
       }
     });
     const a = aside?.querySelector(`.note-item[data-note-index="${num}"]`);
-    if (a) { a.classList.add('note-highlight'); a.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    if (a) a.classList.add('note-highlight');
+
+    const matchingSup = Array.from(article?.querySelectorAll('sup') || []).find(
+      (item) => item.textContent.trim() === num || item.textContent.trim() === `[${num}]`,
+    );
+    const targetWord = matchingSup?.previousElementSibling?.classList.contains('note-word')
+      ? matchingSup.previousElementSibling
+      : null;
+    (fromAside ? targetWord : a)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     clearTimeout(window.__noteFlashTimer);
     window.__noteFlashTimer = setTimeout(clear, 1800);
   };
@@ -428,6 +440,12 @@ const nextPost =
     if (!supEl || supEl.tagName !== 'SUP') return;
     const m = supEl.textContent.match(/\d+/);
     if (m) flashNote(m[0]);
+  });
+
+  // 点击右侧注释，反向定位到正文对应词语。
+  document.getElementById('notes-aside')?.addEventListener('click', (e) => {
+    const item = e.target.closest('[data-note-index]');
+    if (item?.dataset.noteIndex) flashNote(item.dataset.noteIndex, true);
   });
 </script>
 

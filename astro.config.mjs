@@ -1,5 +1,6 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import { unified } from '@astrojs/markdown-remark';
 import tailwindcss from '@tailwindcss/vite';
 import { remarkGalleryPlugin, remarkObsidianImages } from './scripts/remark-obsidian-media.mjs';
 import { remarkCurlyNotes } from './scripts/remark-curly-notes.mjs';
@@ -106,13 +107,15 @@ export default defineConfig({
     enabled: false,
   },
   markdown: {
-    remarkPlugins: [
-      remarkGalleryPlugin,
-      remarkObsidianImages,
-      remarkCurlyNotes,
-      remarkPlainNoteIndex,
-      remarkWordUnderline,
-    ],
+    processor: unified({
+      remarkPlugins: [
+        remarkGalleryPlugin,
+        remarkObsidianImages,
+        remarkCurlyNotes,
+        remarkPlainNoteIndex,
+        remarkWordUnderline,
+      ],
+    }),
   },
   vite: {
     plugins: [tailwindcss(), devSourceMediaFallbackPlugin()],

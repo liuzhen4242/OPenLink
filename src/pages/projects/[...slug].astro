@@ -18,10 +18,15 @@ import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import MediaGallery from '../../components/MediaGallery.astro';
 import { renderInlineMd } from '../../lib/renderInlineMd';
+import { articleDate, articleTitle, articleTitleEn, articleTimestamp, articleUpdateDate } from '../../lib/articleMeta';
 
 /** Convert entry id → URL slug (strip .md extension and leading Projects/) */
 function idToSlug(id: string): string {
   return id.replace(/\.md$/, '').replace(/^[Pp]rojects\//, '');
+}
+
+function projectRouteSlug(project: { id: string; data: { slug?: string } }): string {
+  return project.data.slug || idToSlug(project.id);
 }
 
 /** Extract the project directory from entry id */
@@ -34,7 +39,7 @@ function idToProjectDir(id: string): string {
 export async function getStaticPaths() {
   const projects = await getCollection('projects');
   return projects.map((project) => {
-    const slug = project.id.replace(/\.md$/, '').replace(/^[Pp]rojects\//, '');
+    const slug = project.data.slug || project.id.replace(/\.md$/, '').replace(/^[Pp]rojects\//, '');
     return {
       params: { slug },
       props:  { project },
@@ -44,14 +49,18 @@ export async function getStaticPaths() {
 
 const { project } = Astro.props;
 const { data } = project;
+const projectTitle = articleTitle(project.id, data.title);
+const projectTitleEn = articleTitleEn(project.id, data.titleEn);
+const projectDate = articleDate(data.date, project.filePath);
+const projectUpdateDate = articleUpdateDate(data.update, project.filePath);
 
 const { Content, headings } = await render(project);
 
-const projectDir = idToProjectDir(project.id);
+const projectDir = idToProjectDir(project.id) || project.id.replace(/\.md$/, '').split('/').pop();
 
 // 全部项目按日期降序：用于左栏上/下篇导航
 const allProjects = (await getCollection('projects')).sort(
-  (a, b) => new Date(b.data.date || 0).getTime() - new Date(a.data.date || 0).getTime(),
+  (a, b) => articleTimestamp(b.data.date, b.filePath) - articleTimestamp(a.data.date, a.filePath),
 );
 const curIndex = allProjects.findIndex((p) => p.id === project.id);
 const prevProject = curIndex > 0 ? allProjects[curIndex - 1] : null;
@@ -85,13 +94,14 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
 ---
 
 <BaseLayout
-  title={data.title}
+  title={projectTitle}
   description={data.description}
   pageClass="page-detail"
 >
   <div class:list={['grid grid-cols-1 lg:items-start lg:gap-12', gridCols, 'page-detail-preview']}>
     <!-- ── 左栏（吸顶）：圆钮 + 上/下篇导航 + 标题树（复刻 Herschel）────── -->
-    <div class="hidden lg:block self-start sticky top-[2.7rem] z-10">
+    <!-- 高于顶部 sticky Navbar，避免滚动后按钮被导航层覆盖而无法点击 -->
+    <div class="hidden lg:block self-start sticky top-[2.7rem] z-[110]">
       <div class="mb-10 flex items-center justify-between pr-4">
         <button
           id="theme-toggle-desktop"
@@ -102,9 +112,9 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
         <!-- 桌面端纤细符号导航：上一篇、回列表、下一篇（右对齐） -->
         <nav class="flex items-center gap-2.5 text-neutral-400 dark:text-neutral-500 text-xs">
           <a
-            href={prevProject ? `/projects/${idToSlug(prevProject.id)}` : '#'}
+            href={prevProject ? `/projects/${projectRouteSlug(prevProject)}` : '#'}
             aria-label="上一篇"
-            title={prevProject ? `上一篇: ${prevProject.data.title}` : '没有上一篇了'}
+            title={prevProject ? `上一篇: ${articleTitle(prevProject.id, prevProject.data.title)}` : '没有上一篇了'}
             class:list={[
               'transition-colors duration-200',
               !prevProject
@@ -125,9 +135,9 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
             <span class="inline-block w-1 h-1 rounded-full bg-current"></span>
           </a>
           <a
-            href={nextProject ? `/projects/${idToSlug(nextProject.id)}` : '#'}
+            href={nextProject ? `/projects/${projectRouteSlug(nextProject)}` : '#'}
             aria-label="下一篇"
-            title={nextProject ? `下一篇: ${nextProject.data.title}` : '没有下一篇了'}
+            title={nextProject ? `下一篇: ${articleTitle(nextProject.id, nextProject.data.title)}` : '没有下一篇了'}
             class:list={[
               'transition-colors duration-200',
               !nextProject
@@ -153,7 +163,7 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
               data-toc-top
               class="block font-semibold tracking-wide uppercase mb-3 transition-colors duration-200"
             >
-              {data.titleEn || data.title}
+              {projectTitleEn || projectTitle}
             </a>
             <nav class="flex flex-col space-y-1">
               {tocGroups.map((group) =>
@@ -205,12 +215,13 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
       <header id="top" class="pt-16 pb-10 border-b border-neutral-200 dark:border-neutral-800">
         <div class="mb-4 flex items-center gap-4">
           <span class="project-category">{data.category.join(' / ')}</span>
-          {data.date && <span class="project-date">{data.date}</span>}
+          {projectDate && <span class="project-date">{projectDate}</span>}
+          {projectUpdateDate && <span class="project-date">upd {projectUpdateDate.replace(/-/g, '').slice(2)}</span>}
         </div>
         <h1 class="project-title text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900 dark:text-white">
-          {data.title}
+          {projectTitle}
         </h1>
-        {data.titleEn && <p class="project-title-en">{data.titleEn}</p>}
+          {projectTitleEn && <p class="project-title-en">{projectTitleEn}</p>}
         {data.description && <p class="project-desc">{data.description}</p>}
       </header>
 
@@ -225,14 +236,14 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
       <!-- Minimal previous / next navigation -->
       <nav class="back-nav" aria-label="项目切换">
         <a
-          href={prevProject ? `/projects/${idToSlug(prevProject.id)}` : '#'}
+          href={prevProject ? `/projects/${projectRouteSlug(prevProject)}` : '#'}
           class="back-link"
           aria-label="上一篇"
           title="上一篇"
           class:list={{ 'is-disabled': !prevProject }}
         >←</a>
         <a
-          href={nextProject ? `/projects/${idToSlug(nextProject.id)}` : '#'}
+          href={nextProject ? `/projects/${projectRouteSlug(nextProject)}` : '#'}
           class="back-link"
           aria-label="下一篇"
           title="下一篇"
@@ -244,10 +255,10 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
     <!-- ── 右栏：注释引注（Herschel 完整系统）──────────
          始终渲染（hidden lg:block），静态 notes 直接 SSR，正文 {词|注释}
          由 buildNotePanels 在加载后收集进来；两者都为空时 JS 隐藏。 -->
-    <aside id="notes-aside" class="hidden lg:block pt-2 text-xs text-neutral-500 dark:text-neutral-400 space-y-3 pl-4">
+    <aside id="notes-aside" class="hidden lg:block pt-2 text-xs text-neutral-400 dark:text-neutral-500 space-y-3 pl-4">
       {hasNotes &&
         data.notes!.map((note, index) => (
-          <p class="note-item leading-relaxed text-neutral-600 dark:text-neutral-400" data-note-index={index + 1}>
+          <p class="note-item leading-relaxed text-neutral-400 dark:text-neutral-500" data-note-index={index + 1}>
             <span class="note-num font-normal shrink-0">{index + 1}:</span><span class="note-text" set:html={renderInlineMd(note)} />
           </p>
         ))}
@@ -409,7 +420,7 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
       const noteText = sup.getAttribute('data-note') || '';
       const num = sup.textContent.trim();
       const item = document.createElement('p');
-      item.className = 'note-item leading-relaxed text-neutral-600 dark:text-neutral-400';
+      item.className = 'note-item leading-relaxed text-neutral-400 dark:text-neutral-500';
       item.dataset.noteIndex = num;
       const numEl = document.createElement('span');
       numEl.className = 'note-num font-normal shrink-0';
@@ -920,7 +931,6 @@ const gridCols = 'lg:grid-cols-[min(220px,20vw)_1fr_200px]';
   :global(body.page-typography-preview .prose li) {
     color: var(--c-mid);
     font-weight: 400;
-    opacity: 0.78;
   }
   :global(body.page-typography-preview .prose h2),
   :global(body.page-typography-preview .prose h3),

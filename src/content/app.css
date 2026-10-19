@@ -12,10 +12,10 @@ body {
   --anim-motion-jumpy: cubic-bezier(0.68, -0.55, 0.27, 1.55);
   --anim-motion-swing: cubic-bezier(0, 0.55, 0.45, 1);
   /* Blockquotes */
-  --blockquote-border-thickness: 2px;
-  --blockquote-border-color: var(--interactive-accent);
+  --blockquote-border-thickness: 1px;
+  --blockquote-border-color: var(--text-faint);
   --blockquote-font-style: normal;
-  --blockquote-color: inherit;
+  --blockquote-color: var(--text-muted);
   --blockquote-background-color: transparent;
   /* Bold */
   --bold-weight: var(--font-semibold);
@@ -13444,4 +13444,3 @@ input.mobile-vault-chooser-field-input {
   font-size: var(--font-ui-medium);
   width: 100%;
 }
-

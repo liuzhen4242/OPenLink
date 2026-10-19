@@ -16,7 +16,13 @@ const BLOG_ROOT_MARKER = 'content/blog/';
  * 桌面端（容器 1280px 完整展开时）实际渲染宽 672px，即图片下载目标。
  * 构建期内联，与 BaseLayout 的 --max-w / --pad-x 保持一致。
  */
-const GALLERY_SIZES = '(min-width: 1344px) 672px, calc(100vw - 4rem)';
+// Gallery 的画布实际约 672px，但按约 2x 像素密度请求资源，
+// 让相册比普通正文图片更清晰，同时仍由浏览器在 800w/1200w/1600w
+// 等压缩 WebP 之间自适应选择，而不是直接加载原图。
+const GALLERY_SIZES = '(min-width: 1344px) 1200px, calc((100vw - 4rem) * 2)';
+const GALLERY_MODES = new Set(['play', 'iphone', 'photo-wall', 'grid', 'archdaily']);
+const GALLERY_LIMITS = { iphone: 7, archdaily: 7, grid: 6, 'photo-wall': 7 };
+const DEFAULT_PLAY_SECONDS = 1;
 
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.webm', '.mov', '.m4v', '.ogv']);
 
@@ -37,9 +43,7 @@ function normalize(str) {
  * Given the absolute path to a project's .md file, return the article's
  * directory relative to its collection root — e.g. "Xinjiang_Museum" for a
  * project, or the article slug (e.g. "深汕大塘智慧产业园过程记录") for a blog
- * post whose images live in the article's own images/ subfolder.
- * Blog posts with an empty result (no article folder) fall back to the
- * shared /project-images/images pool.
+ * post. Flattened blog posts use their Markdown file name as that key.
  */
 function getRelativeProjectDir(filePath) {
   const normalizedPath = filePath.replace(/\\/g, '/');
@@ -48,16 +52,17 @@ function getRelativeProjectDir(filePath) {
     const afterRoot = normalizedPath.slice(idx + PROJECTS_ROOT_MARKER.length);
     const parts = afterRoot.split('/');
     parts.pop(); // drop the .md filename itself
-    return parts.join('/');
+    return parts.length > 0 ? parts.join('/') : path.basename(filePath, path.extname(filePath));
   }
   const bidx = normalizedPath.indexOf(BLOG_ROOT_MARKER);
   if (bidx !== -1) {
     const afterRoot = normalizedPath.slice(bidx + BLOG_ROOT_MARKER.length);
     const parts = afterRoot.split('/');
     parts.pop(); // drop the .md filename itself
-    // blog/public/<slug>/… or blog/draft/<slug>/… → <slug>
+    // blog/public/<slug>/… or blog/draft/<slug>/… → <slug>.
+    // Once public posts are flat, use the Markdown filename as the stable key.
     if (parts[0] === 'public' || parts[0] === 'draft') parts.shift();
-    return parts.join('/');
+    return parts.length > 0 ? parts.join('/') : path.basename(filePath, path.extname(filePath));
   }
   return '';
 }
@@ -130,6 +135,67 @@ function isVideoUrl(rawUrl) {
   }
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function normalizeGalleryMode(value) {
+  const mode = String(value || '').trim().toLowerCase();
+  return mode === 'photowall' ? 'photo-wall' : mode;
+}
+
+function parseGalleryBlock(value, language) {
+  let title = '';
+  let mode = '';
+  let seconds = DEFAULT_PLAY_SECONDS;
+
+  for (const line of String(value || '').split(/\r?\n/).map((item) => item.trim()).filter(Boolean)) {
+    if (/^!\[\]\(.*\)$/.test(line)) continue;
+
+    const speedOnly = line.match(/^s\s*=\s*(\d+(?:\.\d+)?)$/i);
+    if (speedOnly) {
+      seconds = Number(speedOnly[1]);
+      if (!mode) mode = 'play';
+      continue;
+    }
+
+    const quoted = line.match(/^["'](.*?)["']\s*(?:s\s*=\s*(\d+(?:\.\d+)?))?$/i);
+    if (!quoted) continue;
+
+    const candidate = normalizeGalleryMode(quoted[1]);
+    if (GALLERY_MODES.has(candidate)) {
+      mode = candidate;
+      if (candidate === 'play' && quoted[2]) seconds = Number(quoted[2]);
+    } else if (!title) {
+      title = quoted[1].trim();
+    }
+  }
+
+  if (!mode) mode = language === 'gallery2' ? 'photo-wall' : 'play';
+  if (!Number.isFinite(seconds) || seconds <= 0) seconds = DEFAULT_PLAY_SECONDS;
+
+  return {
+    title,
+    mode,
+    intervalMs: Math.round(Math.min(60, Math.max(0.25, seconds)) * 1000),
+  };
+}
+
+function galleryImageHtml(img, attributes = '') {
+  const srcsetAttr = img.srcset
+    ? ` srcset="${img.srcset}" sizes="${GALLERY_SIZES}"`
+    : '';
+  const dimensionsAttr = img.width && img.height
+    ? ` width="${img.width}" height="${img.height}"`
+    : '';
+  return `<img src="${img.src}"${srcsetAttr}${dimensionsAttr} loading="lazy" decoding="async"${attributes} alt="" />`;
+}
+
 /**
  * Read the intrinsic dimensions of a resolved public image URL
  * (e.g. "/project-images/Hainan-TouristStation/images/xxx-2000w.webp")
@@ -198,8 +264,9 @@ function remarkObsidianImages() {
 }
 
 /**
- * Remark plugin: converts ```gallery fenced code blocks into a
- * `.gallery-slider` raw-HTML block containing resolved <img> tags.
+ * Remark plugin: converts ```gallery and legacy ```gallery2 blocks into one
+ * gallery model. `play` renders a slider; the four static modes render a
+ * fixed 16:9 composition. Image resolving and metadata parsing are shared.
  *
  * Build-time behaviour:
  * - reads every image's intrinsic dimensions off disk and inlines the
@@ -220,45 +287,56 @@ function remarkGalleryPlugin() {
 
       for (let i = 0; i < node.children.length; i++) {
         const child = node.children[i];
+        const language = typeof child.lang === 'string'
+          ? child.lang.trim().split(/\s+/)[0].toLowerCase()
+          : '';
 
-        if (child.type === 'code' && child.lang === 'gallery') {
+        if (child.type === 'code' && (language === 'gallery' || language === 'gallery2')) {
+          const { title, mode, intervalMs } = parseGalleryBlock(child.value, language);
           const matches = [...(child.value || '').matchAll(/!\[\]\((.*?)\)/g)];
           const resolvedImgs = matches
             .map((m) => resolveProjectImageSet(relativeProjectDir, m[1]))
             .filter(Boolean);
 
           if (resolvedImgs.length > 0) {
-            // 构建期定容器比例：取本轮播中宽高比最小（最“瘦”）的图。
-            // 只有每张图都能读到尺寸时才内联；外链图等读不到的轮播
-            // 由 CSS 默认 aspect-ratio 兜底。
-            const dims = await Promise.all(
-              resolvedImgs.map((img) => getImageDimensions(img.src))
-            );
-            const known = dims.filter((d) => d && d.width > 0 && d.height > 0);
-            let styleAttr = '';
-            if (known.length === resolvedImgs.length) {
-              const slim = known.reduce((a, b) =>
-                a.width / a.height < b.width / b.height ? a : b
-              );
-              styleAttr = ` style="aspect-ratio: ${slim.width} / ${slim.height}"`;
-            }
+            const images = await Promise.all(resolvedImgs.map(async (img) => {
+              const dimensions = await getImageDimensions(img.src);
+              return { ...img, ...dimensions };
+            }));
+            const titleHtml = title ? `<div class="gallery-title">${escapeHtml(title)}</div>` : '';
+            const titleClass = title ? ' has-title' : '';
 
-            const imgsHtml = resolvedImgs
-              .map((img, idx) => {
-                const activeClass = idx === 0 ? 'is-active' : '';
-                // 容器尺寸已在构建期内联，所有 img 叠放在固定画布内
-                // （opacity 切换），浏览器可准确测量渲染宽度，srcset 正常生效。
-                const srcsetAttr = img.srcset
-                  ? ` srcset="${img.srcset}" sizes="${GALLERY_SIZES}"`
+            if (mode === 'play') {
+              const known = images.filter((img) => img.width > 0 && img.height > 0);
+              let styleAttr = '';
+              if (known.length === images.length) {
+                const slim = known.reduce((a, b) => a.width / a.height < b.width / b.height ? a : b);
+                styleAttr = ` style="aspect-ratio: ${slim.width} / ${slim.height}"`;
+              }
+              const imagesHtml = images.map((img, idx) => galleryImageHtml(
+                img,
+                ` data-index="${idx}" class="${idx === 0 ? 'is-active' : ''}"`
+              )).join('\n');
+              node.children[i] = {
+                type: 'html',
+                value: `<div class="gallery-frame gallery-slider${titleClass}" data-gallery-mode="play" data-interval="${intervalMs}" data-count="${images.length}"${styleAttr}>${titleHtml}\n${imagesHtml}\n</div>`,
+              };
+            } else {
+              const visibleLimit = GALLERY_LIMITS[mode];
+              const visibleCount = Math.min(images.length, visibleLimit);
+              const hiddenCount = images.length - visibleCount;
+              const itemsHtml = images.map((img, idx) => {
+                const overflow = idx >= visibleLimit ? ' gallery-overflow' : '';
+                const more = idx === visibleCount - 1 && hiddenCount > 0
+                  ? `<span class="gallery-more" aria-label="还有 ${hiddenCount} 张照片">+${hiddenCount}</span>`
                   : '';
-                return `<img src="${img.src}"${srcsetAttr} loading="lazy" decoding="async" data-index="${idx}" class="${activeClass}" alt="" />`;
-              })
-              .join('\n');
-
-            node.children[i] = {
-              type: 'html',
-              value: `<div class="gallery-slider" data-count="${resolvedImgs.length}"${styleAttr}>\n${imgsHtml}\n</div>`,
-            };
+                return `<figure class="gallery-item${overflow}">${galleryImageHtml(img, ` data-gallery-index="${idx}"`)}${more}</figure>`;
+              }).join('\n');
+              node.children[i] = {
+                type: 'html',
+                value: `<section class="gallery-frame gallery-wall gallery-${mode}${titleClass}" data-gallery-mode="${mode}" data-count="${images.length}">${titleHtml}<div class="gallery-canvas">${itemsHtml}</div></section>`,
+              };
+            }
           } else {
             node.children[i] = {
               type: 'html',

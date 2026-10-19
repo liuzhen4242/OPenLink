@@ -5,7 +5,10 @@ import 'photoswipe/style.css';
 ---
 
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
+  import PhotoSwipeLightbox from 'photoswipe/lightbox';
+  import PhotoSwipe from 'photoswipe';
+
+  const initMediaGalleries = () => {
     // 等图片真正解码、可绘制后再切换，避免切换瞬间空白/半渲染闪烁
     function whenSettled(img) {
       if (typeof img.decode === 'function') {
@@ -21,6 +24,15 @@ import 'photoswipe/style.css';
     document.querySelectorAll('.gallery-slider').forEach((wrapper) => {
       const imgs = Array.from(wrapper.querySelectorAll('img'));
       if (imgs.length === 0) return;
+      const interval = Number(wrapper.dataset.interval) || 1000;
+
+      // Gallery 比普通正文图片多取一档像素密度：仍然走压缩 WebP，
+      // 但避免相册只选到接近屏幕显示宽度的低分辨率版本。
+      imgs.forEach((img) => {
+        if (img.srcset) {
+          img.sizes = '(min-width: 1344px) 1200px, calc((100vw - 4rem) * 2)';
+        }
+      });
 
       if (imgs.length === 1) {
         imgs[0].classList.add('is-active');
@@ -48,11 +60,11 @@ import 'photoswipe/style.css';
             show(index);
           }
         }
-        window.setTimeout(tick, 1000);
+        window.setTimeout(tick, interval);
       }
 
       show(index);
-      window.setTimeout(tick, 1000);
+      window.setTimeout(tick, interval);
 
       wrapper.addEventListener('mouseenter', () => {
         playing = false;
@@ -61,33 +73,45 @@ import 'photoswipe/style.css';
         playing = true;
       });
     });
-  });
-</script>
 
-<script>
-  import PhotoSwipeLightbox from 'photoswipe/lightbox';
+    const images = Array.from(document.querySelectorAll<HTMLImageElement>('.prose img'));
+    if (images.length === 0) return;
 
-  document.addEventListener('DOMContentLoaded', () => {
+    const createDataSource = () => images.map((img) => ({
+      element: img,
+      // 页面内使用 srcset 小图；PhotoSwipe 使用最大的压缩 WebP，
+      // 不加载原始文件，同时保证放大后仍有足够像素。
+      src: img.getAttribute('src') || img.src,
+      // 在点击瞬间读取，避免懒加载图片初始化时还没有尺寸，
+      // 被默认比例 1600×1067 误导而出现轻微压窄。
+      width: Number(img.getAttribute('width')) || img.naturalWidth || img.clientWidth || 1600,
+      height: Number(img.getAttribute('height')) || img.naturalHeight || img.clientHeight || 1067,
+    }));
+
     const lightbox = new PhotoSwipeLightbox({
-      gallery: '.prose',
-      children: 'img',
-      pswpModule: () => import('photoswipe'),
+      // 静态传入主模块，避免点击时再动态请求 photoswipe.js 失败。
+      pswpModule: () => Promise.resolve(PhotoSwipe),
       tapAction: 'next',
     });
 
-    // 用图片真实像素尺寸做缩放动画；点击时页面里已渲染，直接读取实际尺寸
-    lightbox.addFilter('itemData', (itemData) => {
-      const el = itemData.element;
-      if (el instanceof HTMLImageElement) {
-        itemData.src = el.currentSrc || el.src;
-        itemData.width = el.naturalWidth || 1600;
-        itemData.height = el.naturalHeight || 1067;
-      }
-      return itemData;
-    });
-
     lightbox.init();
-  });
+
+    // 明确绑定正文图片点击，避免 Astro 开发模式下 PhotoSwipe 的
+    // delegated click listener 因脚本加载时序失效。
+    images.forEach((img, index) => {
+      img.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        lightbox.loadAndOpen(index, createDataSource());
+      });
+    });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMediaGalleries, { once: true });
+  } else {
+    initMediaGalleries();
+  }
 </script>
 
 <style is:global>
@@ -97,34 +121,185 @@ import 'photoswipe/style.css';
 
     布局模型：构建期 remark 插件已把本轮播最“瘦”图的比例内联为容器的
     aspect-ratio，浏览器首帧即知容器尺寸。所有 <img> 绝对定位叠放在固定
-    画布内、宽度撑满、底部对齐，切换只改 opacity —— 页面其他部分零参与，
-    无 CLS；矮图上方留白区域背景透明，露出页面底色（#f8f7f4），无灰边。
+    画布内、宽度撑满、底部对齐，切换瞬时完成 —— 页面其他部分零参与，
+    无 CLS；矮图上方留白区域背景透明，露出页面底色（#f8f7f4）。
   */
-  .gallery-slider {
+  .gallery-frame {
     position: relative;
     width: 100%;
     margin: 3.5rem 0;
+    overflow: hidden;
+    border-radius: var(--radius-md, 0.75rem);
+  }
+  .gallery-frame.has-title::after {
+    content: '';
+    position: absolute;
+    z-index: 2;
+    inset: 0 0 auto;
+    height: 32%;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgb(0 0 0 / 58%), transparent);
+  }
+  .gallery-slider,
+  .gallery-wall {
+    background: #f5f5f4;
+  }
+  .dark .gallery-slider,
+  .dark .gallery-wall {
+    background: #111;
+  }
+  .gallery-slider {
     cursor: pointer;
     /* 兜底比例：构建期读不到图比例（如外链图）时使用，正常被内联 style 覆盖 */
     aspect-ratio: 16 / 9;
-    background: transparent;
   }
-  .gallery-slider img {
+  .prose .gallery-slider img {
     position: absolute;
     left: 0;
-    bottom: 0;              /* 底部对齐：矮图贴底，留白统一在上方 */
+    bottom: 0;
     width: 100%;
     height: auto;
-    margin: 0;              /* 覆盖 .prose img 的 3.5rem 上下边距 */
-    background: transparent; /* 覆盖 .prose img 的 #f0efec，留白与页面同色 */
-    border-radius: 0;
+    margin: 0 !important;   /* 覆盖全站正文图片的上下边距 */
+    background: transparent;
+    border-radius: inherit;
+    border: 0 !important;
     opacity: 0;
+    pointer-events: none;
   }
   .gallery-slider img.is-active {
     opacity: 1;
+    pointer-events: auto;
   }
   .gallery-empty {
     color: var(--c-mid);
     font-style: italic;
   }
+
+  .gallery-wall {
+    aspect-ratio: 16 / 9;
+  }
+  .gallery-title {
+    position: absolute;
+    z-index: 3;
+    top: clamp(.75rem, 2.5vw, 1.5rem);
+    left: clamp(.75rem, 2.5vw, 1.5rem);
+    max-width: calc(100% - 3rem);
+    color: #fff;
+    font-size: clamp(1.1rem, 3vw, 2rem);
+    font-weight: 650;
+    line-height: 1.1;
+    text-shadow: 0 1px 12px rgb(0 0 0 / 45%);
+    pointer-events: none;
+  }
+  .gallery-canvas {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    gap: clamp(.15rem, .45vw, .35rem);
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-template-rows: repeat(8, minmax(0, 1fr));
+  }
+  .gallery-item {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    margin: 0 !important;
+    overflow: hidden;
+    border-radius: clamp(.35rem, 1vw, .75rem);
+    cursor: zoom-in;
+  }
+  .gallery-item img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    margin: 0 !important;
+    object-fit: cover;
+    border: 0 !important;
+    border-radius: inherit;
+  }
+  .gallery-more {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    background: rgb(0 0 0 / 45%);
+    font-size: clamp(1.5rem, 5vw, 4rem);
+    font-weight: 700;
+    pointer-events: none;
+  }
+  .gallery-overflow { display: none; }
+
+  /* iPhone：左侧主图，右侧六张接近方形的小图。 */
+  .gallery-iphone .gallery-item:nth-child(1) { grid-area: 1 / 1 / 9 / 9; }
+  .gallery-iphone .gallery-item:nth-child(2) { grid-area: 1 / 9 / 4 / 11; }
+  .gallery-iphone .gallery-item:nth-child(3) { grid-area: 1 / 11 / 4 / 13; }
+  .gallery-iphone .gallery-item:nth-child(4) { grid-area: 4 / 9 / 7 / 11; }
+  .gallery-iphone .gallery-item:nth-child(5) { grid-area: 4 / 11 / 7 / 13; }
+  .gallery-iphone .gallery-item:nth-child(6) { grid-area: 7 / 9 / 9 / 11; }
+  .gallery-iphone .gallery-item:nth-child(7) { grid-area: 7 / 11 / 9 / 13; }
+  .gallery-iphone[data-count='1'] .gallery-item:nth-child(1) { grid-area: 1 / 1 / 9 / 13; }
+  .gallery-iphone[data-count='2'] .gallery-item:nth-child(2) { grid-area: 1 / 9 / 9 / 13; }
+  .gallery-iphone[data-count='3'] .gallery-item:nth-child(2) { grid-area: 1 / 9 / 5 / 13; }
+  .gallery-iphone[data-count='3'] .gallery-item:nth-child(3) { grid-area: 5 / 9 / 9 / 13; }
+  .gallery-iphone[data-count='4'] .gallery-item:nth-child(2) { grid-area: 1 / 9 / 4 / 13; }
+  .gallery-iphone[data-count='4'] .gallery-item:nth-child(3) { grid-area: 4 / 9 / 7 / 13; }
+  .gallery-iphone[data-count='4'] .gallery-item:nth-child(4) { grid-area: 7 / 9 / 9 / 13; }
+  .gallery-iphone[data-count='5'] .gallery-item:nth-child(2) { grid-area: 1 / 9 / 5 / 11; }
+  .gallery-iphone[data-count='5'] .gallery-item:nth-child(3) { grid-area: 1 / 11 / 5 / 13; }
+  .gallery-iphone[data-count='5'] .gallery-item:nth-child(4) { grid-area: 5 / 9 / 9 / 11; }
+  .gallery-iphone[data-count='5'] .gallery-item:nth-child(5) { grid-area: 5 / 11 / 9 / 13; }
+  .gallery-iphone[data-count='6'] .gallery-item:nth-child(6) { grid-area: 7 / 9 / 9 / 13; }
+
+  /* ArchDaily：上方主图，下方六张接近方形的缩略图。 */
+  .gallery-archdaily .gallery-item:nth-child(1) { grid-area: 1 / 1 / 6 / 13; }
+  .gallery-archdaily .gallery-item:nth-child(2) { grid-area: 6 / 1 / 9 / 3; }
+  .gallery-archdaily .gallery-item:nth-child(3) { grid-area: 6 / 3 / 9 / 5; }
+  .gallery-archdaily .gallery-item:nth-child(4) { grid-area: 6 / 5 / 9 / 7; }
+  .gallery-archdaily .gallery-item:nth-child(5) { grid-area: 6 / 7 / 9 / 9; }
+  .gallery-archdaily .gallery-item:nth-child(6) { grid-area: 6 / 9 / 9 / 11; }
+  .gallery-archdaily .gallery-item:nth-child(7) { grid-area: 6 / 11 / 9 / 13; }
+  .gallery-archdaily[data-count='1'] .gallery-item:nth-child(1) { grid-area: 1 / 1 / 9 / 13; }
+  .gallery-archdaily[data-count='2'] .gallery-item:nth-child(1),
+  .gallery-archdaily[data-count='3'] .gallery-item:nth-child(1),
+  .gallery-archdaily[data-count='4'] .gallery-item:nth-child(1) { grid-area: 1 / 1 / 7 / 13; }
+  .gallery-archdaily[data-count='2'] .gallery-item:nth-child(2) { grid-area: 7 / 1 / 9 / 13; }
+  .gallery-archdaily[data-count='3'] .gallery-item:nth-child(2) { grid-area: 7 / 1 / 9 / 7; }
+  .gallery-archdaily[data-count='3'] .gallery-item:nth-child(3) { grid-area: 7 / 7 / 9 / 13; }
+  .gallery-archdaily[data-count='4'] .gallery-item:nth-child(2) { grid-area: 7 / 1 / 9 / 5; }
+  .gallery-archdaily[data-count='4'] .gallery-item:nth-child(3) { grid-area: 7 / 5 / 9 / 9; }
+  .gallery-archdaily[data-count='4'] .gallery-item:nth-child(4) { grid-area: 7 / 9 / 9 / 13; }
+
+  /* Grid：同一画幅内的规则网格；1–6 张都会自动填满。 */
+  .gallery-grid > .gallery-canvas { grid-auto-flow: row dense; }
+  .gallery-grid .gallery-item { grid-column: span 4; grid-row: span 4; }
+  .gallery-grid .gallery-item:only-child { grid-area: 1 / 1 / 9 / 13; }
+  .gallery-grid[data-count='2'] .gallery-item { grid-column: span 6; grid-row: span 8; }
+  .gallery-grid[data-count='3'] .gallery-item { grid-column: span 4; grid-row: span 8; }
+  .gallery-grid[data-count='4'] .gallery-item { grid-column: span 6; grid-row: span 4; }
+  .gallery-grid[data-count='5'] .gallery-item:nth-child(n + 4) { grid-column: span 6; }
+
+  /* Photo wall：不规则拼贴，但仍完全收在统一的 16:9 画幅内。 */
+  .gallery-photo-wall .gallery-item:nth-child(1) { grid-area: 1 / 1 / 5 / 5; }
+  .gallery-photo-wall .gallery-item:nth-child(2) { grid-area: 5 / 1 / 9 / 5; }
+  .gallery-photo-wall .gallery-item:nth-child(3) { grid-area: 1 / 5 / 6 / 13; }
+  .gallery-photo-wall .gallery-item:nth-child(4) { grid-area: 6 / 5 / 9 / 7; }
+  .gallery-photo-wall .gallery-item:nth-child(5) { grid-area: 6 / 7 / 9 / 9; }
+  .gallery-photo-wall .gallery-item:nth-child(6) { grid-area: 6 / 9 / 9 / 11; }
+  .gallery-photo-wall .gallery-item:nth-child(7) { grid-area: 6 / 11 / 9 / 13; }
+  .gallery-photo-wall[data-count='1'] .gallery-item:nth-child(1) { grid-area: 1 / 1 / 9 / 13; }
+  .gallery-photo-wall[data-count='2'] .gallery-item:nth-child(1) { grid-area: 1 / 1 / 9 / 7; }
+  .gallery-photo-wall[data-count='2'] .gallery-item:nth-child(2) { grid-area: 1 / 7 / 9 / 13; }
+  .gallery-photo-wall[data-count='3'] .gallery-item:nth-child(1) { grid-area: 1 / 1 / 9 / 8; }
+  .gallery-photo-wall[data-count='3'] .gallery-item:nth-child(2) { grid-area: 1 / 8 / 5 / 13; }
+  .gallery-photo-wall[data-count='3'] .gallery-item:nth-child(3) { grid-area: 5 / 8 / 9 / 13; }
+  .gallery-photo-wall[data-count='4'] .gallery-item:nth-child(1) { grid-area: 1 / 1 / 9 / 8; }
+  .gallery-photo-wall[data-count='4'] .gallery-item:nth-child(2) { grid-area: 1 / 8 / 4 / 13; }
+  .gallery-photo-wall[data-count='4'] .gallery-item:nth-child(3) { grid-area: 4 / 8 / 7 / 13; }
+  .gallery-photo-wall[data-count='4'] .gallery-item:nth-child(4) { grid-area: 7 / 8 / 9 / 13; }
+  .gallery-photo-wall[data-count='5'] .gallery-item:nth-child(4) { grid-area: 6 / 5 / 9 / 9; }
+  .gallery-photo-wall[data-count='5'] .gallery-item:nth-child(5) { grid-area: 6 / 9 / 9 / 13; }
+  .gallery-photo-wall[data-count='6'] .gallery-item:nth-child(4) { grid-area: 6 / 5 / 9 / 8; }
+  .gallery-photo-wall[data-count='6'] .gallery-item:nth-child(5) { grid-area: 6 / 8 / 9 / 11; }
+  .gallery-photo-wall[data-count='6'] .gallery-item:nth-child(6) { grid-area: 6 / 11 / 9 / 13; }
 </style>

@@ -3,16 +3,21 @@ import {
   existsSync,
   mkdirSync,
   readdirSync,
+  mkdtempSync,
+  rmSync,
   statSync,
   unlinkSync,
 } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import os from 'node:os';
 import sharp from 'sharp';
 
 const contentRoot = fileURLToPath(new URL('../src/content/', import.meta.url));
 const projectsRoot = path.join(contentRoot, 'projects');
 const blogRoot = path.join(contentRoot, 'blog');
+const attachmentRoot = path.join(contentRoot, 'attachment');
 const publicRoot = fileURLToPath(new URL('../public/project-images/', import.meta.url));
 
 // Each compressible image gets re-encoded at every one of these widths
@@ -26,7 +31,7 @@ const WEBP_QUALITY = 78;
 // so a small amount of job-level parallelism keeps cores busy without thrashing.
 const CONCURRENCY = 4;
 
-const COMPRESSIBLE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.tiff', '.avif']);
+const COMPRESSIBLE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.tiff', '.avif', '.heic', '.heif']);
 
 // macOS（及部分同步工具）会在真实文件旁生成 AppleDouble 元数据（"._filename"）
 // 与 .DS_Store；Windows 会生成 Thumbs.db 缩略图缓存。它们都不是图片：
@@ -74,6 +79,7 @@ async function processImageSet(imagesSrc, imagesDest, label) {
   );
 
   const jobs = []; // { srcPath, destPath, width }
+  const tempDirs = [];
 
   for (const file of files) {
     const ext = path.extname(file.name).toLowerCase();
@@ -104,10 +110,35 @@ async function processImageSet(imagesSrc, imagesDest, label) {
 
     sourceImageCount++;
     const base = file.name.slice(0, -ext.length);
+    let processPath = srcPath;
+
+    // Safari can display HEIC, but Chrome and most deployed browsers cannot.
+    // On macOS, use the system decoder first, then let sharp create the same
+    // responsive WebP variants as it does for PNG/JPEG sources.
+    if (ext === '.heic' || ext === '.heif') {
+      if (process.platform !== 'darwin') {
+        console.warn(`[sync-project-images] HEIC requires macOS sips: ${file.name}`);
+        continue;
+      }
+      const tempDir = mkdtempSync(path.join(os.tmpdir(), 'openlink-heic-'));
+      tempDirs.push(tempDir);
+      processPath = path.join(tempDir, `${base}.jpg`);
+      try {
+        execFileSync('sips', [
+          '-s', 'format', 'jpeg',
+          '-s', 'formatOptions', '90',
+          srcPath,
+          '--out', processPath,
+        ], { stdio: 'ignore' });
+      } catch (err) {
+        console.warn(`[sync-project-images] failed to decode ${file.name}: ${err.message}`);
+        continue;
+      }
+    }
 
     let originalWidth;
     try {
-      const metadata = await sharp(srcPath, SHARP_OPTIONS).metadata();
+      const metadata = await sharp(processPath, SHARP_OPTIONS).metadata();
       originalWidth = metadata.width || RESPONSIVE_WIDTHS[RESPONSIVE_WIDTHS.length - 1];
     } catch (err) {
       console.error(
@@ -136,11 +167,11 @@ async function processImageSet(imagesSrc, imagesDest, label) {
     for (const width of widthsToGenerate) {
       const destPath = path.join(imagesDest, `${base}-${width}w.webp`);
       globalExpected.add(path.relative(publicRoot, destPath));
-      if (existsSync(destPath) && statSync(destPath).mtimeMs >= srcMtime) {
+      if (ext !== '.heic' && ext !== '.heif' && existsSync(destPath) && statSync(destPath).mtimeMs >= srcMtime) {
         skippedVariantCount++;
         continue;
       }
-      jobs.push({ srcPath, destPath, width });
+      jobs.push({ srcPath: processPath, destPath, width });
     }
   }
 
@@ -161,6 +192,8 @@ async function processImageSet(imagesSrc, imagesDest, label) {
       passthroughCount++;
     }
   });
+
+  tempDirs.forEach((dir) => rmSync(dir, { recursive: true, force: true }));
 
   console.log(`[sync-project-images] ${label} -> public/project-images/`);
 }
@@ -195,35 +228,38 @@ async function runWithConcurrency(items, concurrency, worker) {
   await Promise.all(Array.from({ length: limit }, () => next()));
 }
 
+function markdownFiles(dir) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return markdownFiles(full);
+    return /\.md$/i.test(entry.name) ? [full] : [];
+  });
+}
+
+function publicArticleDir(notePath) {
+  const relativeProject = path.relative(projectsRoot, path.dirname(notePath));
+  if (!relativeProject.startsWith('..') && !path.isAbsolute(relativeProject)) {
+    return relativeProject || path.basename(notePath, path.extname(notePath));
+  }
+  const relativeBlog = path.relative(blogRoot, path.dirname(notePath));
+  const parts = relativeBlog.split(path.sep);
+  if (parts[0] === 'public' || parts[0] === 'draft') parts.shift();
+  return parts.length > 0 ? parts.join(path.sep) : path.basename(notePath, path.extname(notePath));
+}
+
 if (!existsSync(publicRoot)) {
   mkdirSync(publicRoot, { recursive: true });
 }
 
-const projectDirs = readdirSync(projectsRoot, { withFileTypes: true }).filter(
-  (entry) => entry.isDirectory() && !entry.name.startsWith('.')
-);
-
-for (const dir of projectDirs) {
-  const imagesSrc = path.join(projectsRoot, dir.name, 'images');
-  const imagesDest = path.join(publicRoot, dir.name, 'images');
-  await processImageSet(imagesSrc, imagesDest, `${dir.name}/images`);
+// All article media is sourced from content/attachment/<Markdown file name>/.
+// Keep public destinations stable so existing page URLs and PhotoSwipe work.
+for (const notePath of [...markdownFiles(projectsRoot), ...markdownFiles(blogRoot)]) {
+  const attachmentDir = path.join(attachmentRoot, path.basename(notePath, '.md'));
+  const articleDir = publicArticleDir(notePath);
+  if (!articleDir || articleDir.startsWith('..')) continue;
+  await processImageSet(attachmentDir, path.join(publicRoot, articleDir, 'images'), `attachment/${path.basename(attachmentDir)}`);
 }
-
-// Blog 文章：public/ 与 draft/ 下每个文章目录的 images/ 各自同步
-// 到 public/project-images/<文章slug>/images（对应 remark 插件的 slug 解析）。
-// 历史共享目录 src/content/blog/images → public/project-images/images 保留兼容。
-for (const sub of ['public', 'draft']) {
-  const base = path.join(blogRoot, sub);
-  if (!existsSync(base)) continue;
-  for (const dir of readdirSync(base, { withFileTypes: true }).filter(
-    (entry) => entry.isDirectory() && !entry.name.startsWith('.')
-  )) {
-    const imagesSrc = path.join(base, dir.name, 'images');
-    const imagesDest = path.join(publicRoot, dir.name, 'images');
-    await processImageSet(imagesSrc, imagesDest, `blog/${sub}/${dir.name}/images`);
-  }
-}
-await processImageSet(path.join(blogRoot, 'images'), path.join(publicRoot, 'images'), 'blog/images');
 
 // Remove outputs whose source no longer exists (keeps the build dir tidy).
 for (const rel of listFiles(publicRoot)) {

@@ -13,6 +13,7 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { newestFirst } from '../lib/dates';
+import { articleDate, articleTitle } from '../lib/articleMeta';
 
 const allPosts = await getCollection('blog');
 // 线上（build）只展示 public 文章；本地 dev 全部显示，方便自己查看。
@@ -46,13 +47,15 @@ function idToSlug(id: string): string {
       <!-- ── Article list (homepage-style rows) ─────────── -->
       <ul class="post-list">
         {posts.map((post) => {
-          const slug = idToSlug(post.id);
+          const slug = post.data.slug || idToSlug(post.id);
+          const postTitle = post.data.name || articleTitle(post.id, post.data.title);
+          const postDate = articleDate(post.data.date, post.filePath);
           return (
             <li class="post-item" data-category={post.data.category.join(',')}>
               <a href={`/blog/${slug}`}>
                 <span class="post-cat">{post.data.category.join(' / ')}</span>
-                <span class="post-title">{post.data.name || post.data.title}</span>
-                {post.data.date && <span class="post-year">{post.data.date}</span>}
+                <span class="post-title">{postTitle}</span>
+                {postDate && <span class="post-year">{postDate}</span>}
               </a>
             </li>
           );
