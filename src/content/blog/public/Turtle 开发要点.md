@@ -2,7 +2,7 @@
 title: Turtle 开发要点
 titleEn: Turtle Plugin Development Guide
 date: 2026-09-22
-update: 2026-10-19
+update: 2026-10-24
 description: Turtle Rhino 8 插件开发：openLink工作室的完全工作流，插件骨架、命令与 Python 脚本的路径机制、Grasshopper 工具集（视觉合并方案）、ghuser 集成与版本校验、资源归类原则与文件添加规范、常用工具脚本（材质/立面/script）。
 author:
   - zhenliu

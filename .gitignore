@@ -37,3 +37,12 @@ desktop.ini
 **/.obsidian/workspace-mobile.json
 
 public/project-images/
+
+# Original image archive: sync to NAS, never publish or commit.
+src/content/_originals/
+# Machine-specific Node path and plugin preferences.
+src/content/.obsidian/plugins/local-image-library/data.json
+
+# Local state and original archives: never commit.
+.env.*
+!.env.example

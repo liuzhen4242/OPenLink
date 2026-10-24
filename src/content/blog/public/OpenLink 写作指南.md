@@ -2,7 +2,7 @@
 title: OpenLink 写作指南
 titleEn: OpenLink Blog Writing Guide
 date: 2026-09-12
-update: 2026-10-19
+update: 2026-10-24
 description: OpenLink 博客写作速查模板：frontmatter、文件夹结构、注释、gallery 轮播、视频嵌入、文章互链。所有元素都是本站真实支持的能力，照着写即可。本文会随网页优化持续更新。
 author:
   - zhenliu
