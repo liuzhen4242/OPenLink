@@ -1,0 +1,503 @@
+
+  .gallery-preview .gallery-frame { position: relative; width: 100%; margin: 3.5rem 0; overflow: hidden; border-radius: .75rem; }
+  .gallery-preview .gallery-frame.has-title::after { content: ''; position: absolute; z-index: 2; inset: 0 0 auto; height: 32%; pointer-events: none; background: linear-gradient(to bottom, rgb(0 0 0 / 58%), transparent); }
+  .gallery-preview .gallery-slider, .gallery-preview .gallery-wall { aspect-ratio: 16 / 9; background: #f5f5f4; }
+  .theme-dark .gallery-preview .gallery-slider, .theme-dark .gallery-preview .gallery-wall { background: #111; }
+  .gallery-preview .gallery-slider { cursor: pointer; }
+  .gallery-preview .gallery-frame.gallery-slider img { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0 !important; object-fit: cover; border: 0 !important; border-radius: inherit; opacity: 0; pointer-events: none; }
+  .gallery-preview .gallery-frame.gallery-slider img.is-active { opacity: 1; pointer-events: auto; }
+  .gallery-preview .gallery-title { position: absolute; z-index: 3; top: clamp(.75rem, 2.5vw, 1.5rem); left: clamp(.75rem, 2.5vw, 1.5rem); max-width: calc(100% - 3rem); color: #fff; font-size: clamp(1.1rem, 3vw, 2rem); font-weight: 650; line-height: 1.1; text-shadow: 0 1px 12px rgb(0 0 0 / 45%); pointer-events: none; }
+  .gallery-preview .gallery-canvas { display: grid; width: 100%; height: 100%; gap: clamp(.15rem, .45vw, .35rem); grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: repeat(8, minmax(0, 1fr)); }
+  .gallery-preview .gallery-item { position: relative; min-width: 0; min-height: 0; margin: 0 !important; overflow: hidden; border-radius: clamp(.35rem, 1vw, .75rem); cursor: zoom-in; }
+  .gallery-preview .gallery-frame .gallery-item img { display: block; width: 100%; height: 100%; margin: 0 !important; object-fit: cover; border: 0 !important; border-radius: inherit; }
+  .gallery-preview .gallery-more { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgb(0 0 0 / 45%); font-size: clamp(1.5rem, 5vw, 4rem); font-weight: 700; pointer-events: none; }
+  .gallery-preview .gallery-overflow { display: none; }
+  .gallery-preview .gallery-iphone .gallery-item:nth-child(1) { grid-area: 1 / 1 / 9 / 9; }
+  .gallery-preview .gallery-iphone .gallery-item:nth-child(2) { grid-area: 1 / 9 / 4 / 11; }
+  .gallery-preview .gallery-iphone .gallery-item:nth-child(3) { grid-area: 1 / 11 / 4 / 13; }
+  .gallery-preview .gallery-iphone .gallery-item:nth-child(4) { grid-area: 4 / 9 / 7 / 11; }
+  .gallery-preview .gallery-iphone .gallery-item:nth-child(5) { grid-area: 4 / 11 / 7 / 13; }
+  .gallery-preview .gallery-iphone .gallery-item:nth-child(6) { grid-area: 7 / 9 / 9 / 11; }
+  .gallery-preview .gallery-iphone .gallery-item:nth-child(7) { grid-area: 7 / 11 / 9 / 13; }
+  .gallery-preview .gallery-iphone[data-count='1'] .gallery-item:nth-child(1) { grid-area: 1 / 1 / 9 / 13; }
+  .gallery-preview .gallery-iphone[data-count='2'] .gallery-item:nth-child(2) { grid-area: 1 / 9 / 9 / 13; }
+  .gallery-preview .gallery-iphone[data-count='3'] .gallery-item:nth-child(2) { grid-area: 1 / 9 / 5 / 13; }
+  .gallery-preview .gallery-iphone[data-count='3'] .gallery-item:nth-child(3) { grid-area: 5 / 9 / 9 / 13; }
+  .gallery-preview .gallery-iphone[data-count='4'] .gallery-item:nth-child(2) { grid-area: 1 / 9 / 4 / 13; }
+  .gallery-preview .gallery-iphone[data-count='4'] .gallery-item:nth-child(3) { grid-area: 4 / 9 / 7 / 13; }
+  .gallery-preview .gallery-iphone[data-count='4'] .gallery-item:nth-child(4) { grid-area: 7 / 9 / 9 / 13; }
+  .gallery-preview .gallery-iphone[data-count='5'] .gallery-item:nth-child(2) { grid-area: 1 / 9 / 5 / 11; }
+  .gallery-preview .gallery-iphone[data-count='5'] .gallery-item:nth-child(3) { grid-area: 1 / 11 / 5 / 13; }
+  .gallery-preview .gallery-iphone[data-count='5'] .gallery-item:nth-child(4) { grid-area: 5 / 9 / 9 / 11; }
+  .gallery-preview .gallery-iphone[data-count='5'] .gallery-item:nth-child(5) { grid-area: 5 / 11 / 9 / 13; }
+  .gallery-preview .gallery-iphone[data-count='6'] .gallery-item:nth-child(6) { grid-area: 7 / 9 / 9 / 13; }
+  .gallery-preview .gallery-archdaily .gallery-item:nth-child(1) { grid-area: 1 / 1 / 6 / 13; }
+  .gallery-preview .gallery-archdaily .gallery-item:nth-child(2) { grid-area: 6 / 1 / 9 / 3; }
+  .gallery-preview .gallery-archdaily .gallery-item:nth-child(3) { grid-area: 6 / 3 / 9 / 5; }
+  .gallery-preview .gallery-archdaily .gallery-item:nth-child(4) { grid-area: 6 / 5 / 9 / 7; }
+  .gallery-preview .gallery-archdaily .gallery-item:nth-child(5) { grid-area: 6 / 7 / 9 / 9; }
+  .gallery-preview .gallery-archdaily .gallery-item:nth-child(6) { grid-area: 6 / 9 / 9 / 11; }
+  .gallery-preview .gallery-archdaily .gallery-item:nth-child(7) { grid-area: 6 / 11 / 9 / 13; }
+  .gallery-preview .gallery-archdaily[data-count='1'] .gallery-item:nth-child(1) { grid-area: 1 / 1 / 9 / 13; }
+  .gallery-preview .gallery-archdaily[data-count='2'] .gallery-item:nth-child(1), .gallery-preview .gallery-archdaily[data-count='3'] .gallery-item:nth-child(1), .gallery-preview .gallery-archdaily[data-count='4'] .gallery-item:nth-child(1) { grid-area: 1 / 1 / 7 / 13; }
+  .gallery-preview .gallery-archdaily[data-count='2'] .gallery-item:nth-child(2) { grid-area: 7 / 1 / 9 / 13; }
+  .gallery-preview .gallery-archdaily[data-count='3'] .gallery-item:nth-child(2) { grid-area: 7 / 1 / 9 / 7; }
+  .gallery-preview .gallery-archdaily[data-count='3'] .gallery-item:nth-child(3) { grid-area: 7 / 7 / 9 / 13; }
+  .gallery-preview .gallery-archdaily[data-count='4'] .gallery-item:nth-child(2) { grid-area: 7 / 1 / 9 / 5; }
+  .gallery-preview .gallery-archdaily[data-count='4'] .gallery-item:nth-child(3) { grid-area: 7 / 5 / 9 / 9; }
+  .gallery-preview .gallery-archdaily[data-count='4'] .gallery-item:nth-child(4) { grid-area: 7 / 9 / 9 / 13; }
+  .gallery-preview .gallery-grid > .gallery-canvas { grid-auto-flow: row dense; }
+  .gallery-preview .gallery-grid .gallery-item { grid-column: span 4; grid-row: span 4; }
+  .gallery-preview .gallery-grid .gallery-item:only-child { grid-area: 1 / 1 / 9 / 13; }
+  .gallery-preview .gallery-grid[data-count='2'] .gallery-item { grid-column: span 6; grid-row: span 8; }
+  .gallery-preview .gallery-grid[data-count='3'] .gallery-item { grid-column: span 4; grid-row: span 8; }
+  .gallery-preview .gallery-grid[data-count='4'] .gallery-item { grid-column: span 6; grid-row: span 4; }
+  .gallery-preview .gallery-grid[data-count='5'] .gallery-item:nth-child(n + 4) { grid-column: span 6; }
+  .gallery-preview .gallery-photo-wall .gallery-item:nth-child(1) { grid-area: 1 / 1 / 5 / 5; }
+  .gallery-preview .gallery-photo-wall .gallery-item:nth-child(2) { grid-area: 5 / 1 / 9 / 5; }
+  .gallery-preview .gallery-photo-wall .gallery-item:nth-child(3) { grid-area: 1 / 5 / 6 / 13; }
+  .gallery-preview .gallery-photo-wall .gallery-item:nth-child(4) { grid-area: 6 / 5 / 9 / 7; }
+  .gallery-preview .gallery-photo-wall .gallery-item:nth-child(5) { grid-area: 6 / 7 / 9 / 9; }
+  .gallery-preview .gallery-photo-wall .gallery-item:nth-child(6) { grid-area: 6 / 9 / 9 / 11; }
+  .gallery-preview .gallery-photo-wall .gallery-item:nth-child(7) { grid-area: 6 / 11 / 9 / 13; }
+  .gallery-preview .gallery-photo-wall[data-count='1'] .gallery-item:nth-child(1) { grid-area: 1 / 1 / 9 / 13; }
+  .gallery-preview .gallery-photo-wall[data-count='2'] .gallery-item:nth-child(1) { grid-area: 1 / 1 / 9 / 7; }
+  .gallery-preview .gallery-photo-wall[data-count='2'] .gallery-item:nth-child(2) { grid-area: 1 / 7 / 9 / 13; }
+  .gallery-preview .gallery-photo-wall[data-count='3'] .gallery-item:nth-child(1) { grid-area: 1 / 1 / 9 / 8; }
+  .gallery-preview .gallery-photo-wall[data-count='3'] .gallery-item:nth-child(2) { grid-area: 1 / 8 / 5 / 13; }
+  .gallery-preview .gallery-photo-wall[data-count='3'] .gallery-item:nth-child(3) { grid-area: 5 / 8 / 9 / 13; }
+  .gallery-preview .gallery-photo-wall[data-count='4'] .gallery-item:nth-child(1) { grid-area: 1 / 1 / 9 / 8; }
+  .gallery-preview .gallery-photo-wall[data-count='4'] .gallery-item:nth-child(2) { grid-area: 1 / 8 / 4 / 13; }
+  .gallery-preview .gallery-photo-wall[data-count='4'] .gallery-item:nth-child(3) { grid-area: 4 / 8 / 7 / 13; }
+  .gallery-preview .gallery-photo-wall[data-count='4'] .gallery-item:nth-child(4) { grid-area: 7 / 8 / 9 / 13; }
+  .gallery-preview .gallery-photo-wall[data-count='5'] .gallery-item:nth-child(4) { grid-area: 6 / 5 / 9 / 9; }
+  .gallery-preview .gallery-photo-wall[data-count='5'] .gallery-item:nth-child(5) { grid-area: 6 / 9 / 9 / 13; }
+  .gallery-preview .gallery-photo-wall[data-count='6'] .gallery-item:nth-child(4) { grid-area: 6 / 5 / 9 / 8; }
+  .gallery-preview .gallery-photo-wall[data-count='6'] .gallery-item:nth-child(5) { grid-area: 6 / 8 / 9 / 11; }
+  .gallery-preview .gallery-photo-wall[data-count='6'] .gallery-item:nth-child(6) { grid-area: 6 / 11 / 9 / 13; }
+
+
+.gallery-preview .gallery-frame { margin: .75rem 0; }
+.theme-dark .gallery-preview .gallery-frame { background: #111; }
+.gallery-preview img { box-shadow: none; transition: none; }
+.pswp.gallery-preview-lightbox { z-index: 10000; }
+/*! PhotoSwipe main CSS by Dmytro Semenov | photoswipe.com */
+
+.pswp.gallery-preview-lightbox {
+  --pswp-bg: #000;
+  --pswp-placeholder-bg: #222;
+  
+
+  --pswp-root-z-index: 100000;
+  
+  --pswp-preloader-color: rgba(79, 79, 79, 0.4);
+  --pswp-preloader-color-secondary: rgba(255, 255, 255, 0.9);
+  
+  /* defined via js:
+  --pswp-transition-duration: 333ms; */
+  
+  --pswp-icon-color: #fff;
+  --pswp-icon-color-secondary: #4f4f4f;
+  --pswp-icon-stroke-color: #4f4f4f;
+  --pswp-icon-stroke-width: 2px;
+
+  --pswp-error-text-color: var(--pswp-icon-color);
+}
+
+
+/*
+	Styles for basic PhotoSwipe (pswp) functionality (sliding area, open/close transitions)
+*/
+
+.pswp.gallery-preview-lightbox {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	z-index: var(--pswp-root-z-index);
+	display: none;
+	touch-action: none;
+	outline: 0;
+	opacity: 0.003;
+	contain: layout style size;
+	-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+
+/* Prevents focus outline on the root element,
+  (it may be focused initially) */
+.pswp.gallery-preview-lightbox:focus {
+  outline: 0;
+}
+
+.pswp.gallery-preview-lightbox * {
+  box-sizing: border-box;
+}
+
+.pswp.gallery-preview-lightbox img {
+  max-width: none;
+}
+
+.pswp--open {
+	display: block;
+}
+
+.pswp,
+.pswp__bg {
+	transform: translateZ(0);
+	will-change: opacity;
+}
+
+.pswp__bg {
+  opacity: 0.005;
+	background: var(--pswp-bg);
+}
+
+.pswp,
+.pswp__scroll-wrap {
+	overflow: hidden;
+}
+
+.pswp__scroll-wrap,
+.pswp__bg,
+.pswp__container,
+.pswp__item,
+.pswp__content,
+.pswp__img,
+.pswp__zoom-wrap {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.pswp__img,
+.pswp__zoom-wrap {
+	width: auto;
+	height: auto;
+}
+
+.pswp--click-to-zoom.pswp--zoom-allowed .pswp__img {
+	cursor: -webkit-zoom-in;
+	cursor: -moz-zoom-in;
+	cursor: zoom-in;
+}
+
+.pswp--click-to-zoom.pswp--zoomed-in .pswp__img {
+	cursor: move;
+	cursor: -webkit-grab;
+	cursor: -moz-grab;
+	cursor: grab;
+}
+
+.pswp--click-to-zoom.pswp--zoomed-in .pswp__img:active {
+  cursor: -webkit-grabbing;
+  cursor: -moz-grabbing;
+  cursor: grabbing;
+}
+
+/* :active to override grabbing cursor */
+.pswp--no-mouse-drag.pswp--zoomed-in .pswp__img,
+.pswp--no-mouse-drag.pswp--zoomed-in .pswp__img:active,
+.pswp__img {
+	cursor: -webkit-zoom-out;
+	cursor: -moz-zoom-out;
+	cursor: zoom-out;
+}
+
+
+/* Prevent selection and tap highlights */
+.pswp__container,
+.pswp__img,
+.pswp__button,
+.pswp__counter {
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+
+.pswp__item {
+	/* z-index for fade transition */
+	z-index: 1;
+	overflow: hidden;
+}
+
+.pswp__hidden {
+	display: none !important;
+}
+
+/* Allow to click through pswp__content element, but not its children */
+.pswp__content {
+  pointer-events: none;
+}
+.pswp__content > * {
+  pointer-events: auto;
+}
+
+
+/*
+
+  PhotoSwipe UI
+
+*/
+
+/*
+	Error message appears when image is not loaded
+	(JS option errorMsg controls markup)
+*/
+.pswp__error-msg-container {
+  display: grid;
+}
+.pswp__error-msg {
+	margin: auto;
+	font-size: 1em;
+	line-height: 1;
+	color: var(--pswp-error-text-color);
+}
+
+/*
+class pswp__hide-on-close is applied to elements that
+should hide (for example fade out) when PhotoSwipe is closed
+and show (for example fade in) when PhotoSwipe is opened
+ */
+.pswp.gallery-preview-lightbox .pswp__hide-on-close {
+	opacity: 0.005;
+	will-change: opacity;
+	transition: opacity var(--pswp-transition-duration) cubic-bezier(0.4, 0, 0.22, 1);
+	z-index: 10; /* always overlap slide content */
+	pointer-events: none; /* hidden elements should not be clickable */
+}
+
+/* class pswp--ui-visible is added when opening or closing transition starts */
+.pswp--ui-visible .pswp__hide-on-close {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+/* <button> styles, including css reset */
+.pswp__button {
+	position: relative;
+	display: block;
+	width: 50px;
+	height: 60px;
+	padding: 0;
+	margin: 0;
+	overflow: hidden;
+	cursor: pointer;
+	background: none;
+	border: 0;
+	box-shadow: none;
+	opacity: 0.85;
+	-webkit-appearance: none;
+	-webkit-touch-callout: none;
+}
+
+.pswp__button:hover,
+.pswp__button:active,
+.pswp__button:focus {
+  transition: none;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  opacity: 1;
+}
+
+.pswp__button:disabled {
+  opacity: 0.3;
+  cursor: auto;
+}
+
+.pswp__icn {
+  fill: var(--pswp-icon-color);
+  color: var(--pswp-icon-color-secondary);
+}
+
+.pswp__icn {
+  position: absolute;
+  top: 14px;
+  left: 9px;
+  width: 32px;
+  height: 32px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pswp__icn-shadow {
+  stroke: var(--pswp-icon-stroke-color);
+  stroke-width: var(--pswp-icon-stroke-width);
+  fill: none;
+}
+
+.pswp__icn:focus {
+	outline: 0;
+}
+
+/*
+	div element that matches size of large image,
+	large image loads on top of it,
+	used when msrc is not provided
+*/
+div.pswp__img--placeholder,
+.pswp__img--with-bg {
+	background: var(--pswp-placeholder-bg);
+}
+
+.pswp__top-bar {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 60px;
+	display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+	z-index: 10;
+
+	/* allow events to pass through top bar itself */
+	pointer-events: none !important;
+}
+.pswp__top-bar > * {
+  pointer-events: auto;
+  /* this makes transition significantly more smooth,
+     even though inner elements are not animated */
+  will-change: opacity;
+}
+
+
+/*
+
+  Close button
+
+*/
+.pswp__button--close {
+  margin-right: 6px;
+}
+
+
+/*
+
+  Arrow buttons
+
+*/
+.pswp__button--arrow {
+  position: absolute;
+  top: 0;
+  width: 75px;
+  height: 100px;
+  top: 50%;
+  margin-top: -50px;
+}
+
+.pswp__button--arrow:disabled {
+  display: none;
+  cursor: default;
+}
+
+.pswp__button--arrow .pswp__icn {
+  top: 50%;
+  margin-top: -30px;
+  width: 60px;
+  height: 60px;
+  background: none;
+  border-radius: 0;
+}
+
+.pswp--one-slide .pswp__button--arrow {
+  display: none;
+}
+
+/* hide arrows on touch screens */
+.pswp--touch .pswp__button--arrow {
+  visibility: hidden;
+}
+
+/* show arrows only after mouse was used */
+.pswp--has_mouse .pswp__button--arrow {
+  visibility: visible;
+}
+
+.pswp__button--arrow--prev {
+  right: auto;
+  left: 0px;
+}
+
+.pswp__button--arrow--next {
+  right: 0px;
+}
+.pswp__button--arrow--next .pswp__icn {
+  left: auto;
+  right: 14px;
+  /* flip horizontally */
+  transform: scale(-1, 1);
+}
+
+/*
+
+  Zoom button
+
+*/
+.pswp__button--zoom {
+  display: none;
+}
+
+.pswp--zoom-allowed .pswp__button--zoom {
+  display: block;
+}
+
+/* "+" => "-" */
+.pswp--zoomed-in .pswp__zoom-icn-bar-v {
+  display: none;
+}
+
+
+/*
+
+  Loading indicator
+
+*/
+.pswp__preloader {
+  position: relative;
+  overflow: hidden;
+  width: 50px;
+  height: 60px;
+  margin-right: auto;
+}
+
+.pswp__preloader .pswp__icn {
+  opacity: 0;
+  transition: opacity 0.2s linear;
+  animation: pswp-clockwise 600ms linear infinite;
+}
+
+.pswp__preloader--active .pswp__icn {
+  opacity: 0.85;
+}
+
+@keyframes pswp-clockwise {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+
+/*
+
+  "1 of 10" counter
+
+*/
+.pswp__counter {
+  height: 30px;
+  margin-top: 15px;
+  margin-inline-start: 20px;
+  font-size: 14px;
+  line-height: 30px;
+  color: var(--pswp-icon-color);
+  text-shadow: 1px 1px 3px var(--pswp-icon-color-secondary);
+  opacity: 0.85;
+}
+
+.pswp--one-slide .pswp__counter {
+  display: none;
+}

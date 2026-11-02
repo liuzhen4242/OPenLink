@@ -52,3 +52,6 @@ src/content/.obsidian/plugins/local-image-library/data.json
 .syncthing.*
 **/.stversions/
 .image-library/
+
+# 垃圾插件：坚果云同步（Mac 端已清理，勿再同步回）
+src/content/.obsidian/plugins/nutstore-sync/

@@ -2,7 +2,7 @@
 title: 代理分流实践：让 Codex 在 Clash 与 teclub 之间切换
 titleEn: Proxy Split Routing for Codex
 date: 2026-10-22
-update: 2026-10-24
+update: 2026-11-02
 description: Codex 桌面端与命令行的代理排查与线路切换实录：环境变量大小写优先级、Codex 0.163 不支持 SOCKS、DNS 污染、GUI 用登录 shell 重算环境、Chromium 只认 --proxy-server，以及用 codex-net + 状态文件在 Clash / teclub 之间一键切换。
 author:
   - zhenliu

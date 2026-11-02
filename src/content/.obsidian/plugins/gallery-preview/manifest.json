@@ -1,0 +1,9 @@
+{
+  "id": "gallery-preview",
+  "name": "Gallery Preview",
+  "version": "1.0.0",
+  "minAppVersion": "1.5.0",
+  "description": "Preview gallery blocks with shared website layouts and PhotoSwipe.",
+  "author": "OpenLink",
+  "isDesktopOnly": true
+}
