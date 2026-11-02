@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "policy": "long-edge-2560-jpeg85-webp85-png-lossless-v1",
+  "file": "attachment/海南驿站/微信图片_20231017225601.jpg",
+  "source": "attachment/海南驿站/微信图片_20231017225601.jpg",
+  "original": "_originals/attachment/海南驿站/微信图片_20231017225601.0bf160eebdd4769a.jpg",
+  "originalHash": "0bf160eebdd4769ab1aaef848c1df8bd526be28477b98566a9cc7e8856e487df",
+  "outputHash": "3db11262fb5c0a3d389332208416cdc5b5efe79f171d753c0a33647bd4bbb37e",
+  "before": 6904080,
+  "after": 337338
+}

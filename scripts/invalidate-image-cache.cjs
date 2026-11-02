@@ -30,7 +30,16 @@ const previous = fs.existsSync(marker) ? fs.readFileSync(marker, 'utf8') : '';
 if (previous !== fingerprint) {
   // Astro 7 stores this in cacheDir (node_modules/.astro by default). Also clear
   // the old location left behind by earlier Astro versions.
-  for (const store of [path.join(cacheDir, 'data-store.json'), path.join(root, 'node_modules/.astro/data-store.json')]) {
+  // A build must not unlink the running dev server's content index.
+  let devRunning = false;
+  try {
+    const { pid } = JSON.parse(fs.readFileSync(path.join(cacheDir, 'dev.json'), 'utf8'));
+    process.kill(pid, 0);
+    devRunning = true;
+  } catch (error) { devRunning = error.code === 'EPERM'; }
+  const stores = [path.join(root, 'node_modules/.astro/data-store.json')];
+  if (!devRunning) stores.push(path.join(cacheDir, 'data-store.json'));
+  for (const store of stores) {
     if (fs.existsSync(store)) fs.unlinkSync(store);
   }
   fs.mkdirSync(cacheDir, { recursive: true });

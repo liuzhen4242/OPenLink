@@ -2,7 +2,7 @@
 title: AI 提示词
 titleEn: AI Prompt
 date: 2026-09-12
-update: 2026-11-02
+update: 2026-11-03
 description: AI 提示词模板与写法参考
 author:
   - zhenliu

@@ -54,7 +54,7 @@ function rewriteLinks(text, note, from, to, uniqueBasename = false) {
     const suffix = decoded.match(/[?#].*$/)?.[0] || '';
     const clean = decoded.slice(0, decoded.length - suffix.length || undefined);
     const candidates = [path.posix.normalize(path.posix.join(noteDir, clean)), path.posix.normalize(clean)];
-    if (!clean.includes('/') && path.posix.basename(note, '.md') === path.posix.basename(path.posix.dirname(from))) candidates.push(from);
+    if (clean === basename && path.posix.basename(note, '.md') === path.posix.basename(path.posix.dirname(from))) candidates.push(from);
     if (uniqueBasename && clean === basename) candidates.push(from);
     if (!candidates.includes(from)) return raw;
     let result;
@@ -81,7 +81,7 @@ function rewriteLinks(text, note, from, to, uniqueBasename = false) {
     if (frontmatter && line.trim() === '---') { frontmatter = false; return line; }
     const match = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
     if (match) {
-      if (!fence) { fence = match[1][0]; gallery = /^(gallery|gallery2|photo-wall)\b/i.test(match[2].trim()); }
+      if (!fence) { fence = match[1][0]; gallery = /^(gallery|photo-wall)\b/i.test(match[2].trim()); }
       else if (match[1][0] === fence) { fence = ''; gallery = false; }
       return line;
     }

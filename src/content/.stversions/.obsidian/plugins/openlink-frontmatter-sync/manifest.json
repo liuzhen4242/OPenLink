@@ -1,0 +1,9 @@
+{
+  "id": "openlink-frontmatter-sync",
+  "name": "OpenLink Frontmatter Sync",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "description": "Keeps OpenLink article titles and dates in sync with Obsidian files.",
+  "author": "OpenLink",
+  "isDesktopOnly": false
+}

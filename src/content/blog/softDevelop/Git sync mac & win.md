@@ -2,7 +2,7 @@
 title: Git 同步双系统
 titleEn: Git Sync Across Two Systems
 date: 2026-09-01
-update: 2026-11-02
+update: 2026-11-03
 description: 把 Astro 博客项目用 Git 在 Windows 和 Mac 之间同步：首次推送、克隆、日常提交、拉取、冲突处理与常见问题。
 author:
   - zhenliu

@@ -131,6 +131,11 @@ test('same basename in another article is not rewritten, URI suffixes and HTML s
   assert.ok(result.includes('src="../attachment/文章/IMG.heic.webp"'));
 });
 
+test('image conversion preserves other photos and gallery metadata in the same article', () => {
+  const source = '```gallery\n"海滩"\n"iphone"\ns=2\n![[OTHER.jpg]]\n![[IMG.heic]]\n```';
+  assert.equal(rewriteLinks(source, 'blog/文章.md', 'attachment/文章/IMG.heic', 'attachment/文章/IMG.heic.webp'), source.replace('![[IMG.heic]]', '![[IMG.heic.webp]]'));
+});
+
 test('batch lock prevents overlapping writes and is released even on per-file errors', async (t) => {
   const root = await fixture(t);
   await fs.writeFile(path.join(root, '.git/image-library.lock'), 'another task');

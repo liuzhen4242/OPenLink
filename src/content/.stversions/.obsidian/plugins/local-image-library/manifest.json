@@ -1,0 +1,9 @@
+{
+  "id": "local-image-library",
+  "name": "Local Image Library",
+  "version": "1.0.0",
+  "minAppVersion": "1.5.0",
+  "description": "Archives original attachments locally and compresses website images without changing ordinary links.",
+  "author": "Local tools",
+  "isDesktopOnly": true
+}

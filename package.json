@@ -11,7 +11,8 @@
     "preview": "astro preview",
     "images:check": "node scripts/image-library.cjs",
     "images:prepare": "node scripts/image-library.cjs --apply",
-    "test:images": "node --test scripts/image-library.test.cjs"
+    "test:images": "node --test scripts/image-library.test.cjs",
+    "build:gallery-preview": "node scripts/build-gallery-preview.mjs"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.20",

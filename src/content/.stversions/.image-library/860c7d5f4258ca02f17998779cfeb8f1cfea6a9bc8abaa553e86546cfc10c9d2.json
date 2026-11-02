@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "policy": "long-edge-2560-jpeg85-webp85-png-lossless-v1",
+  "file": "attachment/海南驿站/16.jpg",
+  "source": "attachment/海南驿站/16.jpg",
+  "original": "_originals/attachment/海南驿站/16.1c442922650cc4ae.jpg",
+  "originalHash": "1c442922650cc4aefda633586ccf438be96a00c2c3de803abaf3f5ea66dd74a0",
+  "outputHash": "d0514f88375e480b876fae01f7cccc216cbf6147400da52d985a09463ef85ba8",
+  "before": 9545518,
+  "after": 254683
+}

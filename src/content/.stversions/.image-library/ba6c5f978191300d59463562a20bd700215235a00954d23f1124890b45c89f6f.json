@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "policy": "long-edge-2560-jpeg85-webp85-png-lossless-v1",
+  "file": "attachment/海南驿站/DSC07247.jpg",
+  "source": "attachment/海南驿站/DSC07247.jpg",
+  "original": "_originals/attachment/海南驿站/DSC07247.6d9b11a53b51f659.jpg",
+  "originalHash": "6d9b11a53b51f6597ba2a0f294b9aeb41a95a5081f8903d1900f2ff3d80fa59d",
+  "outputHash": "3488f19cf7db7cd77184dfa43762b8549bd68bd7c181d7baacd0e506247756b6",
+  "before": 4718592,
+  "after": 504497
+}

@@ -40,10 +40,7 @@ const blogCollection = defineCollection({
     // 作者：字符串（单作者）或数组（多作者）；不写默认回退 "zhenliu"（借鉴 Herschel）
     author: z.union([z.string(), z.array(z.string())]).optional(),
     // 更新日期（可选）：不写则由构建自动识别文件最后修改日期，显示为（upd YYMMDD）（借鉴 Herschel）
-    update: z
-      .union([z.date(), z.string()])
-      .optional()
-      .transform((d) => (d instanceof Date ? d.toISOString().slice(0, 10) : d)),
+    update: optionalDate,
     // 兼容带引号字符串（"2025-02-16"）与无引号 YAML 日期（2025-02-16 → Date 对象），
     // 统一转换为 "YYYY-MM-DD" 字符串输出
     date: optionalDate,
