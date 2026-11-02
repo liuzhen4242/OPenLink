@@ -46,3 +46,9 @@ src/content/.obsidian/plugins/local-image-library/data.json
 # Local state and original archives: never commit.
 .env.*
 !.env.example
+
+# Syncthing 冲突副本 / 版本历史 / 本地图片缓存
+*.sync-conflict-*
+.syncthing.*
+**/.stversions/
+.image-library/

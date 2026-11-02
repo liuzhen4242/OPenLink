@@ -50,3 +50,9 @@
 *~
 *.*.sw[a-p]
 (?d)Icon
+
+# Obsidian workspace 状态与本地缓存（治本规则）
+.sync-conflict-*
+.image-library/
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
