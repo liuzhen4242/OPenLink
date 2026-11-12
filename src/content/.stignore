@@ -56,7 +56,7 @@
 (?d)*|*
 
 # --- Obsidian sync cleanup ---
-.sync-conflict-*
+*.sync-conflict-*
 .obsidian/workspace.json
 .obsidian/workspace-mobile.json
 
