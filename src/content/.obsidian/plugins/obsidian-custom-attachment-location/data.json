@@ -1,3 +1,4 @@
 {
-  "attachmentFolderPath": "attachment/{{noteFileName}}"
+  "attachmentFolderPath": "attachment/{{noteFileName}}",
+  "shouldFollowObsidianAttachmentLocation": false
 }

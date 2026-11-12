@@ -102,8 +102,18 @@ async function processImageSet(imagesSrc, imagesDest, label) {
       if (existsSync(destPath) && statSync(destPath).mtimeMs >= srcMtime) {
         passthroughCount++; // already up to date
       } else {
-        cpSync(srcPath, destPath);
-        passthroughCount++;
+        try {
+          cpSync(srcPath, destPath);
+          passthroughCount++;
+        } catch (err) {
+          // Windows may temporarily lock a GIF/video that is open in a previewer.
+          // One locked passthrough asset must not prevent every later article
+          // (and its gallery images) from being synchronized.
+          console.warn(
+            `[sync-project-images] could not update passthrough ${file.name}; keeping the existing output and continuing:`,
+            err.message
+          );
+        }
       }
       continue;
     }

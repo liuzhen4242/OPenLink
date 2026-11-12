@@ -12,7 +12,10 @@
     "images:check": "node scripts/image-library.cjs",
     "images:prepare": "node scripts/image-library.cjs --apply",
     "test:images": "node --test scripts/image-library.test.cjs",
-    "build:gallery-preview": "node scripts/build-gallery-preview.mjs"
+    "attachments:add": "node scripts/attachments.mjs add",
+    "attachments:check": "node scripts/attachments.mjs check",
+    "attachments:fix": "node scripts/attachments.mjs fix",
+    "test:attachments": "node --test scripts/attachments.test.mjs"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.20",

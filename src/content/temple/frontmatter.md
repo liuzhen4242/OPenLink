@@ -13,3 +13,8 @@ status: "public"        # 可选 private hidden draft
 # coverImage: ../attachment/{{noteFileName}}/封面图.png # 可拖入 Markdown 图片，保存时自动转为路径
 # coverMedia: ../attachment/{{noteFileName}}/项目概念动画.mp4 # 可拖入 Markdown 视频，保存时自动转为路径
 ---
+
+<!--
+本文件仅作为 frontmatter 字段参考和手动备用模板。
+新文章由 OpenLink Frontmatter Sync 创建并维护；因此这里的标题和日期保持为空是正常的。
+-->

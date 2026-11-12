@@ -1,12 +1,29 @@
-const { Notice, Plugin, TFile } = require("obsidian");
+const { Modal, Notice, Plugin, Setting, TFile, normalizePath } = require("obsidian");
 
 const ARTICLE_FOLDERS = ["blog/", "projects/"];
+const NEW_ARTICLE_TARGETS = [
+  { id: "public-blog", name: "New public blog article", folder: "blog/public", status: "public" },
+  { id: "private-blog", name: "New private blog article", folder: "blog/private", status: "private" },
+  { id: "software-blog", name: "New software blog article", folder: "blog/softDevelop", status: "public" },
+  { id: "project", name: "New project article", folder: "projects" },
+];
+
 function isArticle(file) {
   return (
     file instanceof TFile &&
     file.extension === "md" &&
     ARTICLE_FOLDERS.some((folder) => file.path.startsWith(folder))
   );
+}
+
+function isBlogArticle(file) {
+  return file.path.startsWith("blog/");
+}
+
+function defaultStatusForPath(path) {
+  if (path.startsWith("blog/private/")) return "private";
+  if (path.startsWith("blog/draft/")) return "draft";
+  return "public";
 }
 
 function isEnglishName(name) {
@@ -28,6 +45,65 @@ function relativeVaultPath(fromDirectory, targetPath) {
     target.shift();
   }
   return [...from.map(() => ".."), ...target].join("/");
+}
+
+class NewArticleModal extends Modal {
+  constructor(app, target, onSubmit) {
+    super(app);
+    this.target = target;
+    this.onSubmit = onSubmit;
+    this.value = "";
+  }
+
+  onOpen() {
+    this.titleEl.setText(this.target.name);
+    this.contentEl.createEl("p", {
+      text: `The note will be created in ${this.target.folder}/.`,
+      cls: "setting-item-description",
+    });
+
+    let textComponent;
+    new Setting(this.contentEl)
+      .setName("Article file name")
+      .setDesc("The file name is also used as the automatic Chinese or English title.")
+      .addText((text) => {
+        textComponent = text;
+        text.setPlaceholder("Article title").onChange((value) => {
+          this.value = value;
+        });
+      });
+
+    new Setting(this.contentEl)
+      .addButton((button) =>
+        button.setButtonText("Create").setCta().onClick(() => this.submit())
+      )
+      .addButton((button) => button.setButtonText("Cancel").onClick(() => this.close()));
+
+    this.scope.register([], "Enter", (event) => {
+      event.preventDefault();
+      this.submit();
+    });
+    window.setTimeout(() => textComponent?.inputEl.focus(), 0);
+  }
+
+  async submit() {
+    const value = this.value.trim().replace(/\.md$/i, "");
+    if (!value) {
+      new Notice("OpenLink: enter an article file name.");
+      return;
+    }
+    if (value === "." || value === ".." || /[\\/:*?"<>|]/u.test(value)) {
+      new Notice("OpenLink: the file name contains an invalid character.");
+      return;
+    }
+
+    this.close();
+    await this.onSubmit(value);
+  }
+
+  onClose() {
+    this.contentEl.empty();
+  }
 }
 
 class OpenLinkFrontmatterSync extends Plugin {
@@ -65,6 +141,39 @@ class OpenLinkFrontmatterSync extends Plugin {
         new Notice(`OpenLink: synced ${articles.length} article frontmatters.`);
       },
     });
+
+    for (const target of NEW_ARTICLE_TARGETS) {
+      this.addCommand({
+        id: `new-${target.id}-article`,
+        name: target.name,
+        callback: () => {
+          new NewArticleModal(this.app, target, (fileName) =>
+            this.createArticle(target, fileName)
+          ).open();
+        },
+      });
+    }
+  }
+
+  async createArticle(target, fileName) {
+    const path = normalizePath(`${target.folder}/${fileName}.md`);
+    if (this.app.vault.getAbstractFileByPath(path)) {
+      new Notice(`OpenLink: ${path} already exists.`);
+      return;
+    }
+
+    if (!this.app.vault.getAbstractFileByPath(target.folder)) {
+      await this.app.vault.createFolder(target.folder);
+    }
+
+    const file = await this.app.vault.create(path, "");
+    await this.sync(file, {
+      created: true,
+      force: true,
+      defaultStatus: target.status,
+    });
+    await this.app.workspace.getLeaf(false).openFile(file);
+    new Notice(`OpenLink: created ${path}.`);
   }
 
   schedule(file, options, delay) {
@@ -115,26 +224,6 @@ class OpenLinkFrontmatterSync extends Plugin {
           }
         }
 
-        if (!frontmatter.date) {
-          frontmatter.date = creationDate;
-          changed = true;
-        }
-
-        if (!frontmatter.author) {
-          frontmatter.author = "zhenliu";
-          changed = true;
-        }
-
-        if (!Array.isArray(frontmatter.category) || frontmatter.category.length === 0) {
-          frontmatter.category = ["未分类"];
-          changed = true;
-        }
-
-        if (!frontmatter.status) {
-          frontmatter.status = "public";
-          changed = true;
-        }
-
         if (english) {
           if (!frontmatter.titleEn || frontmatter.titleEn === oldTitle) {
             frontmatter.titleEn = title;
@@ -149,10 +238,39 @@ class OpenLinkFrontmatterSync extends Plugin {
             frontmatter.title = title;
             changed = true;
           }
+          if (options.created && !("titleEn" in frontmatter)) {
+            frontmatter.titleEn = "";
+            changed = true;
+          }
           if (frontmatter.titleEn === oldTitle) {
             delete frontmatter.titleEn;
             changed = true;
           }
+        }
+
+        if (!frontmatter.date) {
+          frontmatter.date = creationDate;
+          changed = true;
+        }
+
+        if (options.created && !("description" in frontmatter)) {
+          frontmatter.description = "";
+          changed = true;
+        }
+
+        if (isBlogArticle(file) && !frontmatter.author) {
+          frontmatter.author = ["zhenliu"];
+          changed = true;
+        }
+
+        if (!Array.isArray(frontmatter.category) || frontmatter.category.length === 0) {
+          frontmatter.category = ["未分类"];
+          changed = true;
+        }
+
+        if (isBlogArticle(file) && !frontmatter.status) {
+          frontmatter.status = options.defaultStatus || defaultStatusForPath(file.path);
+          changed = true;
         }
 
         if (options.created || options.force || frontmatter.update !== today) {

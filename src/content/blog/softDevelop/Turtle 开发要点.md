@@ -2,7 +2,11 @@
 title: Turtle 开发要点
 titleEn: Turtle Plugin Development Guide
 date: 2026-09-22
+<<<<<<<< HEAD:src/content/blog/public/Turtle 开发要点.md
 update: 2026-11-03
+========
+update: 2026-11-11
+>>>>>>>> 4e63158 (chore: 同步 Windows 端内容——空置房研究新文章与附件归位、附件入库脚本、frontmatter 刷新):src/content/blog/softDevelop/Turtle 开发要点.md
 description: Turtle Rhino 8 插件开发：openLink工作室的完全工作流，插件骨架、命令与 Python 脚本的路径机制、Grasshopper 工具集（视觉合并方案）、ghuser 集成与版本校验、资源归类原则与文件添加规范、常用工具脚本（材质/立面/script）。
 author:
   - zhenliu
