@@ -9,7 +9,7 @@ category:
   - soft
   - affinity
 status: public
-update: 2026-11-12
+update: 2026-11-13
 ---
 
 # Affinity 常用功能速查
