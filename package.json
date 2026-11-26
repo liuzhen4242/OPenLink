@@ -15,7 +15,8 @@
     "attachments:add": "node scripts/attachments.mjs add",
     "attachments:check": "node scripts/attachments.mjs check",
     "attachments:fix": "node scripts/attachments.mjs fix",
-    "test:attachments": "node --test scripts/attachments.test.mjs"
+    "test:attachments": "node --test scripts/attachments.test.mjs",
+    "build:bilibili-preview": "esbuild plugins/bilibili-preview/main.cjs --bundle --platform=node --format=cjs --external:obsidian --external:@codemirror/* --outfile=src/content/.obsidian/plugins/openlink-bilibili-preview/main.js"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.20",

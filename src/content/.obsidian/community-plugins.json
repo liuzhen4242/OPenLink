@@ -3,5 +3,6 @@
   "templater-obsidian",
   "openlink-frontmatter-sync",
   "local-image-library",
-  "gallery-preview"
+  "gallery-preview",
+  "openlink-bilibili-preview"
 ]

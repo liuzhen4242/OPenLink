@@ -1,0 +1,11 @@
+p.openlink-bilibili-source {
+  display: none;
+}
+
+.openlink-bilibili-player {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  margin: 0.5rem 0 1.25rem;
+}

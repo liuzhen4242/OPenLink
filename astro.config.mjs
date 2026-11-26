@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 import { unified } from '@astrojs/markdown-remark';
 import tailwindcss from '@tailwindcss/vite';
 import { remarkGalleryPlugin, remarkObsidianImages } from './scripts/remark-obsidian-media.mjs';
+import { remarkBilibiliVideo } from './scripts/remark-bilibili-video.mjs';
 import { remarkCurlyNotes } from './scripts/remark-curly-notes.mjs';
 import { devSourceMediaFallbackPlugin } from './scripts/vite-dev-media.mjs';
 
@@ -109,6 +110,8 @@ export default defineConfig({
   markdown: {
     processor: unified({
       remarkPlugins: [
+        // Resolve video paragraphs while their source positions are intact.
+        remarkBilibiliVideo,
         remarkGalleryPlugin,
         remarkObsidianImages,
         remarkCurlyNotes,

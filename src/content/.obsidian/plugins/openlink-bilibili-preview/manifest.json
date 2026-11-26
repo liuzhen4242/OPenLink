@@ -1,0 +1,9 @@
+{
+  "id": "openlink-bilibili-preview",
+  "name": "OpenLink Bilibili Preview",
+  "version": "1.0.0",
+  "minAppVersion": "1.5.0",
+  "description": "Preview ordinary Bilibili video links in Reading view and Live Preview.",
+  "author": "OpenLink",
+  "isDesktopOnly": false
+}
